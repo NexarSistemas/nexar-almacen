@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Ticket #{{ venta.numero_ticket }}</title>
+<style>
+@media print { body { margin: 0; } .no-print { display: none; } }
+body { font-family: 'Courier New', monospace; font-size: 12px; max-width: 380px; margin: 20px auto; color: #000; }
+.header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 8px; }
+.header h2 { font-size: 18px; margin: 0 0 4px; }
+.header p { margin: 1px 0; font-size: 11px; }
+.info-row { display: flex; justify-content: space-between; margin: 2px 0; font-size: 11px; }
+.items { border-top: 1px dashed #000; border-bottom: 1px dashed #000; margin: 8px 0; padding: 4px 0; }
+.item { margin: 3px 0; }
+.item .desc { font-weight: bold; }
+.item .detail { display: flex; justify-content: space-between; font-size: 11px; color: #444; }
+.totals { margin-top: 8px; }
+.total-row { display: flex; justify-content: space-between; margin: 2px 0; }
+.total-final { font-size: 16px; font-weight: bold; border-top: 2px solid #000; padding-top: 4px; margin-top: 4px; }
+.footer { text-align: center; margin-top: 12px; font-size: 10px; color: #666; }
+.btn-print { display: block; margin: 20px auto; padding: 10px 24px; background: #2e7d32; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h2>{{ cfg.get('nombre_negocio', 'ALMACÉN') }}</h2>
+  {% if cfg.get('direccion') %}<p>{{ cfg.direccion }}</p>{% endif %}
+  {% if cfg.get('telefono') %}<p>Tel: {{ cfg.telefono }}</p>{% endif %}
+  <p>CUIT: {{ cfg.get('cuit', '—') }}</p>
+</div>
+
+<div class="info-row"><span>Ticket N°:</span><strong>{{ venta.numero_ticket }}</strong></div>
+<div class="info-row"><span>Fecha:</span><span>{{ venta.fecha }} {{ venta.hora }}</span></div>
+<div class="info-row"><span>Cliente:</span><span>{{ venta.cliente_nombre }}</span></div>
+<div class="info-row"><span>Medio pago:</span><span>{{ venta.medio_pago }}</span></div>
+{% if venta.vendedor %}<div class="info-row"><span>Vendedor:</span><span>{{ venta.vendedor }}</span></div>{% endif %}
+
+<div class="items">
+{% for item in detalle %}
+<div class="item">
+  <div class="desc">{{ item.descripcion }}</div>
+  <div class="detail">
+    <span>{{ item.cantidad }} {{ item.unidad }} x ${{ "%.2f"|format(item.precio_unitario) }}{% if item.descuento > 0 %} (-{{ "%.0f"|format(item.descuento*100) }}%){% endif %}</span>
+    <span>${{ "%.2f"|format(item.subtotal) }}</span>
+  </div>
+</div>
+{% endfor %}
+</div>
+
+<div class="totals">
+  <div class="total-row"><span>Subtotal:</span><span>${{ "%.2f"|format(venta.subtotal) }}</span></div>
+  {% if venta.descuento_adicional > 0 %}
+  <div class="total-row"><span>Descuento:</span><span>-{{ "%.0f"|format(venta.descuento_adicional*100) }}%</span></div>
+  {% endif %}
+  <div class="total-row total-final"><span>TOTAL:</span><span>${{ "%.2f"|format(venta.total) }}</span></div>
+</div>
+
+<div class="footer">
+  ¡Gracias por su compra!<br>
+  {{ cfg.get('nombre_negocio','') }}
+</div>
+
+<button class="btn-print no-print" onclick="window.print()">🖨️ Imprimir</button>
+<a href="/historial" class="no-print" style="display:block;text-align:center;margin-top:8px;color:#1565c0">← Volver al historial</a>
+</body>
+</html>

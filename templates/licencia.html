@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+{% block title %}Licencia{% endblock %}
+{% block page_title %}<i class="fas fa-key me-2" style="color:#f9a825"></i>Licencia del Sistema{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-7">
+    <!-- STATUS CARD -->
+    <div class="table-card p-4 mb-3">
+      {% if not status.demo %}
+      <div class="text-center mb-4">
+        <div style="font-size:3.5rem">✅</div>
+        <h4 style="color:#2e7d32;font-weight:700">LICENCIA COMPLETA ACTIVA</h4>
+        <p class="text-muted mb-0">Sistema completamente desbloqueado. ¡Gracias por tu compra!</p>
+      </div>
+      {% elif status.vencido %}
+      <div class="text-center mb-4">
+        <div style="font-size:3.5rem">🔴</div>
+        <h4 style="color:#c62828;font-weight:700">DEMO VENCIDA</h4>
+        <p class="text-muted mb-0">Tu período de prueba de 30 días ha finalizado. Activá la licencia para continuar.</p>
+      </div>
+      {% elif status.aviso_proximo %}
+      <div class="text-center mb-4">
+        <div style="font-size:3.5rem">⚠️</div>
+        <h4 style="color:#e65100;font-weight:700">DEMO — {{ status.dias_restantes }} días restantes</h4>
+        <p class="text-muted mb-0">La licencia está próxima a vencer. Adquirí el código de activación permanente.</p>
+      </div>
+      {% else %}
+      <div class="text-center mb-4">
+        <div style="font-size:3.5rem">⏱️</div>
+        <h4 style="color:#1565c0;font-weight:700">MODO DEMO — {{ status.dias_restantes }} días restantes</h4>
+        <p class="text-muted mb-0">Todas las funciones disponibles durante el período de prueba.</p>
+      </div>
+      {% endif %}
+
+      <!-- DEMO TIME BAR -->
+      {% if status.demo %}
+      <div style="background:#f5f5f5;border-radius:8px;padding:16px;margin-bottom:20px">
+        <div class="d-flex justify-content-between mb-2">
+          <span class="fw-bold" style="font-size:.88rem"><i class="fas fa-clock me-1"></i>Período de demo</span>
+          <span class="fw-bold {% if status.vencido %}text-danger{% elif status.aviso_proximo %}text-warning{% else %}text-success{% endif %}">
+            {{ status.dias_usados }} / {{ status.dias_demo }} días
+          </span>
+        </div>
+        <div class="progress" style="height:12px;border-radius:6px">
+          <div class="progress-bar {% if status.vencido %}bg-danger{% elif status.aviso_proximo %}bg-warning{% else %}bg-success{% endif %}"
+            style="width:{{ status.ventas_pct }}%"></div>
+        </div>
+        <div class="d-flex justify-content-between mt-1">
+          <small class="text-muted">Instalado: {{ status.install_date }}</small>
+          <small class="{% if status.vencido %}text-danger{% elif status.aviso_proximo %}text-warning{% else %}text-muted{% endif %}">
+            {% if status.vencido %}Vencida{% else %}{{ status.dias_restantes }} días restantes{% endif %}
+          </small>
+        </div>
+      </div>
+
+      <!-- FEATURES IN DEMO -->
+      <div class="row g-2 mb-4">
+        {% set features = [
+          ('Ventas ilimitadas','✅',True),
+          ('Productos ilimitados','✅',True),
+          ('Todos los módulos','✅',True),
+          ('Respaldos automáticos','✅',True),
+          ('Importar desde OpenFoodFacts','✅',True),
+          ('Soporte por WhatsApp','❌',False),
+          ('Actualizaciones futuras','❌',False),
+          ('Sin límite de tiempo','❌',False),
+        ] %}
+        {% for feat, icon, ok in features %}
+        <div class="col-6">
+          <div style="background:{% if ok %}#e8f5e9{% else %}#fafafa{% endif %};border-radius:6px;padding:8px 12px;font-size:.83rem;display:flex;align-items:center;gap:6px">
+            <span>{{ icon }}</span>
+            <span style="color:{% if ok %}#2e7d32{% else %}#999{% endif %}">{{ feat }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- MACHINE ID -->
+      <div style="background:#1a2e1a;border-radius:8px;padding:14px 16px;color:#fff">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <small style="color:#81c784;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em">
+              ID de Instalación
+            </small>
+            <div style="font-family:monospace;font-size:1.15rem;letter-spacing:.2em;font-weight:700;color:#a5d6a7">
+              {{ machine_id[:4] }}-{{ machine_id[4:8] }}-{{ machine_id[8:12] }}-{{ machine_id[12:16] }}
+            </div>
+          </div>
+          <button class="btn btn-sm" style="background:#3a7d44;color:#fff;border:none"
+            onclick="navigator.clipboard.writeText('{{ machine_id }}').then(()=>this.innerHTML='<i class=\'fas fa-check\'></i> Copiado')">
+            <i class="fas fa-copy"></i> Copiar
+          </button>
+        </div>
+        <small style="color:#666;font-size:.75rem;margin-top:6px;display:block">
+          Compartí este ID con el desarrollador para obtener tu código de activación único.
+        </small>
+      </div>
+    </div>
+
+    <!-- ACTIVATION FORM -->
+    {% if status.demo and is_admin %}
+    <div class="table-card p-4">
+      <div class="section-title"><i class="fas fa-unlock me-2"></i>Activar Licencia Completa</div>
+      <p class="text-muted" style="font-size:.88rem">
+        Una vez que realices el pago, recibirás un <strong>código de activación</strong> de 16 caracteres.
+        Ingresalo aquí para desbloquear el sistema de forma permanente.
+      </p>
+      <form method="post" action="/licencia/activar">
+        <div class="mb-3">
+          <label class="form-label fw-bold">Código de Activación</label>
+          <input type="text" name="codigo" class="form-control"
+            placeholder="XXXX-XXXX-XXXX-XXXX"
+            style="font-family:monospace;font-size:1.1rem;letter-spacing:.1em;text-transform:uppercase"
+            maxlength="19" required
+            oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9\-]/g,'')">
+          <small class="text-muted">Formato: XXXX-XXXX-XXXX-XXXX (letras y números)</small>
+        </div>
+        <button type="submit" class="btn btn-success px-5">
+          <i class="fas fa-key me-2"></i>Activar Sistema Permanentemente
+        </button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    <!-- PURCHASE INFO -->
+    <div class="table-card p-4 mb-3">
+      <div class="section-title"><i class="fas fa-shopping-bag me-2" style="color:#2e7d32"></i>Licencia Permanente</div>
+      <div style="background:linear-gradient(135deg,#1a2e1a,#2e7d32);border-radius:10px;padding:20px;color:#fff;margin-bottom:16px">
+        <div style="font-size:1.6rem;font-weight:800;margin-bottom:4px">Licencia Completa</div>
+        <div style="color:#a5d6a7;font-size:.9rem;margin-bottom:16px">Pago único — Sin suscripciones</div>
+        <ul style="list-style:none;padding:0;margin:0;font-size:.88rem">
+          <li class="mb-2">✅ Sin límite de tiempo</li>
+          <li class="mb-2">✅ Ventas y productos ilimitados</li>
+          <li class="mb-2">✅ Todos los módulos habilitados</li>
+          <li class="mb-2">✅ Soporte por WhatsApp</li>
+          <li>✅ Actualizaciones incluidas</li>
+        </ul>
+      </div>
+      <div class="mb-3">
+        <div class="fw-bold mb-2" style="font-size:.9rem">Pasos para activar:</div>
+        {% for n, txt in [(1,'Copiá tu <strong>ID de Instalación</strong> del panel.'),(2,'Contactá al desarrollador y realizá el pago.'),(3,'Recibís tu código de activación único de 16 caracteres.'),(4,'Ingresalo en el formulario y el sistema queda activado permanentemente.')] %}
+        <div class="d-flex mb-2 gap-2 align-items-start">
+          <span class="badge" style="background:#3a7d44;min-width:24px">{{ n }}</span>
+          <span style="font-size:.88rem">{{ txt }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- CONTACT -->
+    <div class="table-card p-4">
+      <div class="section-title"><i class="fas fa-phone me-2" style="color:#3a7d44"></i>Contacto</div>
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <i class="fab fa-whatsapp" style="color:#25d366;font-size:1.4rem"></i>
+        <div>
+          <div class="fw-bold" style="font-size:.85rem;color:#888">WhatsApp</div>
+          <a href="https://wa.me/5492645858874" target="_blank" style="color:#1a2e1a;text-decoration:none;font-weight:600">
+            +549 264 585-8874
+          </a>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <i class="fas fa-envelope" style="color:#e65100;font-size:1.2rem"></i>
+        <div>
+          <div class="fw-bold" style="font-size:.85rem;color:#888">Email</div>
+          <a href="mailto:rolojnb@outlook.com.ar" style="color:#1a2e1a;text-decoration:none;font-weight:600">
+            rolojnb@outlook.com.ar
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

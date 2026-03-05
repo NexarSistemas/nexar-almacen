@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% block title %}Actualización del Sistema{% endblock %}
+{% block page_title %}
+  <i class="fas fa-sync-alt me-2" style="color:#1565c0"></i>Actualización del Sistema
+{% endblock %}
+
+{% block content %}
+<style>
+.upd-card { background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.07); padding:24px; margin-bottom:18px; }
+.step-num { width:28px;height:28px;background:#3a7d44;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0; }
+.version-badge { background:#1a2e1a;color:#fff;border-radius:20px;padding:4px 16px;font-size:.9rem;font-weight:700;letter-spacing:.05em; }
+</style>
+
+<div class="row g-3">
+<div class="col-lg-7">
+
+  <!-- Versión actual -->
+  <div class="upd-card">
+    <div class="d-flex align-items-center gap-3 mb-3">
+      <i class="fas fa-box" style="font-size:1.5rem;color:#3a7d44"></i>
+      <div>
+        <div class="fw-bold" style="color:#1a2e1a">Versión instalada actualmente</div>
+        <span class="version-badge">v{{ app_version }}</span>
+      </div>
+    </div>
+    <div style="background:#e8f5e9;border-radius:8px;padding:12px 16px;font-size:.85rem;color:#2e7d32">
+      <i class="fas fa-check-circle me-1"></i>
+      La base de datos nunca se sobrescribe durante una actualización. Tus ventas, productos y configuración están siempre seguros.
+    </div>
+  </div>
+
+  <!-- Formulario de actualización -->
+  <div class="upd-card">
+    <h6 class="fw-bold mb-3" style="color:#1a2e1a">
+      <i class="fas fa-upload me-2 text-primary"></i>Aplicar actualización
+    </h6>
+
+    <form method="post" action="/actualizacion/aplicar"
+          enctype="multipart/form-data"
+          onsubmit="show_progress()">
+      <div class="mb-3">
+        <label class="form-label fw-bold" style="font-size:.9rem">
+          Archivo ZIP de la nueva versión <span class="text-danger">*</span>
+        </label>
+        <input type="file" name="archivo_zip" accept=".zip"
+               class="form-control" required
+               onchange="show_filename(this)">
+        <div id="fname" class="mt-1" style="font-size:.83rem;color:#3a7d44;display:none">
+          <i class="fas fa-file-archive me-1"></i><span id="fnametxt"></span>
+        </div>
+        <small class="text-muted">
+          El ZIP debe ser el portable oficial del sistema (AlmacenGestion_vX.X.X_Portable.zip)
+        </small>
+      </div>
+
+      <div class="alert alert-warning py-2 mb-3" style="font-size:.83rem">
+        <i class="fas fa-exclamation-triangle me-1"></i>
+        <strong>Importante:</strong> Después de aplicar la actualización, cerrar y volver a iniciar el sistema para que los cambios tomen efecto.
+      </div>
+
+      <button type="submit" class="btn btn-primary px-4" id="btnUpdate">
+        <i class="fas fa-upload me-2"></i>Aplicar actualización
+      </button>
+      <span id="prog" style="display:none;margin-left:12px;font-size:.9rem;color:#888">
+        <i class="fas fa-spinner fa-spin me-1"></i>Aplicando... no cierres esta ventana.
+      </span>
+    </form>
+  </div>
+
+</div><!-- col-lg-7 -->
+
+<div class="col-lg-5">
+
+  <!-- Pasos -->
+  <div class="upd-card">
+    <h6 class="fw-bold mb-3" style="color:#1a2e1a">
+      <i class="fas fa-list-ol me-2 text-success"></i>Cómo actualizar
+    </h6>
+    {% set steps = [
+      (1, 'Obtené el ZIP', 'Descargá el nuevo AlmacenGestion_vX.X.X_Portable.zip del desarrollador.'),
+      (2, 'Subí el archivo', 'Seleccioná el ZIP en el formulario de la izquierda y hacé clic en Aplicar.'),
+      (3, 'Esperá', 'El sistema extrae solo los archivos de código (.py y .html). La base de datos no se toca.'),
+      (4, 'Reiniciá', 'Cerrá el sistema con Ctrl+C o el botón Apagar y volvé a abrirlo con python iniciar.py.'),
+    ] %}
+    {% for n, titulo, desc in steps %}
+    <div class="d-flex gap-3 mb-3">
+      <div class="step-num">{{ n }}</div>
+      <div>
+        <div class="fw-bold" style="font-size:.88rem;color:#1a2e1a">{{ titulo }}</div>
+        <div style="font-size:.82rem;color:#666">{{ desc }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Qué actualiza / no actualiza -->
+  <div class="upd-card">
+    <h6 class="fw-bold mb-3" style="color:#1a2e1a">
+      <i class="fas fa-shield-alt me-2 text-success"></i>Qué se actualiza
+    </h6>
+    <table class="table table-sm" style="font-size:.82rem">
+      <tr><td><i class="fas fa-check text-success me-1"></i>Archivos .py (lógica)</td><td class="text-success">✅ Se actualiza</td></tr>
+      <tr><td><i class="fas fa-check text-success me-1"></i>Templates .html (interfaz)</td><td class="text-success">✅ Se actualiza</td></tr>
+      <tr><td><i class="fas fa-check text-success me-1"></i>Módulos y servicios</td><td class="text-success">✅ Se actualiza</td></tr>
+      <tr><td><i class="fas fa-times text-danger me-1"></i>almacen.db (tus datos)</td><td class="text-danger">🔒 NUNCA se toca</td></tr>
+      <tr><td><i class="fas fa-times text-danger me-1"></i>Ventas y productos</td><td class="text-danger">🔒 NUNCA se toca</td></tr>
+      <tr><td><i class="fas fa-times text-danger me-1"></i>Usuarios y licencia</td><td class="text-danger">🔒 NUNCA se toca</td></tr>
+    </table>
+  </div>
+
+  <!-- Contacto -->
+  <div class="upd-card" style="background:#1a2e1a;color:#fff">
+    <h6 class="fw-bold mb-2" style="color:#a5d6a7">
+      <i class="fas fa-download me-2"></i>Obtener actualizaciones
+    </h6>
+    <p style="font-size:.83rem;color:#bbb;margin-bottom:12px">
+      Contactá al desarrollador para recibir el ZIP de la nueva versión.
+    </p>
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <i class="fab fa-whatsapp" style="color:#25d366;font-size:1.2rem"></i>
+      <a href="https://wa.me/5492645858874" target="_blank"
+         style="color:#a5d6a7;font-size:.88rem">+549 264 585-8874</a>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <i class="fas fa-envelope" style="color:#e65100;font-size:1rem"></i>
+      <a href="mailto:rolojnb@outlook.com.ar"
+         style="color:#a5d6a7;font-size:.88rem">rolojnb@outlook.com.ar</a>
+    </div>
+  </div>
+
+</div>
+</div><!-- row -->
+
+<script>
+function show_progress() {
+  document.getElementById('prog').style.display = 'inline';
+  document.getElementById('btnUpdate').disabled = true;
+  document.getElementById('btnUpdate').innerHTML =
+    '<i class="fas fa-spinner fa-spin me-2"></i>Aplicando...';
+}
+function show_filename(input) {
+  if (input.files.length > 0) {
+    document.getElementById('fnametxt').textContent = input.files[0].name;
+    document.getElementById('fname').style.display = 'block';
+  }
+}
+</script>
+{% endblock %}

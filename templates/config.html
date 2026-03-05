@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}Configuración{% endblock %}
+{% block page_title %}<i class="fas fa-cog me-2" style="color:#666"></i>Configuración del Sistema{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="form-card">
+      <div class="section-title">Datos del Negocio</div>
+      <form method="post" action="/config">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-bold">Nombre del Almacén</label>
+            <input type="text" name="nombre_negocio" class="form-control" value="{{ cfg.get('nombre_negocio','') }}">
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold">Dirección</label>
+            <input type="text" name="direccion" class="form-control" value="{{ cfg.get('direccion','') }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">Teléfono</label>
+            <input type="text" name="telefono" class="form-control" value="{{ cfg.get('telefono','') }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">CUIT / DNI</label>
+            <input type="text" name="cuit" class="form-control" value="{{ cfg.get('cuit','') }}">
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold">Responsable Principal</label>
+            <input type="text" name="responsable" class="form-control" value="{{ cfg.get('responsable','') }}">
+          </div>
+
+          <div class="col-12"><hr><div class="section-title">Márgenes de Ganancia</div></div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">Margen Mínimo (%)</label>
+            <div class="input-group">
+              <input type="number" name="margen_minimo_pct" class="form-control"
+                value="{{ (cfg.get('margen_minimo','0.20')|float * 100)|round(0)|int }}"
+                min="0" max="100" step="1">
+              <span class="input-group-text">%</span>
+            </div>
+            <small class="text-danger">Por debajo de este margen → alerta roja</small>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">Margen Objetivo (%)</label>
+            <div class="input-group">
+              <input type="number" name="margen_objetivo_pct" class="form-control"
+                value="{{ (cfg.get('margen_objetivo','0.35')|float * 100)|round(0)|int }}"
+                min="0" max="100" step="1">
+              <span class="input-group-text">%</span>
+            </div>
+            <small class="text-success">Por encima → indicador verde</small>
+          </div>
+
+          <div class="col-12"><hr><div class="section-title">Días de Alerta por Vencimientos</div></div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">Anticipación alertas Proveedores</label>
+            <div class="input-group">
+              <input type="number" name="dias_alerta_proveedor" class="form-control"
+                value="{{ cfg.get('dias_alerta_proveedor','30') }}" min="1" max="365">
+              <span class="input-group-text">días</span>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">Anticipación alertas Clientes</label>
+            <div class="input-group">
+              <input type="number" name="dias_alerta_cliente" class="form-control"
+                value="{{ cfg.get('dias_alerta_cliente','15') }}" min="1" max="365">
+              <span class="input-group-text">días</span>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary px-4">
+              <i class="fas fa-save me-1"></i>Guardar Configuración
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <!-- CATEGORIES -->
+    <div class="form-card mb-3">
+      <div class="section-title">Categorías de Productos</div>
+      <div class="mb-3">
+        <form method="post" action="/config/categoria" class="d-flex gap-2">
+          <input type="text" name="nombre" class="form-control" placeholder="Nueva categoría..." required>
+          <button class="btn btn-primary px-3"><i class="fas fa-plus"></i></button>
+        </form>
+      </div>
+      <div style="max-height:280px;overflow-y:auto;">
+        {% for cat in categorias %}
+        <div class="d-flex align-items-center py-1 px-2 {% if loop.index%2==0 %}bg-light{% endif %}" style="border-radius:4px">
+          <i class="fas fa-tag me-2" style="color:#3a7d44;font-size:.8rem"></i>
+          <span style="font-size:.9rem" class="flex-grow-1">{{ cat }}</span>
+          <form method="post" action="/config/categoria/eliminar" class="d-inline"
+                onsubmit="return confirm('¿Eliminar categoría «{{ cat }}»?')">
+            <input type="hidden" name="nombre" value="{{ cat }}">
+            <button type="submit" class="btn p-0 px-1" style="background:none;border:none;color:#c62828;font-size:.75rem" title="Eliminar">
+              <i class="fas fa-times-circle"></i>
+            </button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- INFO -->
+    <div class="form-card">
+      <div class="section-title">Información del Sistema</div>
+      <table class="table table-sm table-borderless mb-0">
+        <tr><td class="text-muted">Versión:</td><td class="fw-bold">1.0 — 2025</td></tr>
+        <tr><td class="text-muted">Base de datos:</td><td>SQLite</td></tr>
+        <tr><td class="text-muted">Próx. ticket:</td><td><code>{{ cfg.get('siguiente_ticket','?') }}</code></td></tr>
+        <tr><td class="text-muted">Próx. código interno:</td><td><code>PRD-{{ "%04d"|format(cfg.get('siguiente_codigo','1')|int) }}</code></td></tr>
+        <tr>
+          <td class="text-muted">Lector barras:</td>
+          <td><span class="badge bg-success">Compatible — conectar escáner USB</span></td>
+        </tr>
+      </table>
+      <hr>
+      <div class="alert py-2 mb-0" style="background:#e8f5e9;font-size:.83rem">
+        <strong>💡 Tip lector de barras:</strong> Conectá tu pistola lectora USB. Al escanear en el
+        Punto de Venta o al cargar un producto, el código se ingresa automáticamente como si fuera teclado.
+        No requiere configuración adicional.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

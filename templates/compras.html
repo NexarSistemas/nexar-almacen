@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% block title %}Compras{% endblock %}
+{% block page_title %}<i class="fas fa-shopping-cart me-2" style="color:#e65100"></i>Registro de Compras{% endblock %}
+{% block topbar_actions %}
+<button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#compraModal">
+  <i class="fas fa-plus me-1"></i>Nueva Compra
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="table-card">
+  <div class="tc-header">
+    <h6>Compras registradas ({{ compras|length }})</h6>
+    <form class="ms-auto d-flex gap-2" method="get">
+      <input type="text" name="q" value="{{ search }}" class="form-control form-control-sm" placeholder="Buscar..." style="width:200px">
+      <button class="btn btn-sm btn-outline-secondary"><i class="fas fa-search"></i></button>
+    </form>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr><th>Fecha</th><th>Remito/Fact.</th><th>Proveedor</th><th>Producto</th>
+        <th>Cant.</th><th>Costo Unit.</th><th>Total</th><th>Obs.</th></tr>
+      </thead>
+      <tbody>
+      {% for c in compras %}
+        <tr>
+          <td>{{ c.fecha }}</td>
+          <td><code>{{ c.numero_remito or '—' }}</code></td>
+          <td>{{ c.proveedor_nombre }}</td>
+          <td>
+            <strong>{{ c.descripcion }}</strong>
+            <br><small class="text-muted"><code>{{ c.codigo_interno }}</code></small>
+          </td>
+          <td>{{ c.cantidad }}</td>
+          <td>{{ fmt_ars(c.costo_unitario) }}</td>
+          <td class="fw-bold">{{ fmt_ars(c.total) }}</td>
+          <td><small>{{ c.observaciones or '' }}</small></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8" class="empty-state"><i class="fas fa-shopping-cart"></i><br>Sin compras registradas</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- NUEVA COMPRA MODAL -->
+<div class="modal fade" id="compraModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#e65100;color:#fff">
+        <h6 class="modal-title"><i class="fas fa-shopping-cart me-2"></i>Registrar Compra / Ingreso de Mercadería</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="/compras/nueva">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-bold">Fecha <span class="text-danger">*</span></label>
+              <input type="date" name="fecha" class="form-control" required value="{{ today() }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">N° Remito / Factura</label>
+              <input type="text" name="numero_remito" class="form-control" placeholder="FAC-0001">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">Proveedor</label>
+              <select name="proveedor_id" class="form-select">
+                <option value="0">— Sin proveedor —</option>
+                {% for p in proveedores %}
+                <option value="{{ p.id }}">{{ p.nombre }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Producto <span class="text-danger">*</span></label>
+              <select name="producto_id" class="form-select" required>
+                <option value="">— Seleccionar producto —</option>
+                {% for p in productos %}
+                <option value="{{ p.id }}">{{ p.descripcion }} ({{ p.codigo_interno }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-bold">Cantidad <span class="text-danger">*</span></label>
+              <input type="number" name="cantidad" class="form-control" min="0.001" step="0.001" value="1" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-bold">Costo Unitario ($) <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" name="costo_unitario" class="form-control" min="0" step="0.01" required>
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Observaciones</label>
+              <input type="text" name="observaciones" class="form-control" placeholder="Nota opcional">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-warning">
+            <i class="fas fa-save me-1"></i>Registrar Compra y Actualizar Stock
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

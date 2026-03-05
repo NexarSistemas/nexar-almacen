@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Almacén{% endblock %} — Sistema de Gestión</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<style>
+:root{--sidebar-bg:#1a2e1a;--sidebar-hover:#2d4f2d;--sidebar-active:#3a7d44;--accent:#3a7d44;--accent-light:#e8f5e9;--danger:#c62828;--warning-color:#f57f17;}
+body{background:#f0f2f0;font-family:'Segoe UI',sans-serif;font-size:.92rem;margin:0;}
+#sidebar{width:230px;min-width:230px;background:var(--sidebar-bg);height:100vh;position:fixed;top:0;left:0;z-index:100;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;}
+#sidebar::-webkit-scrollbar{width:4px;}
+#sidebar::-webkit-scrollbar-thumb{background:#3a7d44;border-radius:2px;}
+#sidebar .logo{padding:16px 16px 12px;background:linear-gradient(135deg,#2d4f2d,#1a2e1a);border-bottom:2px solid #3a7d44;flex-shrink:0;}
+#sidebar .logo h5{color:#fff;margin:0;font-weight:700;font-size:.97rem;line-height:1.2;}
+#sidebar .logo small{color:#81c784;font-size:.74rem;}
+.nav-label{color:#81c784;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;padding:12px 16px 3px;flex-shrink:0;}
+#sidebar a.nav-link{color:#c8e6c9;padding:7px 16px;border-radius:6px;margin:1px 6px;font-size:.86rem;display:flex;align-items:center;gap:9px;transition:all .15s;text-decoration:none;flex-shrink:0;}
+#sidebar a.nav-link i{width:16px;text-align:center;font-size:.84rem;}
+#sidebar a.nav-link:hover{background:var(--sidebar-hover);color:#fff;}
+#sidebar a.nav-link.active{background:var(--sidebar-active);color:#fff;font-weight:600;}
+.badge-alert{margin-left:auto;background:#c62828;color:#fff;border-radius:10px;font-size:.68rem;padding:1px 6px;min-width:18px;text-align:center;}
+.sidebar-footer{margin-top:auto;padding:10px 14px;border-top:1px solid #2d4f2d;flex-shrink:0;}
+#main{margin-left:230px;min-height:100vh;display:flex;flex-direction:column;}
+.topbar{background:#fff;border-bottom:1px solid #ddd;padding:9px 22px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50;box-shadow:0 1px 4px rgba(0,0,0,.08);flex-shrink:0;}
+.topbar h4{margin:0;color:#1a2e1a;font-weight:700;font-size:1rem;white-space:nowrap;}
+.topbar .tb-actions{display:flex;align-items:center;gap:8px;margin-left:auto;}
+.topbar .meta{color:#888;font-size:.8rem;white-space:nowrap;}
+.demo-banner{background:linear-gradient(135deg,#fff8e1,#fff3cd);border-left:4px solid #f9a825;padding:10px 22px;display:flex;align-items:center;gap:10px;flex-shrink:0;font-size:.85rem;}
+.demo-banner.danger{background:linear-gradient(135deg,#ffebee,#fce4ec);border-color:#c62828;}
+.content{padding:22px;flex:1;}
+.kpi-card{background:#fff;border-radius:10px;padding:16px 18px;box-shadow:0 1px 6px rgba(0,0,0,.07);border-left:4px solid var(--accent);transition:transform .15s;}
+.kpi-card:hover{transform:translateY(-2px);}
+.kpi-card .kpi-val{font-size:1.65rem;font-weight:700;color:var(--accent);line-height:1.1;}
+.kpi-card .kpi-lbl{font-size:.76rem;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
+.kpi-card.red{border-color:var(--danger);} .kpi-card.red .kpi-val{color:var(--danger);}
+.kpi-card.orange{border-color:var(--warning-color);} .kpi-card.orange .kpi-val{color:var(--warning-color);}
+.kpi-card.blue{border-color:#1565c0;} .kpi-card.blue .kpi-val{color:#1565c0;}
+.kpi-card.purple{border-color:#6a1b9a;} .kpi-card.purple .kpi-val{color:#6a1b9a;}
+.table-card{background:#fff;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.07);overflow:hidden;}
+.table-card .tc-header{padding:14px 18px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;font-weight:700;color:#1a2e1a;font-size:.9rem;}
+.section-title{font-weight:700;color:#1a2e1a;font-size:.9rem;margin-bottom:12px;display:flex;align-items:center;gap:7px;}
+.form-card{background:#fff;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.07);padding:22px 24px;margin-bottom:16px;}
+.flash-success{background:#e8f5e9;color:#1b5e20;border-radius:8px;padding:10px 16px;border-left:4px solid #3a7d44;margin-bottom:6px;}
+.flash-danger{background:#ffebee;color:#b71c1c;border-radius:8px;padding:10px 16px;border-left:4px solid #c62828;margin-bottom:6px;}
+.flash-warning{background:#fff8e1;color:#f57f17;border-radius:8px;padding:10px 16px;border-left:4px solid #f9a825;margin-bottom:6px;}
+.flash-info{background:#e3f2fd;color:#0d47a1;border-radius:8px;padding:10px 16px;border-left:4px solid #1565c0;margin-bottom:6px;}
+.badge-stock-normal{background:#e8f5e9;color:#2e7d32;border-radius:20px;padding:2px 10px;font-size:.75rem;font-weight:600;}
+.badge-stock-critico{background:#ffebee;color:#c62828;border-radius:20px;padding:2px 10px;font-size:.75rem;font-weight:600;}
+.badge-stock-bajo{background:#fff3e0;color:#e65100;border-radius:20px;padding:2px 10px;font-size:.75rem;font-weight:600;}
+.badge-stock-sin{background:#f5f5f5;color:#424242;border-radius:20px;padding:2px 10px;font-size:.75rem;font-weight:600;}
+.badge-stock-exceso{background:#e3f2fd;color:#1565c0;border-radius:20px;padding:2px 10px;font-size:.75rem;font-weight:600;}
+.btn-success{background:#3a7d44 !important;border-color:#3a7d44 !important;}
+.btn-outline-success{color:#3a7d44 !important;border-color:#3a7d44 !important;}
+.btn-outline-success:hover{background:#3a7d44 !important;color:#fff !important;}
+.text-success{color:#3a7d44 !important;}
+.table th{font-size:.8rem;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
+.table td{vertical-align:middle;}
+.table-hover tbody tr:hover{background:#f1f8f1;}
+input:focus,select:focus,textarea:focus{border-color:#3a7d44 !important;box-shadow:0 0 0 .2rem rgba(58,125,68,.15) !important;}
+{% block extra_head %}{% endblock %}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div class="logo">
+    <h5><i class="fas fa-store me-2" style="color:#81c784"></i>{{ cfg_nombre or 'Mi Almacén' }}</h5>
+    <small>Sistema de Gestión v{{ app_version }}</small>
+  </div>
+
+  <div class="nav-label">Principal</div>
+  <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">
+    <i class="fas fa-tachometer-alt"></i> Dashboard
+    {% if alertas_sidebar and (alertas_sidebar.sin_stock + alertas_sidebar.critico) > 0 %}
+      <span class="badge-alert">{{ alertas_sidebar.sin_stock + alertas_sidebar.critico }}</span>
+    {% endif %}
+  </a>
+
+  <div class="nav-label">Inventario</div>
+  <a href="/productos" class="nav-link {% if '/productos' in request.path and '/importar' not in request.path %}active{% endif %}">
+    <i class="fas fa-boxes"></i> Catálogo
+  </a>
+  <a href="/stock" class="nav-link {% if '/stock' in request.path %}active{% endif %}">
+    <i class="fas fa-warehouse"></i> Stock
+    {% if alertas_sidebar and alertas_sidebar.critico > 0 %}
+      <span class="badge-alert">{{ alertas_sidebar.critico }}</span>
+    {% endif %}
+  </a>
+
+  <div class="nav-label">Ventas</div>
+  <a href="/punto_venta" class="nav-link {% if '/punto_venta' in request.path %}active{% endif %}">
+    <i class="fas fa-shopping-cart"></i> Punto de Venta
+  </a>
+  <a href="/historial" class="nav-link {% if '/historial' in request.path %}active{% endif %}">
+    <i class="fas fa-receipt"></i> Historial
+  </a>
+  <a href="/compras" class="nav-link {% if '/compras' in request.path %}active{% endif %}">
+    <i class="fas fa-truck"></i> Compras
+  </a>
+
+  <div class="nav-label">Finanzas</div>
+  <a href="/caja" class="nav-link {% if '/caja' in request.path %}active{% endif %}">
+    <i class="fas fa-cash-register"></i> Caja
+  </a>
+  <a href="/gastos" class="nav-link {% if '/gastos' in request.path %}active{% endif %}">
+    <i class="fas fa-file-invoice-dollar"></i> Gastos
+  </a>
+
+  <div class="nav-label">Cuentas Corrientes</div>
+  <a href="/cc_clientes" class="nav-link {% if '/cc_clientes' in request.path %}active{% endif %}">
+    <i class="fas fa-users"></i> CC Clientes
+  </a>
+  <a href="/cc_proveedores" class="nav-link {% if '/cc_proveedores' in request.path %}active{% endif %}">
+    <i class="fas fa-industry"></i> CC Proveedores
+    {% if alertas_sidebar and alertas_sidebar.facturas_por_vencer > 0 %}
+      <span class="badge-alert">{{ alertas_sidebar.facturas_por_vencer }}</span>
+    {% endif %}
+  </a>
+
+  <div class="nav-label">Informes</div>
+  <a href="/estadisticas" class="nav-link {% if '/estadisticas' in request.path %}active{% endif %}">
+    <i class="fas fa-chart-bar"></i> Estadísticas
+  </a>
+  <a href="/analisis" class="nav-link {% if '/analisis' in request.path %}active{% endif %}">
+    <i class="fas fa-search-dollar"></i> Análisis
+  </a>
+
+  <div class="nav-label">Sistema</div>
+  <a href="/config" class="nav-link {% if request.path == '/config' %}active{% endif %}">
+    <i class="fas fa-cog"></i> Configuración
+  </a>
+  {% if is_admin %}
+  <a href="/usuarios" class="nav-link {% if '/usuarios' in request.path %}active{% endif %}">
+    <i class="fas fa-users-cog"></i> Usuarios
+  </a>
+  <a href="/respaldo" class="nav-link {% if '/respaldo' in request.path %}active{% endif %}">
+    <i class="fas fa-database"></i> Respaldos
+  </a>
+  <a href="/licencia" class="nav-link {% if '/licencia' in request.path %}active{% endif %}">
+    <i class="fas fa-key"></i> Licencia
+    {% if demo_status and demo_status.aviso_proximo %}
+      <span class="badge-alert" style="background:#f9a825;color:#1a2e1a">!</span>
+    {% endif %}
+  </a>
+  {% endif %}
+  <a href="/productos/importar" class="nav-link {% if '/importar' in request.path %}active{% endif %}">
+    <i class="fas fa-cloud-download-alt"></i> Importar Prods.
+  </a>
+  <a href="/blacklist" class="nav-link {% if '/blacklist' in request.path %}active{% endif %}">
+    <i class="fas fa-ban"></i> Lista Negra
+  </a>
+  <a href="/actualizacion" class="nav-link {% if '/actualizacion' in request.path %}active{% endif %}">
+    <i class="fas fa-sync-alt"></i> Actualización
+  </a>
+  <a href="/acerca" class="nav-link {% if '/acerca' in request.path or '/changelog' in request.path %}active{% endif %}">
+    <i class="fas fa-info-circle"></i> Acerca de
+  </a>
+  <a href="/ayuda" class="nav-link {% if '/ayuda' in request.path %}active{% endif %}">
+    <i class="fas fa-question-circle"></i> Ayuda
+  </a>
+
+  <div class="sidebar-footer">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <div>
+        <div style="color:#c8e6c9;font-size:.8rem;font-weight:600;">
+          <i class="fas fa-user-circle me-1"></i>{{ current_user.nombre or current_user.username or '' }}
+        </div>
+        <div style="color:#666;font-size:.72rem;text-transform:capitalize;">{{ current_user.rol or '' }}</div>
+      </div>
+      <a href="/logout" style="color:#ef9a9a;font-size:.8rem;text-decoration:none;" title="Cerrar sesión">
+        <i class="fas fa-sign-out-alt"></i>
+      </a>
+    </div>
+    <small style="color:#555;font-size:.7rem;">
+      <i class="fas fa-calendar me-1"></i>{{ today() }}&nbsp;
+      <i class="fas fa-clock me-1"></i>{{ now() }}
+    </small>
+    {% if is_admin %}
+    <form method="post" action="/apagar" onsubmit="return confirm('¿Apagar el sistema?')" style="margin-top:6px;">
+      <button type="submit" style="background:transparent;border:1px solid #3a3a3a;color:#888;font-size:.72rem;padding:3px 8px;border-radius:4px;cursor:pointer;width:100%;">
+        <i class="fas fa-power-off me-1"></i>Apagar sistema
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div id="main">
+  {% if demo_status and demo_status.demo %}
+    {% if demo_status.vencido %}
+    <div class="demo-banner danger">
+      <i class="fas fa-lock" style="color:#c62828;font-size:1.1rem;"></i>
+      <strong>DEMO VENCIDA.</strong>&nbsp;
+      Tu período de prueba de 30 días ha finalizado.&nbsp;
+      <a href="/licencia" class="fw-bold text-danger ms-1">Activá tu licencia →</a>
+    </div>
+    {% elif demo_status.aviso_proximo %}
+    <div class="demo-banner">
+      <i class="fas fa-clock" style="color:#f9a825;font-size:1.1rem;"></i>
+      <strong>Licencia próxima a vencer — {{ demo_status.dias_restantes }} días restantes.</strong>&nbsp;
+      Adquirí el código de activación permanente.&nbsp;
+      <a href="/licencia" class="fw-bold ms-1" style="color:#e65100;">Ver opciones →</a>
+    </div>
+    {% endif %}
+  {% endif %}
+
+  <div class="topbar">
+    <h4>{% block page_title %}Dashboard{% endblock %}</h4>
+    <div class="tb-actions">
+      {% block topbar_actions %}{% endblock %}
+      <span class="meta">
+        <i class="fas fa-store me-1"></i>{{ cfg_nombre or 'Mi Almacén' }}
+        &nbsp;|&nbsp;
+        {% if demo_status and demo_status.demo and not demo_status.vencido %}
+          <span style="color:#e65100;font-weight:600;">DEMO {{ demo_status.dias_restantes }}d</span>
+        {% elif demo_status and not demo_status.demo %}
+          <span style="color:#2e7d32;font-weight:600;"><i class="fas fa-check-circle"></i> Licenciado</span>
+        {% endif %}
+      </span>
+    </div>
+  </div>
+
+  <div class="px-3 pt-2">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="flash-{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+  </div>
+
+  <div class="content">
+    {% block content %}{% endblock %}
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

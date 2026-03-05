@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% block title %}Gastos{% endblock %}
+{% block page_title %}<i class="fas fa-file-invoice-dollar me-2" style="color:#c62828"></i>Control de Gastos{% endblock %}
+{% block topbar_actions %}
+<button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#gastoModal">
+  <i class="fas fa-plus me-1"></i>Nuevo Gasto
+</button>
+{% endblock %}
+
+{% block content %}
+<!-- SUMMARY -->
+<div class="row g-2 mb-3">
+  <div class="col-md-4">
+    <div class="kpi-card red">
+      <div class="kpi-lbl"><i class="fas fa-dollar-sign me-1"></i>Total Gastos</div>
+      <div class="kpi-val">{{ fmt_ars(total_gasto) }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="kpi-card orange">
+      <div class="kpi-lbl"><i class="fas fa-trash me-1"></i>Gastos Prescindibles</div>
+      <div class="kpi-val">{{ fmt_ars(total_prescind) }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="kpi-card" style="border-color:#2e7d32">
+      <div class="kpi-lbl"><i class="fas fa-check me-1"></i>Gastos Necesarios</div>
+      <div class="kpi-val" style="color:#2e7d32">{{ fmt_ars(total_gasto - total_prescind) }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="table-card">
+  <div class="tc-header">
+    <h6>Gastos registrados ({{ gastos|length }})</h6>
+    <form class="ms-auto d-flex gap-2" method="get">
+      <input type="text" name="q" value="{{ search }}" class="form-control form-control-sm" placeholder="Buscar..." style="width:200px">
+      <button class="btn btn-sm btn-outline-secondary"><i class="fas fa-search"></i></button>
+      {% if search %}<a href="/gastos" class="btn btn-sm btn-outline-danger"><i class="fas fa-times"></i></a>{% endif %}
+    </form>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Descripción</th>
+        <th>Monto</th><th>Medio Pago</th><th>Proveedor</th><th>¿Necesario?</th><th>Comprob.</th><th></th></tr>
+      </thead>
+      <tbody>
+      {% for g in gastos %}
+        <tr>
+          <td>{{ g.fecha }}</td>
+          <td><span class="badge {% if g.tipo=='Gasto' %}bg-danger{% else %}bg-success{% endif %}">{{ g.tipo }}</span></td>
+          <td>{{ g.categoria }}</td>
+          <td>{{ g.descripcion }}</td>
+          <td class="fw-bold {% if g.tipo=='Gasto' %}text-danger{% else %}text-success{% endif %}">
+            {{ fmt_ars(g.monto) }}
+          </td>
+          <td><small>{{ g.medio_pago }}</small></td>
+          <td><small>{{ g.proveedor or '—' }}</small></td>
+          <td>
+            {% if g.necesario=='SI (necesario)' %}<span class="badge bg-success">✓ Necesario</span>
+            {% elif g.necesario=='NO (prescindible)' %}<span class="badge bg-danger">✗ Prescindible</span>
+            {% else %}<span class="badge bg-warning text-dark">? Revisar</span>{% endif %}
+          </td>
+          <td><small>{{ g.comprobante or '—' }}</small></td>
+          <td>
+            <form method="post" action="/gastos/{{ g.id }}/eliminar" class="d-inline"
+              onsubmit="return confirm('¿Eliminar este gasto?')">
+              <button class="btn btn-xs btn-outline-danger" style="font-size:.75rem;padding:2px 7px"><i class="fas fa-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="10" class="empty-state"><i class="fas fa-receipt"></i><br>Sin gastos registrados</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- NUEVO GASTO MODAL -->
+<div class="modal fade" id="gastoModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#c62828;color:#fff">
+        <h6 class="modal-title"><i class="fas fa-file-invoice-dollar me-2"></i>Registrar Gasto / Ingreso Extra</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="/gastos/nuevo">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-bold">Fecha</label>
+              <input type="date" name="fecha" class="form-control" value="{{ today() }}" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">Tipo</label>
+              <select name="tipo" class="form-select">
+                <option>Gasto</option>
+                <option>Ingreso Extra</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">Categoría</label>
+              <select name="categoria" class="form-select">
+                {% for c in cats %}<option>{{ c }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label fw-bold">Descripción <span class="text-danger">*</span></label>
+              <input type="text" name="descripcion" class="form-control" required placeholder="¿En qué se gastó?">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">Monto ($) <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" name="monto" class="form-control" min="0" step="0.01" required>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">Medio de Pago</label>
+              <select name="medio_pago" class="form-select">
+                {% for m in medios %}<option>{{ m }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">Proveedor / Origen</label>
+              <input type="text" name="proveedor" class="form-control" placeholder="Ej: EDESUR, Alquiler...">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">¿Es necesario?</label>
+              <select name="necesario" class="form-select">
+                <option>SI (necesario)</option>
+                <option>NO (prescindible)</option>
+                <option>REVISAR</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">N° Comprobante</label>
+              <input type="text" name="comprobante" class="form-control" placeholder="FAC-0001">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Observaciones</label>
+              <input type="text" name="observaciones" class="form-control">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-danger"><i class="fas fa-save me-1"></i>Registrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

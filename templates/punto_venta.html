@@ -1,0 +1,490 @@
+{% extends 'base.html' %}
+{% block title %}Punto de Venta{% endblock %}
+{% block page_title %}<i class="fas fa-cash-register me-2" style="color:#3a7d44"></i>Punto de Venta{% endblock %}
+
+{% block extra_head %}
+<style>
+.pv-left{background:#fff;border-radius:10px;padding:0;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);}
+.pv-right{background:#1a2e1a;border-radius:10px;padding:0;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+.pv-header{background:#1a2e1a;color:#fff;padding:12px 16px;font-weight:700;}
+.pv-right .pv-header{background:#0d1f0d;}
+.item-row:hover{background:#f8fdf8;}
+.item-row td{padding:6px 8px!important;vertical-align:middle;}
+.total-panel{background:#0d1f0d;color:#fff;padding:16px;}
+.total-panel .total-val{font-size:2.2rem;font-weight:800;color:#81c784;}
+.badge-peso{background:#1565c0;color:#fff;font-size:.68rem;padding:2px 5px;border-radius:3px;}
+.search-bar{background:#f8f9f8;border:2px solid #e0e0e0;border-radius:6px;padding:8px 12px;font-size:.95rem;}
+.search-bar:focus{border-color:#3a7d44;outline:none;box-shadow:0 0 0 2px rgba(58,125,68,.15);}
+.btn-add-item{background:#3a7d44;border:none;color:#fff;border-radius:6px;padding:8px 14px;cursor:pointer;}
+.btn-add-item:hover{background:#2d6636;}
+.btn-remove{background:#c62828;border:none;color:#fff;border-radius:4px;width:26px;height:26px;cursor:pointer;font-size:.8rem;}
+.medio-btn{background:#fff;border:2px solid #ddd;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:.8rem;text-align:center;transition:all .15s;}
+.medio-btn:hover,.medio-btn.active{border-color:#3a7d44;background:#e8f5e9;font-weight:600;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <!-- LEFT: PRODUCT SEARCH + CART -->
+  <div class="col-lg-7">
+    <div class="pv-left">
+      <div class="pv-header">
+        <div class="d-flex align-items-center gap-3">
+          <span><i class="fas fa-barcode me-2"></i>Código / Descripción</span>
+          <span class="ms-auto text-muted" style="font-size:.8rem;">Ticket N° <span id="ticketNum">—</span></span>
+        </div>
+      </div>
+      <div class="p-3">
+        <!-- SEARCH -->
+        <div class="d-flex gap-2 mb-1 position-relative">
+          <div class="flex-grow-1 position-relative">
+            <input type="text" id="codInput" class="search-bar w-100"
+              placeholder="📷 Código de barras / código interno / descripción del producto..."
+              autocomplete="off" autofocus>
+            <!-- INSTANT SEARCH RESULTS DROPDOWN -->
+            <div id="searchDropdown" class="d-none position-absolute bg-white border rounded shadow-sm w-100" style="z-index:9999;max-height:280px;overflow-y:auto;top:100%;left:0">
+            </div>
+          </div>
+          <button class="btn-add-item" onclick="buscarProducto()">
+            <i class="fas fa-plus"></i> Agregar
+          </button>
+        </div>
+        <small class="text-muted d-block mb-3" style="font-size:.78rem">
+          <i class="fas fa-info-circle me-1"></i>Escaneá con pistola o tipear → Enter para agregar. Busca por descripción mientras escribís.
+        </small>
+
+        <!-- PRODUCT SUGGESTION -->
+        <div id="prodSuggestion" class="d-none mb-3 p-3" style="background:#e8f5e9;border-radius:6px;">
+          <div class="d-flex align-items-center justify-content-between">
+            <div>
+              <strong id="sugNombre"></strong>
+              <span id="sugPeso" class="badge-peso d-none">× PESO</span><br>
+              <small class="text-muted"><span id="sugCat"></span> · <span id="sugUnidad"></span></small>
+            </div>
+            <div class="text-end">
+              <div style="font-size:1.2rem;font-weight:700;color:#3a7d44">$<span id="sugPrecio"></span></div>
+              <small class="text-muted">Stock: <span id="sugStock"></span></small>
+            </div>
+          </div>
+          <div class="mt-2 d-flex gap-2 align-items-center" id="cantRow">
+            <label class="fw-bold" style="font-size:.85rem;" id="cantLabel">Cantidad:</label>
+            <input type="number" id="cantInput" class="form-control form-control-sm" style="width:90px"
+              min="0.001" step="0.001" value="1">
+            <label class="fw-bold" style="font-size:.85rem;">Dto %:</label>
+            <input type="number" id="dtoInput" class="form-control form-control-sm" style="width:70px"
+              min="0" max="100" step="1" value="0">
+            <button class="btn btn-success btn-sm ms-auto" onclick="confirmarItem()">
+              <i class="fas fa-check"></i> Confirmar
+            </button>
+          </div>
+        </div>
+
+        <!-- CART TABLE -->
+        <div class="table-responsive">
+          <table class="table table-sm" id="cartTable">
+            <thead>
+              <tr>
+                <th style="background:#1a2e1a;color:#fff">Producto</th>
+                <th style="background:#1a2e1a;color:#fff">Cat.</th>
+                <th style="background:#1a2e1a;color:#fff">Cant.</th>
+                <th style="background:#1a2e1a;color:#fff">P.Unit.</th>
+                <th style="background:#1a2e1a;color:#fff">Dto</th>
+                <th style="background:#1a2e1a;color:#fff">Subtotal</th>
+                <th style="background:#1a2e1a;color:#fff"></th>
+              </tr>
+            </thead>
+            <tbody id="cartBody">
+              <tr id="emptyRow">
+                <td colspan="7" class="text-center text-muted py-4">
+                  <i class="fas fa-shopping-basket fa-2x mb-2 d-block" style="color:#ddd"></i>
+                  Escaneá o buscá un producto para agregar
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: PAYMENT PANEL -->
+  <div class="col-lg-5">
+    <div class="pv-right">
+      <div class="pv-header" style="background:#0d1f0d;">
+        <i class="fas fa-receipt me-2"></i>Cobro
+      </div>
+      <div class="p-3">
+        <!-- CLIENTE -->
+        <div class="mb-2">
+          <label class="text-white-50" style="font-size:.78rem;font-weight:600">CLIENTE</label>
+          <select id="clienteSel" class="form-select form-select-sm">
+            <option value="0" data-nombre="Mostrador">Mostrador</option>
+            {% for cl in clientes %}
+            <option value="{{ cl.id }}" data-nombre="{{ cl.nombre }}">{{ cl.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- VENDEDOR -->
+        <div class="mb-2">
+          <label class="text-white-50" style="font-size:.78rem;font-weight:600">VENDEDOR</label>
+          <input type="text" id="vendedorInput" class="form-control form-control-sm" placeholder="Nombre (opcional)">
+        </div>
+
+        <!-- MEDIO DE PAGO -->
+        <div class="mb-2">
+          <label class="text-white-50" style="font-size:.78rem;font-weight:600">MEDIO DE PAGO</label>
+          <div class="d-flex flex-wrap gap-1 mt-1" id="mediosBtns">
+            {% for m in medios %}
+            <button class="medio-btn {% if loop.first %}active{% endif %}"
+              data-medio="{{ m }}" onclick="selMedio(this)">{{ m }}</button>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- DESCUENTO ADICIONAL -->
+        <div class="mb-3">
+          <label class="text-white-50" style="font-size:.78rem;font-weight:600">DESCUENTO ADICIONAL %</label>
+          <input type="number" id="dtoAdicional" class="form-control form-control-sm" value="0" min="0" max="100" step="1" onchange="updateTotals()">
+        </div>
+      </div>
+
+      <!-- TOTALS -->
+      <div class="total-panel">
+        <div class="row mb-2">
+          <div class="col-6 text-white-50" style="font-size:.85rem">SUBTOTAL</div>
+          <div class="col-6 text-end text-white" id="dispSubtotal">$0,00</div>
+        </div>
+        <div class="row mb-2">
+          <div class="col-6 text-white-50" style="font-size:.85rem">DESCUENTO</div>
+          <div class="col-6 text-end text-danger" id="dispDescuento">$0,00</div>
+        </div>
+        <hr style="border-color:#2d4f2d">
+        <div class="mb-1 text-white-50" style="font-size:.8rem">TOTAL A COBRAR</div>
+        <div class="total-val" id="dispTotal">$0,00</div>
+
+        <div class="row mt-3 align-items-center">
+          <div class="col-6">
+            <label class="text-white-50" style="font-size:.78rem">RECIBIDO ($)</label>
+            <input type="number" id="recibidoInput" class="form-control" value="0" min="0" step="0.01"
+              oninput="calcVuelto()">
+          </div>
+          <div class="col-6">
+            <label class="text-white-50" style="font-size:.78rem">VUELTO</label>
+            <div id="dispVuelto" style="font-size:1.4rem;font-weight:700;color:#ffd54f">$0,00</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-3">
+        <button class="btn btn-lg w-100 fw-bold" id="btnCobrar"
+          style="background:#81c784;color:#1a2e1a;font-size:1.1rem;"
+          onclick="procesarVenta()">
+          <i class="fas fa-check-circle me-2"></i>CONFIRMAR VENTA
+        </button>
+        <button class="btn btn-outline-danger btn-sm w-100 mt-2" onclick="cancelarVenta()">
+          <i class="fas fa-times me-1"></i>Cancelar / Limpiar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SUCCESS MODAL -->
+<div class="modal fade" id="successModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border:none;border-radius:12px;">
+      <div class="modal-body text-center p-4">
+        <i class="fas fa-check-circle fa-4x mb-3" style="color:#3a7d44"></i>
+        <h4 class="text-success">¡Venta registrada!</h4>
+        <p>Ticket N° <strong id="ticketOk"></strong><br>Total: <strong id="totalOk"></strong></p>
+        <div class="d-flex gap-2 justify-content-center mt-3">
+          <a id="btnVerTicket" href="#" class="btn btn-outline-success" target="_blank">
+            <i class="fas fa-print me-1"></i>Ver Ticket
+          </a>
+          <button class="btn btn-primary" onclick="nuevaVenta()">
+            <i class="fas fa-plus me-1"></i>Nueva Venta
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let cart = [];
+let currentProduct = null;
+
+const cartBody = document.getElementById('cartBody');
+const emptyRow = document.getElementById('emptyRow');
+
+// BARCODE: allow Enter to search
+const codInput = document.getElementById('codInput');
+const searchDrop = document.getElementById('searchDropdown');
+let searchTimer = null;
+
+codInput.addEventListener('keypress', function(e){
+  if(e.key==='Enter'){
+    searchDrop.classList.add('d-none');
+    buscarProducto();
+  }
+});
+
+// Instant search while typing (skip for pure numeric barcodes)
+codInput.addEventListener('input', function(){
+  const val = this.value.trim();
+  clearTimeout(searchTimer);
+  if(val.length < 2){ searchDrop.classList.add('d-none'); return; }
+  if(/^\d{6,}$/.test(val)){ searchDrop.classList.add('d-none'); return; }
+  searchTimer = setTimeout(() => instantSearch(val), 220);
+});
+
+document.addEventListener('click', e => {
+  if(!codInput.contains(e.target) && !searchDrop.contains(e.target))
+    searchDrop.classList.add('d-none');
+});
+
+async function instantSearch(term){
+  try{
+    const r = await fetch(`/api/productos/buscar?q=${encodeURIComponent(term)}`);
+    const items = await r.json();
+    if(!items.length){ searchDrop.classList.add('d-none'); return; }
+    let html = '';
+    items.forEach(p => {
+      const stkColor = p.stock_actual <= 0 ? '#c62828' : '#2e7d32';
+      const stkTxt = p.stock_actual <= 0 ? 'Sin stock' : `Stock: ${p.stock_actual}`;
+      const pJson = btoa(unescape(encodeURIComponent(JSON.stringify(p))));
+      html += `<div class="px-3 py-2 border-bottom" style="cursor:pointer;transition:.1s"
+         onmouseover="this.style.background='#e8f5e9'" onmouseout="this.style.background=''"
+         onclick="elegirProductoInstant('${pJson}')">
+        <div class="d-flex justify-content-between align-items-center">
+          <div><strong style="font-size:.88rem">${p.descripcion}</strong>
+               <small class="ms-1 text-muted">${p.categoria}</small>
+               ${p.por_peso ? '<span class="badge-peso ms-1" style="font-size:.65rem">× PESO</span>' : ''}
+          </div>
+          <div class="text-end ms-2 flex-shrink-0">
+            <div style="font-weight:700;color:#3a7d44;font-size:.9rem">$${parseFloat(p.precio_venta).toLocaleString('es-AR',{minimumFractionDigits:2})}</div>
+            <small style="color:${stkColor}">${stkTxt}</small>
+          </div>
+        </div>
+        <small class="text-muted">${p.codigo_interno}</small>
+      </div>`;
+    });
+    searchDrop.innerHTML = html;
+    searchDrop.classList.remove('d-none');
+  }catch(e){ searchDrop.classList.add('d-none'); }
+}
+
+function elegirProductoInstant(b64){
+  const p = JSON.parse(decodeURIComponent(escape(atob(b64))));
+  searchDrop.classList.add('d-none');
+  codInput.value = '';
+  currentProduct = {ok:true, id:p.id, codigo_interno:p.codigo_interno,
+    descripcion:p.descripcion, categoria:p.categoria, unidad:p.unidad,
+    precio_venta:p.precio_venta, por_peso:p.por_peso, stock_actual:p.stock_actual};
+  mostrarSugerencia();
+  document.getElementById('cantInput').focus();
+}
+
+document.getElementById('cantInput').addEventListener('keypress', function(e){
+  if(e.key==='Enter') confirmarItem();
+});
+
+async function buscarProducto(){
+  const cod = document.getElementById('codInput').value.trim();
+  if(!cod) return;
+  const r = await fetch(`/api/producto/buscar?codigo=${encodeURIComponent(cod)}`);
+  const d = await r.json();
+  if(!d.ok){
+    showAlert(d.msg, 'warning');
+    return;
+  }
+  currentProduct = d;
+  mostrarSugerencia();
+}
+
+function mostrarSugerencia(){
+  const d = currentProduct;
+  document.getElementById('codInput').value = '';
+  document.getElementById('sugNombre').textContent = d.descripcion;
+  document.getElementById('sugCat').textContent = d.categoria;
+  document.getElementById('sugUnidad').textContent = d.unidad;
+  document.getElementById('sugPrecio').textContent = formatNum(d.precio_venta);
+  document.getElementById('sugStock').textContent = d.stock_actual;
+  document.getElementById('cantLabel').textContent = d.por_peso ? 'Peso (kg):' : 'Cantidad:';
+  document.getElementById('cantInput').step = d.por_peso ? '0.001' : '1';
+  document.getElementById('cantInput').value = d.por_peso ? '' : '1';
+  document.getElementById('sugPeso').classList.toggle('d-none', !d.por_peso);
+  document.getElementById('prodSuggestion').classList.remove('d-none');
+  document.getElementById('cantInput').focus();
+}
+
+function confirmarItem(){
+  if(!currentProduct) return;
+  const cant = parseFloat(document.getElementById('cantInput').value);
+  const dto = parseFloat(document.getElementById('dtoInput').value||0) / 100;
+  if(!cant || cant<=0){ showAlert('Ingresá una cantidad válida','warning'); return; }
+  const subtotal = cant * currentProduct.precio_venta * (1-dto);
+  cart.push({
+    producto_id: currentProduct.id,
+    codigo_interno: currentProduct.codigo_interno,
+    descripcion: currentProduct.descripcion,
+    categoria: currentProduct.categoria,
+    unidad: currentProduct.unidad,
+    cantidad: cant,
+    precio_unitario: currentProduct.precio_venta,
+    descuento: dto,
+    subtotal: subtotal,
+  });
+  renderCart();
+  updateTotals();
+  document.getElementById('prodSuggestion').classList.add('d-none');
+  document.getElementById('codInput').value = '';
+  currentProduct = null;
+  document.getElementById('codInput').focus();
+}
+
+function renderCart(){
+  if(cart.length===0){
+    cartBody.innerHTML = '<tr id="emptyRow"><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-shopping-basket fa-2x mb-2 d-block" style="color:#ddd"></i>Escaneá o buscá un producto para agregar</td></tr>';
+    return;
+  }
+  cartBody.innerHTML = cart.map((it,idx)=>`
+    <tr class="item-row">
+      <td><strong>${it.descripcion}</strong><br><small class="text-muted">${it.codigo_interno}</small></td>
+      <td><small>${it.categoria}</small></td>
+      <td>${it.cantidad} ${it.unidad}</td>
+      <td>$${formatNum(it.precio_unitario)}</td>
+      <td>${it.descuento>0?'<span class="text-danger">'+Math.round(it.descuento*100)+'%</span>':'-'}</td>
+      <td><strong>$${formatNum(it.subtotal)}</strong></td>
+      <td><button class="btn-remove" onclick="removeItem(${idx})"><i class="fas fa-times"></i></button></td>
+    </tr>
+  `).join('');
+}
+
+function removeItem(idx){
+  cart.splice(idx,1);
+  renderCart();
+  updateTotals();
+}
+
+function updateTotals(){
+  const sub = cart.reduce((a,it)=>a+it.subtotal,0);
+  const dtoAdic = parseFloat(document.getElementById('dtoAdicional').value||0)/100;
+  const total = sub * (1-dtoAdic);
+  document.getElementById('dispSubtotal').textContent = '$'+formatNum(sub);
+  document.getElementById('dispDescuento').textContent = '-$'+formatNum(sub*dtoAdic);
+  document.getElementById('dispTotal').textContent = '$'+formatNum(total);
+  calcVuelto();
+}
+
+function calcVuelto(){
+  const total = parseFloat(document.getElementById('dispTotal').textContent.replace('$','').replace(/\./g,'').replace(',','.')) || 0;
+  const recibido = parseFloat(document.getElementById('recibidoInput').value) || 0;
+  const vuelto = recibido - total;
+  const el = document.getElementById('dispVuelto');
+  el.textContent = (vuelto>=0?'$':'-$') + formatNum(Math.abs(vuelto));
+  el.style.color = vuelto>=0?'#ffd54f':'#ef9a9a';
+}
+
+function selMedio(el){
+  document.querySelectorAll('.medio-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  // Show/hide CC fields
+  const isCta = el.dataset.medio==='Cuenta Corriente';
+  document.getElementById('clienteSel').style.border = isCta?'2px solid #ffd54f':'';
+}
+
+async function procesarVenta(){
+  if(cart.length===0){ showAlert('Agregá productos al ticket primero','warning'); return; }
+  const clienteSel = document.getElementById('clienteSel');
+  const medio = document.querySelector('.medio-btn.active').dataset.medio;
+  if(medio==='Cuenta Corriente' && clienteSel.value==='0'){
+    showAlert('Seleccioná un cliente para Cuenta Corriente','warning'); return;
+  }
+  const dtoAdic = parseFloat(document.getElementById('dtoAdicional').value||0)/100;
+  const payload = {
+    items: cart,
+    cliente_nombre: clienteSel.options[clienteSel.selectedIndex].dataset.nombre,
+    cliente_id: parseInt(clienteSel.value),
+    medio_pago: medio,
+    descuento_adicional: dtoAdic,
+    vendedor: document.getElementById('vendedorInput').value,
+  };
+  document.getElementById('btnCobrar').disabled = true;
+  try{
+    const r = await fetch('/venta/procesar', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    if(d.ok){
+      const total = document.getElementById('dispTotal').textContent;
+      document.getElementById('ticketOk').textContent = d.ticket;
+      document.getElementById('totalOk').textContent = total;
+      document.getElementById('btnVerTicket').href = `/historial/${d.vid}`;
+      new bootstrap.Modal(document.getElementById('successModal')).show();
+    } else if(d.demo_blocked) {
+      // Show demo limit modal
+      if(!document.getElementById('demoBlockModal')){
+        const mhtml = `<div class="modal fade" id="demoBlockModal" tabindex="-1">
+          <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+              <div class="modal-header" style="background:#f9a825;color:#000">
+                <h6 class="modal-title">⚠ Límite Demo Alcanzado</h6>
+              </div>
+              <div class="modal-body text-center">
+                <div style="font-size:2.5rem">🔒</div>
+                <p style="font-size:.9rem;margin-top:8px">${d.msg}</p>
+              </div>
+              <div class="modal-footer justify-content-center">
+                <a href="/licencia" class="btn btn-warning btn-sm">Ver opciones de licencia</a>
+                <button class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', mhtml);
+      }
+      new bootstrap.Modal(document.getElementById('demoBlockModal')).show();
+    } else {
+      showAlert('Error: '+d.msg,'danger');
+    }
+  } catch(e){
+    showAlert('Error de conexión: '+e.message,'danger');
+  }
+  document.getElementById('btnCobrar').disabled = false;
+}
+
+function cancelarVenta(){
+  if(cart.length>0 && !confirm('¿Cancelar la venta actual?')) return;
+  cart=[];
+  renderCart();
+  updateTotals();
+  document.getElementById('dtoAdicional').value=0;
+  document.getElementById('recibidoInput').value=0;
+  document.getElementById('codInput').focus();
+}
+
+function nuevaVenta(){
+  bootstrap.Modal.getInstance(document.getElementById('successModal')).hide();
+  cancelarVenta();
+}
+
+function formatNum(n){
+  return parseFloat(n).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function showAlert(msg, type){
+  const div = document.createElement('div');
+  div.className = `alert alert-${type} alert-dismissible position-fixed`;
+  div.style = 'top:20px;right:20px;z-index:9999;min-width:300px;';
+  div.innerHTML = msg + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+  document.body.appendChild(div);
+  setTimeout(()=>div.remove(), 4000);
+}
+</script>
+{% endblock %}

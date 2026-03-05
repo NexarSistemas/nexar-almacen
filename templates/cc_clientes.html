@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% block title %}CC Clientes{% endblock %}
+{% block page_title %}<i class="fas fa-users me-2" style="color:#1565c0"></i>Cuentas Corrientes — Clientes{% endblock %}
+{% block topbar_actions %}
+<button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#nuevoClienteModal">
+  <i class="fas fa-user-plus me-1"></i>Nuevo Cliente
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="table-card mb-3">
+  <div class="tc-header"><h6><i class="fas fa-users me-2"></i>Clientes ({{ clientes|length }})</h6></div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr><th>Código</th><th>Nombre</th><th>DNI/CUIT</th><th>Teléfono</th>
+        <th class="text-end">Límite Crédito</th><th class="text-end">Saldo Actual</th>
+        <th>Próx. Vto.</th><th>Estado</th><th>Acciones</th></tr>
+      </thead>
+      <tbody>
+      {% for cl in clientes %}
+        {% set saldo = cl.saldo_actual or 0 %}
+        <tr>
+          <td><code>{{ cl.codigo }}</code></td>
+          <td><strong>{{ cl.nombre }}</strong></td>
+          <td>{{ cl.dni_cuit or '—' }}</td>
+          <td>{{ cl.telefono or '—' }}</td>
+          <td class="text-end">{{ fmt_ars(cl.limite_credito) }}</td>
+          <td class="text-end fw-bold {% if saldo > 0 %}text-danger{% elif saldo < 0 %}text-success{% endif %}">
+            {{ fmt_ars(saldo) }}
+          </td>
+          <td>
+            {% if cl.proximo_vto %}
+              <span class="{% if cl.proximo_vto < hoy %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                {{ cl.proximo_vto }}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if saldo <= 0 %}<span class="badge bg-success">Al día</span>
+            {% elif cl.proximo_vto and cl.proximo_vto < hoy %}<span class="badge bg-danger">VENCIDO</span>
+            {% else %}<span class="badge bg-warning text-dark">Debe</span>{% endif %}
+          </td>
+          <td>
+            <a href="/cc_clientes/{{ cl.id }}" class="btn btn-xs btn-outline-primary" style="font-size:.75rem;padding:2px 7px">
+              <i class="fas fa-eye"></i> Ver
+            </a>
+            <button class="btn btn-xs btn-outline-secondary ms-1" style="font-size:.75rem;padding:2px 7px"
+              onclick="editarCliente({{ cl.id }},'{{ cl.nombre|replace("'","\\'")|e }}','{{ cl.dni_cuit or '' }}','{{ cl.telefono or '' }}','{{ cl.email or '' }}',{{ cl.limite_credito or 0 }})">
+              <i class="fas fa-edit"></i>
+            </button>
+            <form method="post" action="/clientes/{{ cl.id }}/eliminar" class="d-inline"
+                  onsubmit="return confirm('¿Desactivar cliente «{{ cl.nombre|e }}»?')">
+              <button type="submit" class="btn btn-xs btn-outline-danger ms-1" style="font-size:.75rem;padding:2px 7px">
+                <i class="fas fa-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="9" class="empty-state"><i class="fas fa-users"></i><br>Sin clientes</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- NUEVO CLIENTE MODAL -->
+<div class="modal fade" id="nuevoClienteModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#1565c0;color:#fff">
+        <h6 class="modal-title"><i class="fas fa-user-plus me-2"></i>Nuevo Cliente</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="/clientes/nuevo">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-bold">Nombre / Razón Social <span class="text-danger">*</span></label>
+              <input type="text" name="nombre" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">DNI / CUIT</label>
+              <input type="text" name="dni_cuit" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Teléfono</label>
+              <input type="text" name="telefono" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Límite de Crédito ($)</label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" name="limite_credito" class="form-control" value="0" min="0" step="100">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Crear Cliente</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- EDITAR CLIENTE MODAL -->
+<div class="modal fade" id="editarClienteModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#1565c0;color:#fff">
+        <h6 class="modal-title"><i class="fas fa-user-edit me-2"></i>Editar Cliente</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="editClienteForm" action="">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12"><label class="form-label fw-bold">Nombre *</label>
+              <input type="text" name="nombre" id="editNombre" class="form-control" required></div>
+            <div class="col-md-6"><label class="form-label">DNI / CUIT</label>
+              <input type="text" name="dni_cuit" id="editDni" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">Teléfono</label>
+              <input type="text" name="telefono" id="editTel" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">Email</label>
+              <input type="email" name="email" id="editEmail" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">Límite de Crédito ($)</label>
+              <div class="input-group"><span class="input-group-text">$</span>
+                <input type="number" name="limite_credito" id="editLimite" class="form-control" min="0" step="100">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editarCliente(id, nombre, dni, tel, email, limite){
+  document.getElementById('editNombre').value = nombre;
+  document.getElementById('editDni').value = dni;
+  document.getElementById('editTel').value = tel;
+  document.getElementById('editEmail').value = email;
+  document.getElementById('editLimite').value = limite;
+  document.getElementById('editClienteForm').action = `/clientes/${id}/editar_datos`;
+  new bootstrap.Modal(document.getElementById('editarClienteModal')).show();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title %}Historial Ventas{% endblock %}
+{% block page_title %}<i class="fas fa-history me-2" style="color:#3a7d44"></i>Historial de Ventas{% endblock %}
+
+{% block content %}
+<div class="table-card mb-3">
+  <div class="tc-header">
+    <h6><i class="fas fa-filter me-2"></i>Filtros</h6>
+  </div>
+  <div class="p-3">
+    <form class="row g-2" method="get">
+      <div class="col-md-4">
+        <input type="text" name="q" value="{{ search }}" class="form-control form-control-sm" placeholder="Buscar cliente, ticket, medio de pago...">
+      </div>
+      <div class="col-md-3">
+        <input type="date" name="desde" value="{{ fecha_desde }}" class="form-control form-control-sm">
+      </div>
+      <div class="col-md-3">
+        <input type="date" name="hasta" value="{{ fecha_hasta }}" class="form-control form-control-sm">
+      </div>
+      <div class="col-md-2 d-flex gap-1">
+        <button class="btn btn-sm btn-primary flex-grow-1"><i class="fas fa-search"></i></button>
+        <a href="/historial" class="btn btn-sm btn-outline-secondary"><i class="fas fa-times"></i></a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if total_filtro > 0 %}
+<div class="alert py-2 mb-3" style="background:#e8f5e9;border:1px solid #81c784;color:#1b5e20">
+  <strong>Total filtrado:</strong> {{ fmt_ars(total_filtro) }} en {{ ventas|length }} ticket(s)
+</div>
+{% endif %}
+
+<div class="table-card">
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>Fecha</th><th>Ticket N°</th><th>Cliente</th>
+          <th>Medio Pago</th><th>Items</th>
+          <th class="text-end">Total</th><th>Temporada</th><th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for v in ventas %}
+        <tr>
+          <td>{{ v.fecha }}</td>
+          <td><code>#{{ v.numero_ticket }}</code></td>
+          <td>{{ v.cliente_nombre }}</td>
+          <td>
+            <span class="badge
+              {% if v.medio_pago=='Efectivo' %}bg-success
+              {% elif v.medio_pago=='Débito' %}bg-primary
+              {% elif v.medio_pago=='Crédito' %}bg-warning text-dark
+              {% elif 'QR' in v.medio_pago %}bg-info text-dark
+              {% elif 'Cuenta' in v.medio_pago %}bg-danger
+              {% else %}bg-secondary{% endif %}">
+              {{ v.medio_pago }}
+            </span>
+          </td>
+          <td>{{ v.items }}</td>
+          <td class="text-end fw-bold">{{ fmt_ars(v.total) }}</td>
+          <td><small class="text-muted">{{ v.temporada }}</small></td>
+          <td>
+            <a href="/historial/{{ v.id }}" class="btn btn-xs btn-outline-primary" style="font-size:.75rem;padding:2px 7px" target="_blank">
+              <i class="fas fa-receipt"></i>
+            </a>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8" class="empty-state"><i class="fas fa-receipt"></i><br>No hay ventas con esos filtros</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

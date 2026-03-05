@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+{% block title %}Usuarios{% endblock %}
+{% block page_title %}<i class="fas fa-users-cog me-2" style="color:#4a148c"></i>Gestión de Usuarios{% endblock %}
+{% block topbar_actions %}
+<button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#nuevoUserModal">
+  <i class="fas fa-user-plus me-1"></i>Nuevo Usuario
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="kpi-card blue">
+      <div class="kpi-lbl">Total Usuarios</div>
+      <div class="kpi-val">{{ users|length }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="kpi-card">
+      <div class="kpi-lbl">Administradores</div>
+      <div class="kpi-val">{{ users|selectattr('rol','eq','admin')|list|length }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="kpi-card" style="border-color:#1565c0">
+      <div class="kpi-lbl">Usuarios Activos</div>
+      <div class="kpi-val" style="color:#1565c0">{{ users|selectattr('activo','eq',1)|list|length }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="table-card">
+  <div class="tc-header"><h6><i class="fas fa-users-cog me-2"></i>Usuarios del Sistema</h6></div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr><th>#</th><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr>
+      </thead>
+      <tbody>
+      {% for u in users %}
+        <tr class="{% if not u.activo %}opacity-50{% endif %}">
+          <td><code>{{ u.id }}</code></td>
+          <td>
+            <strong>{{ u.username }}</strong>
+            {% if u.id == current_user.id %}
+              <span class="badge bg-success ms-1" style="font-size:.7rem">Vos</span>
+            {% endif %}
+          </td>
+          <td>{{ u.nombre_completo or '—' }}</td>
+          <td>
+            {% if u.rol == 'admin' %}
+              <span class="badge" style="background:#4a148c">👑 Administrador</span>
+            {% else %}
+              <span class="badge bg-secondary">👤 Usuario</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if u.activo %}
+              <span class="badge bg-success">Activo</span>
+            {% else %}
+              <span class="badge bg-danger">Inactivo</span>
+            {% endif %}
+          </td>
+          <td class="d-flex gap-1 flex-wrap">
+            <!-- Edit -->
+            <button class="btn btn-xs btn-outline-secondary" style="font-size:.73rem;padding:2px 7px"
+              onclick="editarUser({{ u.id }},'{{ u.nombre_completo|e }}','{{ u.rol }}')">
+              <i class="fas fa-edit"></i> Editar
+            </button>
+            <!-- Change password -->
+            <button class="btn btn-xs btn-outline-warning" style="font-size:.73rem;padding:2px 7px"
+              onclick="cambiarPw({{ u.id }},'{{ u.username|e }}')">
+              <i class="fas fa-key"></i>
+            </button>
+            {% if u.id != current_user.id %}
+            <!-- Toggle active -->
+            <form method="post" action="/usuarios/{{ u.id }}/toggle" class="d-inline">
+              <button type="submit" class="btn btn-xs {{ 'btn-outline-danger' if u.activo else 'btn-outline-success' }}"
+                style="font-size:.73rem;padding:2px 7px"
+                onclick="return confirm('¿{{ 'Desactivar' if u.activo else 'Activar' }} usuario «{{ u.username }}»?')">
+                <i class="fas fa-{{ 'user-slash' if u.activo else 'user-check' }}"></i>
+              </button>
+            </form>
+            {% if u.rol != 'admin' %}
+            <!-- Delete -->
+            <form method="post" action="/usuarios/{{ u.id }}/eliminar" class="d-inline"
+                  onsubmit="return confirm('¿Eliminar permanentemente al usuario «{{ u.username }}»?')">
+              <button type="submit" class="btn btn-xs btn-outline-danger" style="font-size:.73rem;padding:2px 5px">
+                <i class="fas fa-trash"></i>
+              </button>
+            </form>
+            {% endif %}
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="mt-3 alert" style="background:#e8f5e9;border:1px solid #c8e6c9;font-size:.88rem">
+  <strong>🔐 Roles del sistema:</strong>
+  <span class="ms-3">👑 <strong>Administrador</strong>: acceso completo, configuración, usuarios, exportaciones, licencia.</span>
+  <span class="ms-3">👤 <strong>Usuario</strong>: ventas, stock, consultas — sin configuración ni administración.</span>
+</div>
+
+<!-- NUEVO USUARIO MODAL -->
+<div class="modal fade" id="nuevoUserModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#4a148c;color:#fff">
+        <h6 class="modal-title"><i class="fas fa-user-plus me-2"></i>Nuevo Usuario</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="/usuarios/nuevo">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label fw-bold">Usuario *</label>
+              <input type="text" name="username" class="form-control" placeholder="usuario123" required></div>
+            <div class="col-md-6"><label class="form-label fw-bold">Contraseña *</label>
+              <input type="password" name="password" class="form-control" placeholder="••••••••" required minlength="4"></div>
+            <div class="col-12"><label class="form-label fw-bold">Nombre completo</label>
+              <input type="text" name="nombre_completo" class="form-control" placeholder="Juan García"></div>
+            <div class="col-12"><label class="form-label fw-bold">Rol</label>
+              <select name="rol" class="form-select">
+                <option value="usuario">👤 Usuario (vendedor)</option>
+                <option value="admin">👑 Administrador</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Crear</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- EDITAR USUARIO MODAL -->
+<div class="modal fade" id="editarUserModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#1565c0;color:#fff">
+        <h6 class="modal-title">Editar Usuario</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="editUserForm">
+        <div class="modal-body">
+          <div class="mb-3"><label class="form-label fw-bold">Nombre completo</label>
+            <input type="text" name="nombre_completo" id="euNombre" class="form-control"></div>
+          <div class="mb-3"><label class="form-label fw-bold">Rol</label>
+            <select name="rol" id="euRol" class="form-select">
+              <option value="usuario">👤 Usuario</option>
+              <option value="admin">👑 Administrador</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- CAMBIAR PASSWORD MODAL -->
+<div class="modal fade" id="pwModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#e65100;color:#fff">
+        <h6 class="modal-title" id="pwModalTitle">Cambiar Contraseña</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="pwForm">
+        <div class="modal-body">
+          <label class="form-label fw-bold">Nueva contraseña</label>
+          <input type="password" name="password" class="form-control" placeholder="Mínimo 4 caracteres" required minlength="4">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-warning btn-sm">Cambiar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editarUser(id, nombre, rol){
+  document.getElementById('euNombre').value = nombre;
+  document.getElementById('euRol').value = rol;
+  document.getElementById('editUserForm').action = `/usuarios/${id}/editar`;
+  new bootstrap.Modal(document.getElementById('editarUserModal')).show();
+}
+function cambiarPw(id, username){
+  document.getElementById('pwModalTitle').textContent = `Cambiar contraseña — ${username}`;
+  document.getElementById('pwForm').action = `/usuarios/${id}/password`;
+  new bootstrap.Modal(document.getElementById('pwModal')).show();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+{% block title %}CC Proveedores{% endblock %}
+{% block page_title %}<i class="fas fa-industry me-2" style="color:#e65100"></i>Cuentas Corrientes - Proveedores{% endblock %}
+{% block topbar_actions %}
+<button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#facturaModal">
+  <i class="fas fa-file-invoice me-1"></i>Nueva Factura
+</button>
+<button class="btn btn-outline-secondary btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#provModal">
+  <i class="fas fa-industry me-1"></i>Nuevo Proveedor
+</button>
+{% endblock %}
+{% block content %}
+<div class="row g-2 mb-3">
+  <div class="col-md-4">
+    <div class="kpi-card red">
+      <div class="kpi-lbl">Deuda Total Pendiente</div>
+      <div class="kpi-val">{{ fmt_ars(total_deuda) }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="kpi-card orange">
+      <div class="kpi-lbl">Facturas Vencidas</div>
+      <div class="kpi-val">{{ vencidas|length }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="kpi-card" style="border-color:#f9a825">
+      <div class="kpi-lbl">Por Vencer (30 dias)</div>
+      <div class="kpi-val" style="color:#f9a825">{{ por_vencer|length }}</div>
+    </div>
+  </div>
+</div>
+<div class="table-card mb-3">
+  <div class="tc-header"><h6>Proveedores</h6></div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead><tr><th>Codigo</th><th>Nombre</th><th>CUIT</th><th>Telefono</th><th>Dias Credito</th><th>Acciones</th></tr></thead>
+      <tbody>
+      {% for p in proveedores %}
+        <tr><td><code>{{ p.codigo }}</code></td><td><strong>{{ p.nombre }}</strong></td>
+        <td>{{ p.cuit or '-' }}</td><td>{{ p.telefono or '-' }}</td><td>{{ p.dias_credito }} dias</td>
+        <td>
+          <button class="btn btn-xs btn-outline-secondary" style="font-size:.73rem;padding:2px 6px"
+            onclick="editarProveedor({{ p.id }},'{{ p.nombre|replace("'","\\'")|e }}','{{ p.cuit or '' }}','{{ p.telefono or '' }}','{{ p.email or '' }}',{{ p.dias_credito }})">
+            <i class="fas fa-edit"></i>
+          </button>
+          <form method="post" action="/proveedores/{{ p.id }}/eliminar" class="d-inline"
+                onsubmit="return confirm('¿Desactivar proveedor «{{ p.nombre|e }}»?')">
+            <button type="submit" class="btn btn-xs btn-outline-danger ms-1" style="font-size:.73rem;padding:2px 6px">
+              <i class="fas fa-trash"></i>
+            </button>
+          </form>
+        </td></tr>
+      {% else %}
+        <tr><td colspan="6" class="empty-state">Sin proveedores</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="table-card">
+  <div class="tc-header"><h6>Facturas Pendientes</h6></div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead><tr><th>Proveedor</th><th>N Factura</th><th>Fecha</th><th>Vencimiento</th>
+      <th class="text-end">Importe</th><th class="text-end">Pagado</th><th class="text-end">Saldo</th>
+      <th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody>
+      {% for f in facturas %}
+        <tr class="{% if f.estado=='VENCIDA' %}table-danger{% elif f.estado=='POR VENCER' %}table-warning{% endif %}">
+          <td><strong>{{ f.proveedor_nombre_obj }}</strong></td>
+          <td><code>{{ f.numero_factura }}</code></td>
+          <td>{{ f.fecha }}</td>
+          <td class="fw-bold">{{ f.fecha_vencimiento }}</td>
+          <td class="text-end">{{ fmt_ars(f.importe) }}</td>
+          <td class="text-end text-success">{{ fmt_ars(f.pagado) }}</td>
+          <td class="text-end fw-bold">{{ fmt_ars(f.saldo) }}</td>
+          <td>
+            {% if f.estado=='VENCIDA' %}<span class="badge bg-danger">VENCIDA</span>
+            {% elif f.estado=='POR VENCER' %}<span class="badge bg-warning text-dark">POR VENCER</span>
+            {% elif f.estado=='PAGADA' %}<span class="badge bg-success">PAGADA</span>
+            {% else %}<span class="badge bg-secondary">VIGENTE</span>{% endif %}
+          </td>
+          <td>
+            {% if f.estado != 'PAGADA' %}
+            <button class="btn btn-xs btn-success" style="font-size:.75rem;padding:2px 7px"
+              onclick="pagarFact({{ f.id }}, {{ f.saldo }})">Pagar</button>
+            {% endif %}
+            <form method="post" action="/cc_proveedores/factura/{{ f.id }}/eliminar" class="d-inline"
+                  onsubmit="return confirm('¿Eliminar factura {{ f.numero_factura }}?')">
+              <button type="submit" class="btn btn-xs btn-outline-danger ms-1" style="font-size:.75rem;padding:2px 5px">
+                <i class="fas fa-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="9" class="empty-state">Sin facturas</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="modal fade" id="facturaModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#e65100;color:#fff">
+        <h6 class="modal-title">Nueva Factura de Proveedor</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="/cc_proveedores/factura">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-bold">Proveedor *</label>
+              <select name="proveedor_id" class="form-select" required>
+                <option value="">-- Seleccionar --</option>
+                {% for p in proveedores %}<option value="{{ p.id }}">{{ p.nombre }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6"><label class="form-label fw-bold">N Factura</label>
+              <input type="text" name="numero_factura" class="form-control" placeholder="FAC-0001"></div>
+            <div class="col-md-6"><label class="form-label fw-bold">Fecha *</label>
+              <input type="date" name="fecha" class="form-control" value="{{ today() }}" required></div>
+            <div class="col-md-6"><label class="form-label fw-bold">Vencimiento *</label>
+              <input type="date" name="fecha_vencimiento" class="form-control" required></div>
+            <div class="col-md-6"><label class="form-label fw-bold">Importe ($) *</label>
+              <input type="number" name="importe" class="form-control" min="0" step="0.01" required></div>
+            <div class="col-12"><label class="form-label">Observaciones</label>
+              <input type="text" name="observaciones" class="form-control"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-warning">Registrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="pagoModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#2e7d32;color:#fff">
+        <h6 class="modal-title">Registrar Pago</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="pagoForm" action="">
+        <div class="modal-body">
+          <label class="form-label fw-bold">Monto ($)</label>
+          <input type="number" name="monto" id="pagoMonto" class="form-control" min="0" step="0.01" required>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success btn-sm">Pagar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="provModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#1a2e1a;color:#fff">
+        <h6 class="modal-title">Nuevo Proveedor</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="/proveedores/nuevo">
+        <div class="modal-body">
+          <div class="row g-2">
+            <div class="col-12"><label class="form-label fw-bold">Nombre *</label>
+              <input type="text" name="nombre" class="form-control" required></div>
+            <div class="col-md-6"><label class="form-label">CUIT</label>
+              <input type="text" name="cuit" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">Dias Credito</label>
+              <input type="number" name="dias_credito" class="form-control" value="30" min="0"></div>
+            <div class="col-md-6"><label class="form-label">Telefono</label>
+              <input type="text" name="telefono" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">Email</label>
+              <input type="email" name="email" class="form-control"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Crear</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<!-- EDITAR PROVEEDOR MODAL -->
+<div class="modal fade" id="editProvModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#1a2e1a;color:#fff">
+        <h6 class="modal-title"><i class="fas fa-edit me-2"></i>Editar Proveedor</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="editProvForm" action="">
+        <div class="modal-body">
+          <div class="row g-2">
+            <div class="col-12"><label class="form-label fw-bold">Nombre *</label>
+              <input type="text" name="nombre" id="epNombre" class="form-control" required></div>
+            <div class="col-md-6"><label class="form-label">CUIT</label>
+              <input type="text" name="cuit" id="epCuit" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">Días Crédito</label>
+              <input type="number" name="dias_credito" id="epDias" class="form-control" min="0"></div>
+            <div class="col-md-6"><label class="form-label">Teléfono</label>
+              <input type="text" name="telefono" id="epTel" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">Email</label>
+              <input type="email" name="email" id="epEmail" class="form-control"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function pagarFact(fid, saldo){
+  document.getElementById('pagoMonto').value = parseFloat(saldo).toFixed(2);
+  document.getElementById('pagoForm').action = '/cc_proveedores/factura/'+fid+'/pagar';
+  new bootstrap.Modal(document.getElementById('pagoModal')).show();
+}
+function editarProveedor(id, nombre, cuit, tel, email, dias){
+  document.getElementById('epNombre').value = nombre;
+  document.getElementById('epCuit').value = cuit;
+  document.getElementById('epTel').value = tel;
+  document.getElementById('epEmail').value = email;
+  document.getElementById('epDias').value = dias;
+  document.getElementById('editProvForm').action = `/proveedores/${id}/editar`;
+  new bootstrap.Modal(document.getElementById('editProvModal')).show();
+}
+</script>
+{% endblock %}

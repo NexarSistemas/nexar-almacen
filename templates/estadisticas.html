@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% block title %}Estadísticas{% endblock %}
+{% block page_title %}<i class="fas fa-chart-bar me-2" style="color:#3a7d44"></i>Estadísticas de Ventas{% endblock %}
+
+{% block content %}
+<!-- YEAR SELECTOR -->
+<form class="d-flex gap-2 mb-3 align-items-center" method="get">
+  <label class="fw-bold">Año:</label>
+  <select name="year" class="form-select form-select-sm" style="width:100px" onchange="this.form.submit()">
+    {% for y in range(today()[:4]|int, today()[:4]|int - 4, -1) %}
+    <option value="{{ y }}" {% if y==year %}selected{% endif %}>{{ y }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+<div class="row g-3 mb-3">
+  <!-- VENTAS MENSUALES -->
+  <div class="col-lg-8">
+    <div class="table-card p-3">
+      <div class="section-title">Ventas Mensuales — {{ year }}</div>
+      <canvas id="ventasChart" height="180"></canvas>
+    </div>
+  </div>
+  <!-- MEDIOS DE PAGO -->
+  <div class="col-lg-4">
+    <div class="table-card p-3">
+      <div class="section-title">Medios de Pago — Mes Actual</div>
+      <canvas id="medioChart" height="220"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <!-- VENTAS SEMANALES -->
+  <div class="col-lg-6">
+    <div class="table-card p-3">
+      <div class="section-title">Ventas Semanales — Últimas 8 semanas</div>
+      <canvas id="semanaChart" height="200"></canvas>
+    </div>
+  </div>
+  <!-- CATEGORÍAS -->
+  <div class="col-lg-6">
+    <div class="table-card p-3">
+      <div class="section-title">Ventas por Categoría</div>
+      <canvas id="catChart" height="200"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- TEMPORADAS -->
+<div class="row g-3 mb-3">
+  <div class="col-12">
+    <div class="table-card p-3">
+      <div class="section-title">Ventas por Temporada</div>
+      <div class="row g-3">
+        {% for t in temporadas %}
+        <div class="col-md-3">
+          {% set icons = {'Verano':'☀️','Otoño':'🍂','Invierno':'❄️','Primavera':'🌸'} %}
+          <div class="kpi-card">
+            <div class="kpi-lbl">{{ icons.get(t.temporada,'') }} {{ t.temporada }}</div>
+            <div class="kpi-val" style="font-size:1.3rem">{{ fmt_ars(t.total) }}</div>
+            <small class="text-muted">{{ t.tickets }} tickets</small>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MEDIOS DE PAGO TABLE -->
+<div class="table-card">
+  <div class="tc-header"><h6>Detalle Medios de Pago — Mes Actual</h6></div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead><tr><th>Medio de Pago</th><th class="text-end">Total ($)</th><th class="text-end">Operaciones</th><th>% del Total</th></tr></thead>
+      <tbody>
+      {% set total_medios = medios|sum(attribute='total') %}
+      {% for m in medios %}
+        <tr>
+          <td>
+            <span class="badge
+              {% if m.medio_pago=='Efectivo' %}bg-success
+              {% elif m.medio_pago=='Débito' %}bg-primary
+              {% elif m.medio_pago=='Crédito' %}bg-warning text-dark
+              {% elif 'QR' in m.medio_pago %}bg-info text-dark
+              {% elif 'Cuenta' in m.medio_pago %}bg-danger
+              {% else %}bg-secondary{% endif %}">
+              {{ m.medio_pago }}
+            </span>
+          </td>
+          <td class="text-end fw-bold">{{ fmt_ars(m.total) }}</td>
+          <td class="text-end">{{ m.ops }}</td>
+          <td>
+            {% if total_medios > 0 %}
+            <div class="progress" style="height:16px">
+              <div class="progress-bar bg-success" style="width:{{ (m.total/total_medios*100)|round(1) }}%">
+                {{ (m.total/total_medios*100)|round(1) }}%
+              </div>
+            </div>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const colors = ['#3a7d44','#1565c0','#e65100','#c62828','#f9a825','#4a148c','#00695c','#37474f'];
+
+new Chart(document.getElementById('ventasChart').getContext('2d'),{
+  type:'bar',data:{
+    labels: {{ meses_labels|safe }},
+    datasets:[
+      {label:'Ventas ($)',data:{{ ventas_vals|safe }},backgroundColor:'rgba(58,125,68,.7)',borderColor:'#3a7d44',borderWidth:2,borderRadius:4},
+    ]
+  },
+  options:{responsive:true,plugins:{legend:{position:'top'}},
+    scales:{y:{ticks:{callback:v=>'$'+v.toLocaleString('es-AR')},grid:{color:'#f0f0f0'}},x:{grid:{display:false}}}}
+});
+
+new Chart(document.getElementById('medioChart').getContext('2d'),{
+  type:'doughnut',data:{
+    labels: {{ medios_labels|safe }},
+    datasets:[{data:{{ medios_vals|safe }},backgroundColor:colors,borderWidth:2}]
+  },
+  options:{responsive:true,plugins:{legend:{position:'bottom'}}}
+});
+
+new Chart(document.getElementById('semanaChart').getContext('2d'),{
+  type:'line',data:{
+    labels: {{ semanas_labels|safe }},
+    datasets:[{label:'Ventas ($)',data:{{ semanas_vals|safe }},
+      borderColor:'#3a7d44',backgroundColor:'rgba(58,125,68,.1)',
+      fill:true,tension:.4,pointRadius:5,pointBackgroundColor:'#3a7d44'}]
+  },
+  options:{responsive:true,plugins:{legend:{display:false}},
+    scales:{y:{ticks:{callback:v=>'$'+v.toLocaleString('es-AR')},grid:{color:'#f0f0f0'}},x:{grid:{display:false}}}}
+});
+
+new Chart(document.getElementById('catChart').getContext('2d'),{
+  type:'bar',data:{
+    labels: {{ cats_labels|safe }},
+    datasets:[{label:'Ventas ($)',data:{{ cats_vals|safe }},backgroundColor:colors,borderWidth:0}]
+  },
+  options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},
+    scales:{x:{ticks:{callback:v=>'$'+v.toLocaleString('es-AR')},grid:{color:'#f0f0f0'}},y:{grid:{display:false}}}}
+});
+</script>
+{% endblock %}

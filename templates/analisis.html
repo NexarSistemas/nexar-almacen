@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+{% block title %}Análisis{% endblock %}
+{% block page_title %}<i class="fas fa-search-dollar me-2" style="color:#4a148c"></i>Análisis de Rentabilidad{% endblock %}
+
+{% block content %}
+<!-- RENTABILIDAD -->
+<div class="row g-3 mb-3">
+  <div class="col-md-3">
+    <div class="kpi-card blue">
+      <div class="kpi-lbl">Ingresos Mes</div>
+      <div class="kpi-val">{{ fmt_ars(rent.ventas) }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card orange">
+      <div class="kpi-lbl">Gastos Mes</div>
+      <div class="kpi-val">{{ fmt_ars(rent.gastos) }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card {% if rent.utilidad > 0 %}{% else %}red{% endif %}">
+      <div class="kpi-lbl">Utilidad Neta</div>
+      <div class="kpi-val {% if rent.utilidad < 0 %}text-danger{% endif %}">{{ fmt_ars(rent.utilidad) }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card {% if rent.rentabilidad > 10 %}{% elif rent.rentabilidad > 0 %}orange{% else %}red{% endif %}">
+      <div class="kpi-lbl">Rentabilidad</div>
+      <div class="kpi-val {% if rent.rentabilidad < 0 %}text-danger{% endif %}">
+        {{ "%.1f"|format(rent.rentabilidad) }}%
+      </div>
+      <small class="{% if rent.rentabilidad > 10 %}text-success{% elif rent.rentabilidad > 0 %}text-warning{% else %}text-danger{% endif %}">
+        {% if rent.rentabilidad > 10 %}✓ Saludable{% elif rent.rentabilidad > 0 %}⚠ Mejorar{% else %}✗ Deficitario{% endif %}
+      </small>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  {% if rent.gastos_prescindibles > 0 %}
+  <div class="col-12">
+    <div class="alert" style="background:#fff3e0;border:1px solid #ffb74d;color:#e65100">
+      <strong>⚠ Atención:</strong> Tenés <strong>{{ fmt_ars(rent.gastos_prescindibles) }}</strong> en gastos clasificados como prescindibles.
+      Eliminarlos aumentaría tu rentabilidad en <strong>{{ "%.1f"|format(rent.gastos_prescindibles/rent.ventas*100 if rent.ventas else 0) }}%</strong>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="row g-3 mb-3">
+  <!-- TOP VENDIDOS -->
+  <div class="col-lg-7">
+    <div class="table-card">
+      <div class="tc-header">
+        <h6><i class="fas fa-trophy me-2" style="color:#f9a825"></i>Top Productos Más Vendidos</h6>
+        <form class="ms-auto d-flex gap-1" method="get">
+          <input type="date" name="desde" value="{{ fecha_desde }}" class="form-control form-control-sm" style="width:130px">
+          <input type="date" name="hasta" value="{{ fecha_hasta }}" class="form-control form-control-sm" style="width:130px">
+          <button class="btn btn-sm btn-outline-secondary"><i class="fas fa-filter"></i></button>
+        </form>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>#</th><th>Producto</th><th>Categoría</th><th class="text-end">Unidades</th><th class="text-end">Total $</th></tr></thead>
+          <tbody>
+          {% for i, t in top|enumerate %}
+            <tr>
+              <td>
+                {% if loop.index == 1 %}<span style="color:#f9a825;font-size:1.1rem">🥇</span>
+                {% elif loop.index == 2 %}<span style="color:#9e9e9e;font-size:1.1rem">🥈</span>
+                {% elif loop.index == 3 %}<span style="color:#8d6e63;font-size:1.1rem">🥉</span>
+                {% else %}<span class="text-muted">{{ loop.index }}</span>{% endif %}
+              </td>
+              <td><strong>{{ t.descripcion }}</strong></td>
+              <td><small class="badge bg-secondary">{{ t.categoria }}</small></td>
+              <td class="text-end">{{ t.total_unidades }}</td>
+              <td class="text-end fw-bold text-success">{{ fmt_ars(t.total_pesos) }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOP VENDIDOS CHART -->
+  <div class="col-lg-5">
+    <div class="table-card p-3">
+      <div class="section-title">Distribución Top 8</div>
+      <canvas id="topChart" height="280"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <!-- MENOS VENDIDOS -->
+  <div class="col-lg-6">
+    <div class="table-card">
+      <div class="tc-header">
+        <h6><i class="fas fa-arrow-down me-2" style="color:#c62828"></i>Menos Vendidos (últimos 90 días)</h6>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Producto</th><th>Categoría</th><th class="text-end">Unidades</th><th class="text-end">Total $</th><th>Acción</th></tr></thead>
+          <tbody>
+          {% for b in bottom %}
+            <tr>
+              <td>{{ b.descripcion }}</td>
+              <td><small>{{ b.categoria }}</small></td>
+              <td class="text-end text-danger fw-bold">{{ b.total_unidades }}</td>
+              <td class="text-end text-danger">{{ fmt_ars(b.total_pesos) }}</td>
+              <td><span class="badge bg-warning text-dark" style="font-size:.7rem">Revisar stock</span></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- GASTOS POR CATEGORÍA -->
+  <div class="col-lg-6">
+    <div class="table-card">
+      <div class="tc-header">
+        <h6><i class="fas fa-chart-pie me-2" style="color:#c62828"></i>Gastos por Categoría</h6>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Categoría</th><th class="text-end">Total</th><th>¿Necesario?</th></tr></thead>
+          <tbody>
+          {% for g in gastos_cat %}
+            <tr>
+              <td>{{ g.categoria }}</td>
+              <td class="text-end fw-bold text-danger">{{ fmt_ars(g.total) }}</td>
+              <td>
+                {% if g.necesario == 'SI (necesario)' %}<span class="badge bg-success">Necesario</span>
+                {% elif g.necesario == 'NO (prescindible)' %}<span class="badge bg-danger">Prescindible</span>
+                {% else %}<span class="badge bg-warning text-dark">Revisar</span>{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ANÁLISIS DE TEMPORADAS -->
+<div class="table-card p-3">
+  <div class="section-title">🌤️ Análisis por Temporada — Recomendaciones</div>
+  <div class="row g-3">
+    {% set temps = [
+      ('Verano', '☀️', 'Aumentar stock de Bebidas, Agua y productos de estación. Principal temporada de ventas.', '#e65100', '#fff3e0'),
+      ('Otoño', '🍂', 'Infusiones, sopas y caldos. Transición hacia productos calientes.', '#795548', '#efebe9'),
+      ('Invierno', '❄️', 'Mate, té, chocolates calientes, leche y sopas. Reducir bebidas frías.', '#1565c0', '#e3f2fd'),
+      ('Primavera', '🌸', 'Reintroducir bebidas frías gradualmente. Frutas y verduras de estación.', '#2e7d32', '#e8f5e9'),
+    ] %}
+    {% for temp in temporadas %}
+      {% for name, icon, rec, color, bg in temps %}
+        {% if temp.temporada == name %}
+        <div class="col-md-3">
+          <div style="background:{{ bg }};border-left:4px solid {{ color }};border-radius:8px;padding:12px;">
+            <div style="font-size:1.5rem">{{ icon }} {{ name }}</div>
+            <div class="fw-bold" style="color:{{ color }}">{{ fmt_ars(temp.total) }}</div>
+            <div style="font-size:.8rem;color:#555;margin-top:6px">{{ rec }}</div>
+          </div>
+        </div>
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const colors8 = ['#3a7d44','#1565c0','#e65100','#c62828','#f9a825','#4a148c','#00695c','#37474f'];
+new Chart(document.getElementById('topChart').getContext('2d'),{
+  type:'doughnut',
+  data:{
+    labels: {{ top_labels|safe }},
+    datasets:[{data:{{ top_vals|safe }},backgroundColor:colors8,borderWidth:2}]
+  },
+  options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}}}
+});
+</script>
+{% endblock %}

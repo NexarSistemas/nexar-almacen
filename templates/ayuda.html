@@ -1,0 +1,315 @@
+{% extends 'base.html' %}
+{% block title %}Ayuda{% endblock %}
+{% block page_title %}<i class="fas fa-question-circle me-2" style="color:#1565c0"></i>Manual de Uso{% endblock %}
+
+{% block content %}
+<style>
+.help-toc { background:#fff;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.07);padding:20px;position:sticky;top:80px; }
+.help-toc a { color:#1a2e1a;text-decoration:none;display:block;padding:4px 0;font-size:.87rem; }
+.help-toc a:hover { color:#3a7d44; }
+.help-section { background:#fff;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.07);padding:28px;margin-bottom:20px; }
+.help-section h4 { color:#1a2e1a;font-weight:700;border-bottom:2px solid #e8f5e9;padding-bottom:10px;margin-bottom:16px; }
+.help-section h5 { color:#2e7d32;font-weight:700;margin-top:20px;margin-bottom:8px; }
+.help-section p, .help-section li { font-size:.92rem;color:#333;line-height:1.6; }
+.step { display:flex;gap:12px;align-items:flex-start;margin-bottom:12px; }
+.step-num { background:#3a7d44;color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.82rem;flex-shrink:0;margin-top:2px; }
+.tip-box { background:#e8f5e9;border-left:4px solid #3a7d44;border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:.88rem; }
+.warning-box { background:#fff3e0;border-left:4px solid #e65100;border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:.88rem; }
+kbd { background:#1a2e1a;color:#fff;border-radius:4px;padding:2px 6px;font-size:.8rem; }
+</style>
+
+<div class="row g-3">
+  <!-- TOC -->
+  <div class="col-lg-3">
+    <div class="help-toc">
+      <div class="fw-bold mb-2" style="color:#1a2e1a;font-size:.88rem;text-transform:uppercase;letter-spacing:.05em">
+        <i class="fas fa-list me-1"></i>Contenido
+      </div>
+      <a href="#inicio">🚀 Inicio rápido</a>
+      <a href="#login">🔐 Usuarios y acceso</a>
+      <a href="#dashboard">🏠 Dashboard</a>
+      <a href="#productos">📦 Catálogo de productos</a>
+      <a href="#stock">📊 Control de stock</a>
+      <a href="#venta">🛒 Punto de Venta</a>
+      <a href="#historial">📝 Historial de ventas</a>
+      <a href="#compras">🛍️ Compras</a>
+      <a href="#caja">💰 Caja diaria</a>
+      <a href="#gastos">💸 Gastos</a>
+      <a href="#cc_clientes">👥 CC Clientes</a>
+      <a href="#cc_proveedores">🏭 CC Proveedores</a>
+      <a href="#estadisticas">📈 Estadísticas</a>
+      <a href="#analisis">🔍 Análisis</a>
+      <a href="#config">⚙️ Configuración</a>
+      <a href="#licencia">🔑 Licencia</a>
+      <a href="#barras">🔫 Lector de barras</a>
+      <a href="#tips">💡 Tips y trucos</a>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="col-lg-9">
+
+    <!-- INICIO RÁPIDO -->
+    <div class="help-section" id="inicio">
+      <h4>🚀 Inicio Rápido</h4>
+      <p>Bienvenido al <strong>Sistema de Gestión para Almacenes</strong>. Esta guía te ayudará a configurar y usar el sistema desde el primer día.</p>
+      <h5>Primeros pasos recomendados</h5>
+      <div class="step"><div class="step-num">1</div><div><strong>Configuración del negocio</strong>: Andá a <em>Sistema → Configuración</em> y completá el nombre, dirección, CUIT y datos de tu almacén. Estos datos aparecerán en los tickets.</div></div>
+      <div class="step"><div class="step-num">2</div><div><strong>Cargá tus productos</strong>: En <em>Productos → Catálogo</em>, hacé clic en «Nuevo Producto» e ingresá cada artículo con su código, precio y costo.</div></div>
+      <div class="step"><div class="step-num">3</div><div><strong>Ajustá el stock inicial</strong>: En <em>Productos → Stock</em>, editá cada producto y colocá la cantidad actual que tenés en el depósito.</div></div>
+      <div class="step"><div class="step-num">4</div><div><strong>Configurá usuarios</strong>: Creá un usuario para cada vendedor (rol «Usuario») para que puedan acceder con sus propias credenciales.</div></div>
+      <div class="step"><div class="step-num">5</div><div><strong>Empezá a vender</strong>: ¡Ya podés usar el Punto de Venta! Cada venta actualizará el stock automáticamente.</div></div>
+      <div class="tip-box">💡 <strong>Tip:</strong> Los datos de demo (25 productos de ejemplo, clientes y ventas ficticias) están cargados para que puedas explorar el sistema antes de ingresar tus datos reales. Podés borrarlos desde el catálogo de productos.</div>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="help-section" id="login">
+      <h4>🔐 Usuarios y Acceso</h4>
+      <p>El sistema tiene dos tipos de usuarios con diferentes niveles de acceso:</p>
+      <table class="table table-sm">
+        <thead><tr><th>Rol</th><th>Acceso</th><th>Restricciones</th></tr></thead>
+        <tbody>
+          <tr><td>👑 <strong>Administrador</strong></td><td>Total — todos los módulos</td><td>Sin restricciones</td></tr>
+          <tr><td>👤 <strong>Usuario</strong></td><td>Operativo — ventas, stock, consultas</td><td>Sin Configuración, Usuarios ni Exportaciones</td></tr>
+        </tbody>
+      </table>
+      <h5>Usuarios por defecto</h5>
+      <ul>
+        <li>Administrador: <code>admin</code> / <code>admin123</code></li>
+        <li>Vendedor: <code>vendedor</code> / <code>vendedor123</code></li>
+      </ul>
+      <div class="warning-box">⚠️ <strong>Importante:</strong> Cambiá las contraseñas por defecto inmediatamente desde <em>Sistema → Usuarios</em>.</div>
+      <h5>Gestión de usuarios (solo admin)</h5>
+      <p>Desde <em>Sistema → Usuarios</em> podés crear nuevos vendedores, cambiar contraseñas, activar/desactivar y cambiar roles. Un administrador no puede desactivar su propia cuenta.</p>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="help-section" id="dashboard">
+      <h4>🏠 Dashboard</h4>
+      <p>El panel principal muestra un resumen en tiempo real de tu negocio:</p>
+      <ul>
+        <li><strong>Ventas de hoy</strong>: Total y cantidad de tickets del día actual.</li>
+        <li><strong>Ventas del mes</strong>: Acumulado mensual.</li>
+        <li><strong>Gastos del mes</strong>: Total de gastos registrados este mes.</li>
+        <li><strong>Alertas de stock</strong>: Productos sin stock o en nivel crítico.</li>
+        <li><strong>Gráfico mensual</strong>: Evolución de ventas en el año.</li>
+        <li><strong>Facturas por vencer</strong>: Las 5 más próximas a vencer con proveedores.</li>
+      </ul>
+    </div>
+
+    <!-- PRODUCTOS -->
+    <div class="help-section" id="productos">
+      <h4>📦 Catálogo de Productos</h4>
+      <h5>Agregar un producto nuevo</h5>
+      <div class="step"><div class="step-num">1</div><div>Clic en «Nuevo Producto» (botón azul, arriba a la derecha).</div></div>
+      <div class="step"><div class="step-num">2</div><div>El sistema genera automáticamente un código interno (PRD-XXXX). Podés cambiar el código de barras.</div></div>
+      <div class="step"><div class="step-num">3</div><div>Completá: descripción, categoría, unidad, costo y precio de venta.</div></div>
+      <div class="step"><div class="step-num">4</div><div>El <strong>margen de ganancia</strong> se calcula automáticamente: verde ≥35%, amarillo 20-34%, rojo &lt;20%.</div></div>
+      <div class="step"><div class="step-num">5</div><div>Indicá el stock inicial, mínimo y máximo. El mínimo dispara alertas cuando el stock baja.</div></div>
+
+      <h5>Productos por peso (fiambres, quesos, etc.)</h5>
+      <p>Activá la opción «Venta por peso/kg». En el Punto de Venta pedirá el peso en lugar de la cantidad.</p>
+
+      <h5>Exportación del catálogo</h5>
+      <p>Desde el listado de productos podés exportar a:</p>
+      <ul>
+        <li><strong>Excel (.xlsx)</strong>: Planilla con colores por estado de stock, filtros automáticos y formato de moneda.</li>
+        <li><strong>PDF imprimible</strong>: Tabla lista para imprimir con todos los precios y estados.</li>
+      </ul>
+      <div class="tip-box">💡 La exportación solo está disponible para Administradores.</div>
+    </div>
+
+    <!-- STOCK -->
+    <div class="help-section" id="stock">
+      <h4>📊 Control de Stock</h4>
+      <p>El stock se actualiza automáticamente con cada venta y compra registrada. Los niveles de alerta son:</p>
+      <table class="table table-sm">
+        <thead><tr><th>Estado</th><th>Condición</th><th>Acción recomendada</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge bg-dark">SIN STOCK</span></td><td>Stock ≤ 0</td><td>Urgente: pedir reposición</td></tr>
+          <tr><td><span class="badge bg-danger">CRÍTICO</span></td><td>Stock ≤ stock mínimo</td><td>Pedir pedido inmediato</td></tr>
+          <tr><td><span class="badge bg-warning text-dark">BAJO</span></td><td>Stock ≤ 150% del mínimo</td><td>Planificar reposición</td></tr>
+          <tr><td><span class="badge bg-success">NORMAL</span></td><td>Entre mínimo y máximo</td><td>Sin acción</td></tr>
+          <tr><td><span class="badge bg-primary">EXCESO</span></td><td>Stock ≥ máximo</td><td>Reducir compras</td></tr>
+        </tbody>
+      </table>
+      <p>Hacé clic en cualquier producto para editar stock actual, mínimo, máximo y proveedor habitual directamente desde la pantalla.</p>
+    </div>
+
+    <!-- PUNTO DE VENTA -->
+    <div class="help-section" id="venta">
+      <h4>🛒 Punto de Venta</h4>
+      <h5>Cómo realizar una venta</h5>
+      <div class="step"><div class="step-num">1</div><div><strong>Buscá el producto</strong>: Escaneá el código de barras con la pistola lectora (presionando <kbd>Enter</kbd>), o escribí el código interno o la descripción para búsqueda instantánea.</div></div>
+      <div class="step"><div class="step-num">2</div><div><strong>Confirmá la cantidad</strong>: Ajustá la cantidad (o el peso si es producto por kg) y el descuento individual (%).</div></div>
+      <div class="step"><div class="step-num">3</div><div><strong>Agregá más ítems</strong>: Repetí para cada producto. Podés agregar tantos como necesites.</div></div>
+      <div class="step"><div class="step-num">4</div><div><strong>Seleccioná el cliente</strong> (opcional): Si es cuenta corriente, es obligatorio seleccionar el cliente.</div></div>
+      <div class="step"><div class="step-num">5</div><div><strong>Elegí el medio de pago</strong>: Efectivo, Débito, Crédito, Transferencia, QR o Cuenta Corriente.</div></div>
+      <div class="step"><div class="step-num">6</div><div><strong>Confirmá la venta</strong>: El sistema genera el ticket, actualiza el stock y registra en caja.</div></div>
+
+      <h5>Búsqueda instantánea de productos</h5>
+      <p>Al tipear más de 2 letras en el buscador, aparece un dropdown con sugerencias en tiempo real. Los códigos de barras numéricos se procesan con <kbd>Enter</kbd>.</p>
+
+      <div class="tip-box">💡 <strong>Lector de barras:</strong> Conectá la pistola USB. Al escanear, el código se ingresa automáticamente. Si el artículo está en el sistema, se agrega al carrito con <kbd>Enter</kbd>.</div>
+      <div class="warning-box">⚠️ En modo demo, el sistema permite hasta 30 ventas. Al alcanzar el límite, bloqueará nuevas ventas hasta activar la licencia completa.</div>
+    </div>
+
+    <!-- HISTORIAL -->
+    <div class="help-section" id="historial">
+      <h4>📝 Historial de Ventas</h4>
+      <p>Muestra todas las ventas registradas. Podés filtrar por:</p>
+      <ul>
+        <li><strong>Texto</strong>: Busca en nombre del cliente, número de ticket y productos.</li>
+        <li><strong>Rango de fechas</strong>: Desde / hasta una fecha determinada.</li>
+      </ul>
+      <p>Hacé clic en cualquier venta para ver el detalle completo e imprimir el ticket.</p>
+    </div>
+
+    <!-- COMPRAS -->
+    <div class="help-section" id="compras">
+      <h4>🛍️ Compras</h4>
+      <p>Registrá cada ingreso de mercadería. Al registrar una compra:</p>
+      <ul>
+        <li>El stock del producto aumenta automáticamente.</li>
+        <li>Si especificás un costo unitario, actualiza el costo del producto.</li>
+        <li>Queda registrada la fecha, el remito/factura y el proveedor.</li>
+      </ul>
+    </div>
+
+    <!-- CAJA -->
+    <div class="help-section" id="caja">
+      <h4>💰 Caja Diaria</h4>
+      <h5>Apertura de caja</h5>
+      <p>Al inicio del día ingresá el saldo de apertura (efectivo disponible) y el responsable.</p>
+      <h5>Durante el día</h5>
+      <p>Las ventas en efectivo se acumulan automáticamente. Podés registrar gastos del día (alquiler, servicios, etc.) directamente desde caja.</p>
+      <h5>Cierre de caja</h5>
+      <p>Al finalizar el día ingresá el saldo real (efectivo contado). El sistema calcula la diferencia:</p>
+      <ul>
+        <li><strong>Diferencia positiva</strong>: Sobra efectivo (posible venta no registrada o error de cambio).</li>
+        <li><strong>Diferencia negativa</strong>: Falta efectivo (posible error o gasto no registrado).</li>
+      </ul>
+    </div>
+
+    <!-- GASTOS -->
+    <div class="help-section" id="gastos">
+      <h4>💸 Gastos</h4>
+      <p>Registrá todos los egresos del negocio. Cada gasto se clasifica como:</p>
+      <ul>
+        <li><strong>SI (necesario)</strong>: Gastos inevitables (alquiler, luz, impuestos).</li>
+        <li><strong>NO (prescindible)</strong>: Gastos que podrían eliminarse para mejorar la rentabilidad.</li>
+        <li><strong>A REVISAR</strong>: Gastos que requieren análisis.</li>
+      </ul>
+      <p>Esta clasificación aparece en el módulo de Análisis y permite identificar oportunidades de ahorro.</p>
+    </div>
+
+    <!-- CC CLIENTES -->
+    <div class="help-section" id="cc_clientes">
+      <h4>👥 Cuentas Corrientes — Clientes</h4>
+      <p>Gestioná la deuda de tus clientes que compran a crédito.</p>
+      <ul>
+        <li>Al registrar una venta en «Cuenta Corriente», se crea automáticamente un movimiento de debe.</li>
+        <li>Podés registrar pagos parciales o totales desde el detalle del cliente.</li>
+        <li>El sistema alerta cuando hay vencimientos próximos.</li>
+        <li>Cada cliente tiene un límite de crédito configurable.</li>
+      </ul>
+    </div>
+
+    <!-- CC PROVEEDORES -->
+    <div class="help-section" id="cc_proveedores">
+      <h4>🏭 Cuentas Corrientes — Proveedores</h4>
+      <p>Controlá las deudas con tus proveedores.</p>
+      <ul>
+        <li>Registrá las facturas de compra con fecha de vencimiento.</li>
+        <li>El sistema te alerta 30 días antes del vencimiento.</li>
+        <li>Registrá pagos parciales o totales por factura.</li>
+        <li>Las facturas vencidas se resaltan en rojo.</li>
+      </ul>
+    </div>
+
+    <!-- ESTADÍSTICAS -->
+    <div class="help-section" id="estadisticas">
+      <h4>📈 Estadísticas</h4>
+      <p>Gráficos de ventas para analizar el rendimiento:</p>
+      <ul>
+        <li><strong>Ventas mensuales</strong>: Evolución a lo largo del año (podés seleccionar el año).</li>
+        <li><strong>Ventas semanales</strong>: Últimas 8 semanas.</li>
+        <li><strong>Medios de pago</strong>: Distribución del mes actual.</li>
+        <li><strong>Temporadas</strong>: Comparativa Verano / Otoño / Invierno / Primavera.</li>
+        <li><strong>Por categoría</strong>: Qué rubros generan más ventas.</li>
+      </ul>
+    </div>
+
+    <!-- ANÁLISIS -->
+    <div class="help-section" id="analisis">
+      <h4>🔍 Análisis de Rentabilidad</h4>
+      <ul>
+        <li><strong>Rentabilidad del mes</strong>: Ventas, gastos, utilidad y % de rentabilidad.</li>
+        <li><strong>Top productos</strong>: Los más vendidos por unidades y por monto.</li>
+        <li><strong>Menos vendidos</strong>: Productos que podrían descontinuarse.</li>
+        <li><strong>Gastos por categoría</strong>: Con clasificación necesario/prescindible.</li>
+        <li><strong>Recomendaciones estacionales</strong>: Qué productos priorizar según la temporada.</li>
+      </ul>
+    </div>
+
+    <!-- CONFIG -->
+    <div class="help-section" id="config">
+      <h4>⚙️ Configuración (solo Administrador)</h4>
+      <ul>
+        <li><strong>Datos del negocio</strong>: Nombre, dirección, CUIT, teléfono — aparecen en los tickets.</li>
+        <li><strong>Márgenes</strong>: Porcentajes mínimo y objetivo para las alertas de margen en productos.</li>
+        <li><strong>Días de alerta</strong>: Con cuántos días de anticipación alertar sobre vencimientos.</li>
+        <li><strong>Categorías</strong>: Agregá o eliminá categorías de productos.</li>
+      </ul>
+    </div>
+
+    <!-- LICENCIA -->
+    <div class="help-section" id="licencia">
+      <h4>🔑 Licencia</h4>
+      <p>El sistema incluye un <strong>modo demo</strong> con límites de prueba (30 ventas, 100 productos). Para usar el sistema sin restricciones:</p>
+      <div class="step"><div class="step-num">1</div><div>Andá a <em>Sistema → Licencia</em></div></div>
+      <div class="step"><div class="step-num">2</div><div>Copiá tu <strong>ID de Instalación</strong> (único por cada computadora).</div></div>
+      <div class="step"><div class="step-num">3</div><div>Contactá al desarrollador por WhatsApp o email para adquirir la licencia.</div></div>
+      <div class="step"><div class="step-num">4</div><div>Ingresá el código recibido en el campo de activación.</div></div>
+    </div>
+
+    <!-- BARRAS -->
+    <div class="help-section" id="barras">
+      <h4>🔫 Lector de Código de Barras</h4>
+      <p>El sistema es <strong>completamente compatible</strong> con lectores de barras USB tipo HID (los más comunes).</p>
+      <h5>Configuración</h5>
+      <p><strong>No requiere ninguna configuración</strong>. El lector funciona como un teclado: al escanear, el código se ingresa automáticamente en el campo activo.</p>
+      <h5>Uso en Punto de Venta</h5>
+      <ol>
+        <li>Asegurate que el cursor esté en el campo de búsqueda (se enfoca automáticamente al abrir la pantalla).</li>
+        <li>Escaneá el código de barras del producto.</li>
+        <li>El sistema lo busca automáticamente y muestra el producto.</li>
+        <li>Confirmás la cantidad y se agrega al carrito.</li>
+      </ol>
+      <h5>Uso en Carga de Productos</h5>
+      <p>Al crear o editar un producto, podés escanear el código de barras directamente en el campo «Código de Barras».</p>
+      <div class="tip-box">💡 Compatible con lectores Datalogic, Zebra, Honeywell, Symbol, y cualquier lector USB HID estándar.</div>
+    </div>
+
+    <!-- TIPS -->
+    <div class="help-section" id="tips">
+      <h4>💡 Tips y Trucos</h4>
+      <ul>
+        <li>Presioná <kbd>Enter</kbd> en el campo de búsqueda del POS para agregar el primer resultado al carrito.</li>
+        <li>Hacé backup del archivo <code>almacen.db</code> periódicamente — ahí está toda tu información.</li>
+        <li>Usá el módulo de Análisis para identificar qué productos prescindibles estás comprando y reducir gastos.</li>
+        <li>Configurá el stock mínimo de cada producto según tu rotación para recibir alertas a tiempo.</li>
+        <li>Las ventas en «Cuenta Corriente» solo están disponibles si el cliente está cargado en el sistema.</li>
+        <li>Desde Estadísticas, cambiá el año para comparar el rendimiento anual.</li>
+        <li>El PDF del catálogo es útil para tener una lista de precios impresa actualizada.</li>
+      </ul>
+      <div class="tip-box">
+        <strong>¿Más ayuda?</strong> Contactá al desarrollador:<br>
+        📱 WhatsApp: <a href="https://wa.me/5492645858874">+549 264 585-8874</a><br>
+        📧 Email: <a href="mailto:rolojnb@outlook.com.ar">rolojnb@outlook.com.ar</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

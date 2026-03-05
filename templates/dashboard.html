@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}<i class="fas fa-tachometer-alt me-2" style="color:#3a7d44"></i>Dashboard{% endblock %}
+
+{% block content %}
+<!-- KPI CARDS -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-lg-3">
+    <div class="kpi-card">
+      <div class="kpi-lbl"><i class="fas fa-sun me-1"></i>Ventas Hoy</div>
+      <div class="kpi-val">{{ fmt_ars(kpis.ventas_hoy) }}</div>
+      <small class="text-muted">{{ kpis.tickets_hoy }} tickets</small>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="kpi-card blue">
+      <div class="kpi-lbl"><i class="fas fa-calendar-alt me-1"></i>Ventas Mes</div>
+      <div class="kpi-val">{{ fmt_ars(kpis.ventas_mes) }}</div>
+      <small class="text-muted">Mes actual</small>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="kpi-card orange">
+      <div class="kpi-lbl"><i class="fas fa-file-invoice-dollar me-1"></i>Gastos Mes</div>
+      <div class="kpi-val">{{ fmt_ars(kpis.gastos_mes) }}</div>
+      <small class="text-muted">Mes actual</small>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="kpi-card {% if kpis.sin_stock > 0 %}red{% else %}{% endif %}">
+      <div class="kpi-lbl"><i class="fas fa-exclamation-triangle me-1"></i>Alertas Stock</div>
+      <div class="kpi-val">{{ kpis.sin_stock + kpis.stock_critico }}</div>
+      <small class="text-muted">{{ kpis.sin_stock }} sin stock · {{ kpis.stock_critico }} críticos</small>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <!-- VENTAS CHART -->
+  <div class="col-lg-8">
+    <div class="table-card p-3">
+      <div class="tc-header mb-3">
+        <h6><i class="fas fa-chart-line me-2" style="color:#3a7d44"></i>Ventas Mensuales — {{ today()[:4] }}</h6>
+      </div>
+      <canvas id="ventasChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- ACCESOS RÁPIDOS -->
+  <div class="col-lg-4">
+    <div class="table-card p-3 h-100">
+      <div class="section-title">Acciones Rápidas</div>
+      <div class="d-grid gap-2">
+        <a href="/venta" class="btn btn-primary btn-lg">
+          <i class="fas fa-cash-register me-2"></i>Nueva Venta
+        </a>
+        <a href="/compras" class="btn btn-outline-secondary">
+          <i class="fas fa-shopping-cart me-2"></i>Registrar Compra
+        </a>
+        <a href="/gastos" class="btn btn-outline-secondary">
+          <i class="fas fa-file-invoice-dollar me-2"></i>Registrar Gasto
+        </a>
+        <a href="/stock?alerta=1" class="btn btn-outline-danger">
+          <i class="fas fa-warehouse me-2"></i>Ver Alertas Stock
+        </a>
+        <a href="/caja" class="btn btn-outline-secondary">
+          <i class="fas fa-cash-register me-2"></i>Abrir/Cerrar Caja
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- ALERTAS STOCK -->
+  <div class="col-lg-6">
+    <div class="table-card">
+      <div class="tc-header">
+        <h6><i class="fas fa-exclamation-circle me-2" style="color:#e65100"></i>Alertas de Stock</h6>
+        <a href="/stock?alerta=1" class="ms-auto btn btn-sm btn-outline-danger">Ver todos</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Producto</th><th>Stock</th><th>Mín.</th><th>Estado</th></tr></thead>
+          <tbody>
+          {% for r in alertas_stock %}
+            <tr>
+              <td>{{ r.descripcion }}</td>
+              <td><strong>{{ r.stock_actual }}</strong></td>
+              <td>{{ r.stock_minimo }}</td>
+              <td>
+                {% if r.estado=='SIN STOCK' %}<span class="badge badge-sinstock">SIN STOCK</span>
+                {% elif r.estado=='CRITICO' %}<span class="badge badge-critico">CRÍTICO</span>
+                {% else %}<span class="badge badge-bajo">BAJO</span>{% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="text-center text-success py-3">
+              <i class="fas fa-check-circle"></i> Stock en buen estado
+            </td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- FACTURAS POR VENCER -->
+  <div class="col-lg-6">
+    <div class="table-card">
+      <div class="tc-header">
+        <h6><i class="fas fa-calendar-times me-2" style="color:#c62828"></i>Facturas Proveedores por Vencer</h6>
+        <a href="/cc_proveedores" class="ms-auto btn btn-sm btn-outline-primary">Ver todas</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Proveedor</th><th>Factura</th><th>Vencimiento</th><th>Saldo</th></tr></thead>
+          <tbody>
+          {% for f in facturas_venc %}
+            <tr>
+              <td>{{ f.prov }}</td>
+              <td>{{ f.numero_factura }}</td>
+              <td>
+                <span class="{% if f.fecha_vencimiento < today() %}text-danger fw-bold{% else %}text-warning{% endif %}">
+                  {{ f.fecha_vencimiento }}
+                </span>
+              </td>
+              <td class="fw-bold">{{ fmt_ars(f.importe - f.pagado) }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="text-center text-success py-3">
+              <i class="fas fa-check-circle"></i> Sin facturas pendientes
+            </td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ctx = document.getElementById('ventasChart').getContext('2d');
+new Chart(ctx, {
+  type:'bar',
+  data:{
+    labels: {{ meses_labels|safe }},
+    datasets:[{
+      label:'Ventas ($)',
+      data: {{ ventas_chart|safe }},
+      backgroundColor:'rgba(58,125,68,0.7)',
+      borderColor:'rgba(58,125,68,1)',
+      borderWidth:2,
+      borderRadius:4,
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{display:false}},
+    scales:{
+      y:{ticks:{callback:v=>'$'+v.toLocaleString('es-AR')},grid:{color:'#f0f0f0'}},
+      x:{grid:{display:false}}
+    }
+  }
+});
+</script>
+{% endblock %}

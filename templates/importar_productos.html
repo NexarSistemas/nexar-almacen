@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+{% block title %}Importar Productos{% endblock %}
+{% block page_title %}
+  <i class="fas fa-cloud-download-alt me-2" style="color:#1565c0"></i>Importar Productos
+{% endblock %}
+
+{% block content %}
+<style>
+.imp-card   { background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.07); padding:24px; margin-bottom:18px; }
+.imp-option { border:2px solid #e0e0e0; border-radius:10px; padding:20px; transition:border-color .2s; }
+.imp-option:hover { border-color:#3a7d44; }
+.imp-option.best  { border-color:#3a7d44; background:#f1f8f1; }
+.pill  { display:inline-block; border-radius:20px; padding:3px 12px; font-size:.75rem; font-weight:700; }
+.pill-g{ background:#e8f5e9; color:#2e7d32; }
+.pill-b{ background:#e3f2fd; color:#1565c0; }
+.pill-o{ background:#fff3e0; color:#e65100; }
+.spin  { display:none; }
+.stat-box { background:#f5f5f5; border-radius:8px; padding:14px 16px; }
+.stat-num { font-size:1.6rem; font-weight:800; line-height:1; }
+</style>
+
+<!-- Estado actual DB -->
+<div class="imp-card">
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <i class="fas fa-database text-success"></i>
+    <span class="fw-bold" style="color:#1a2e1a">Estado actual de la base de datos</span>
+  </div>
+  <div class="row g-3">
+    <div class="col-6 col-md-3">
+      <div class="stat-box text-center">
+        <div class="stat-num text-success">{{ stats_db.total_productos }}</div>
+        <small class="text-muted">Total productos</small>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-box text-center">
+        <div class="stat-num" style="color:#1565c0">{{ stats_db.con_codigo_barras }}</div>
+        <small class="text-muted">Con código de barras</small>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-box text-center">
+        <div class="stat-num" style="color:#2e7d32">{{ stats_db.con_marca }}</div>
+        <small class="text-muted">Con marca asignada</small>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-box text-center">
+        <div class="stat-num" style="color:#e65100">{{ stats_db.sin_precio_asignado }}</div>
+        <small class="text-muted">Sin precio aún</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+<div class="col-lg-8">
+
+  <!-- OPCIÓN 1: Dataset local -->
+  <div class="imp-card">
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <i class="fas fa-box-open" style="color:#2e7d32"></i>
+      <h6 class="mb-0 fw-bold" style="color:#1a2e1a">Opción 1 &mdash; Dataset local incorporado</h6>
+      <span class="pill pill-g ms-1">SIN INTERNET</span>
+      <span class="pill pill-g">RECOMENDADO</span>
+    </div>
+    <p class="text-muted mb-3" style="font-size:.88rem">
+      361 productos reales de almacenes argentinos ya incluidos en el sistema.
+      Funciona sin internet. Ideal para el primer arranque.
+    </p>
+    <div class="imp-option best">
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        <span class="pill pill-g">&#10004; 361 productos</span>
+        <span class="pill pill-g">&#10004; 60+ marcas</span>
+        <span class="pill pill-g">&#10004; 14 categorias</span>
+        <span class="pill pill-g">&#10004; Instantaneo</span>
+      </div>
+      <form method="post" action="/productos/importar/seed"
+            onsubmit="show('sp1');dis(this)">
+        <button type="submit" class="btn btn-success">
+          <i class="fas fa-download me-1"></i>Importar dataset local
+        </button>
+        <span id="sp1" class="spin ms-2 text-muted" style="font-size:.9rem">
+          <i class="fas fa-spinner fa-spin me-1"></i>Importando...
+        </span>
+      </form>
+    </div>
+  </div>
+
+  <!-- OPCIÓN 2: OFF importación inicial -->
+  <div class="imp-card">
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <i class="fas fa-globe" style="color:#1565c0"></i>
+      <h6 class="mb-0 fw-bold" style="color:#1a2e1a">Opción 2 &mdash; Importar desde OpenFoodFacts</h6>
+      <span class="pill pill-b ms-1">REQUIERE INTERNET</span>
+    </div>
+    <p class="text-muted mb-3" style="font-size:.88rem">
+      Descarga productos reales desde la API de OpenFoodFacts, filtrados por Argentina.
+      Tarda entre 3 y 8 minutos segun la conexion.
+    </p>
+    <div class="imp-option">
+      <form method="post" action="/productos/importar/off"
+            onsubmit="show('sp2');dis(this)">
+        <div class="d-flex align-items-center gap-3 flex-wrap mb-3">
+          <label class="fw-bold mb-0" style="font-size:.88rem;white-space:nowrap">Cantidad minima:</label>
+          <select name="limit" class="form-select form-select-sm" style="max-width:200px">
+            <option value="200">200 productos</option>
+            <option value="350" selected>350 productos</option>
+            <option value="500">500 productos</option>
+            <option value="750">750 productos</option>
+          </select>
+        </div>
+        <div class="alert alert-info py-2 mb-3" style="font-size:.83rem">
+          <i class="fas fa-info-circle me-1"></i>
+          No cierres la ventana mientras importa. Los duplicados se saltan automaticamente.
+        </div>
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-cloud-download-alt me-1"></i>Importar desde OpenFoodFacts
+        </button>
+        <span id="sp2" class="spin ms-2 text-muted" style="font-size:.9rem">
+          <i class="fas fa-spinner fa-spin me-1"></i>Descargando... puede tardar varios minutos.
+        </span>
+      </form>
+    </div>
+  </div>
+
+  <!-- OPCIÓN 3: Actualizar -->
+  <div class="imp-card">
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <i class="fas fa-sync-alt" style="color:#e65100"></i>
+      <h6 class="mb-0 fw-bold" style="color:#1a2e1a">Opcion 3 &mdash; Actualizar productos existentes</h6>
+      <span class="pill pill-o ms-1">REQUIERE INTERNET</span>
+    </div>
+    <p class="text-muted mb-3" style="font-size:.88rem">
+      Agrega nuevos productos y actualiza nombre/marca de los ya existentes.
+      <strong>Nunca modifica precios ni stock.</strong>
+    </p>
+    <div class="imp-option">
+      <form method="post" action="/productos/importar/update"
+            onsubmit="show('sp3');dis(this)">
+        <div class="d-flex align-items-center gap-3 flex-wrap mb-3">
+          <label class="fw-bold mb-0" style="font-size:.88rem;white-space:nowrap">Paginas a procesar:</label>
+          <select name="max_pages" class="form-select form-select-sm" style="max-width:220px">
+            <option value="">Todas (completo)</option>
+            <option value="5">5 paginas (~250 productos)</option>
+            <option value="10">10 paginas (~500 productos)</option>
+            <option value="20">20 paginas (~1000 productos)</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-warning text-dark">
+          <i class="fas fa-sync-alt me-1"></i>Actualizar productos
+        </button>
+        <span id="sp3" class="spin ms-2 text-muted" style="font-size:.9rem">
+          <i class="fas fa-spinner fa-spin me-1"></i>Actualizando...
+        </span>
+      </form>
+    </div>
+  </div>
+
+</div><!-- col-lg-8 -->
+
+<!-- Panel lateral -->
+<div class="col-lg-4">
+
+  <div class="imp-card">
+    <h6 class="fw-bold mb-2" style="color:#1a2e1a">
+      <i class="fas fa-barcode me-2 text-success"></i>Buscar por codigo de barras
+    </h6>
+    <p style="font-size:.83rem;color:#666;margin-bottom:10px">
+      Escaneá o escribí un EAN para ver si existe en OpenFoodFacts.
+    </p>
+    <div class="input-group input-group-sm mb-2">
+      <input type="text" id="bcInput" class="form-control"
+             placeholder="Ej: 7790895000777" maxlength="14">
+      <button class="btn btn-outline-success" onclick="lookupBC()">
+        <i class="fas fa-search"></i>
+      </button>
+    </div>
+    <div id="bcResult" style="font-size:.83rem"></div>
+  </div>
+
+  <div class="imp-card">
+    <h6 class="fw-bold mb-3" style="color:#1a2e1a">
+      <i class="fas fa-info-circle me-2 text-success"></i>Que incluye cada producto?
+    </h6>
+    <table class="table table-sm" style="font-size:.83rem">
+      <tr><td>Codigo de barras</td><td class="text-success fw-bold">Automatico</td></tr>
+      <tr><td>Nombre del producto</td><td class="text-success fw-bold">Automatico</td></tr>
+      <tr><td>Marca</td><td class="text-success fw-bold">Automatico</td></tr>
+      <tr><td>Categoria</td><td class="text-success fw-bold">Automatico</td></tr>
+      <tr><td>Precio costo</td><td class="text-warning fw-bold">Completas vos</td></tr>
+      <tr><td>Precio venta</td><td class="text-warning fw-bold">Completas vos</td></tr>
+      <tr><td>Stock</td><td class="text-warning fw-bold">Completas vos</td></tr>
+    </table>
+  </div>
+
+  <div class="imp-card" style="background:#1a2e1a;color:#fff">
+    <h6 class="fw-bold mb-2" style="color:#a5d6a7">
+      <i class="fas fa-arrow-right me-2"></i>Despues de importar
+    </h6>
+    <p style="font-size:.83rem;color:#bbb;margin-bottom:12px">
+      Anda al catalogo, busca los productos y completa precio de costo, precio de venta y stock.
+    </p>
+    <a href="/productos" class="btn btn-success btn-sm w-100">
+      <i class="fas fa-boxes me-1"></i>Ir al Catalogo de Productos
+    </a>
+  </div>
+
+</div>
+</div><!-- row -->
+
+<script>
+function show(id){ document.getElementById(id).style.display='inline'; }
+function dis(form){ form.querySelectorAll('button[type=submit]').forEach(b=>b.disabled=true); }
+
+function lookupBC(){
+  const bc = document.getElementById('bcInput').value.trim();
+  if(!bc) return;
+  const el = document.getElementById('bcResult');
+  el.innerHTML = '<i class="fas fa-spinner fa-spin me-1 text-muted"></i>Buscando...';
+  fetch('/api/barcode/'+bc)
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.ok){
+        const p=d.producto;
+        el.innerHTML=`<div class="alert alert-success p-2 mb-0">
+          <b>${p.name}</b><br>
+          <small>Marca: ${p.brand||'—'} | Categoría: ${p.category}</small>
+        </div>`;
+      } else {
+        el.innerHTML=`<div class="alert alert-warning p-2 mb-0 text-dark">${d.msg}</div>`;
+      }
+    })
+    .catch(()=>el.innerHTML='<div class="alert alert-danger p-2 mb-0">Error de conexión.</div>');
+}
+document.getElementById('bcInput').addEventListener('keydown',e=>{ if(e.key==='Enter') lookupBC(); });
+</script>
+{% endblock %}

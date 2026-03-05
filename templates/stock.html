@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% block title %}Stock{% endblock %}
+{% block page_title %}<i class="fas fa-warehouse me-2" style="color:#3a7d44"></i>Gestión de Stock{% endblock %}
+
+{% block content %}
+<!-- SUMMARY -->
+<div class="row g-2 mb-3">
+  <div class="col-md-3">
+    <div class="kpi-card red">
+      <div class="kpi-lbl"><i class="fas fa-ban me-1"></i>Sin Stock</div>
+      <div class="kpi-val">{{ alertas.sin_stock }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card orange">
+      <div class="kpi-lbl"><i class="fas fa-exclamation me-1"></i>Críticos (=mín)</div>
+      <div class="kpi-val">{{ alertas.critico }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card" style="border-color:#f9a825">
+      <div class="kpi-lbl"><i class="fas fa-arrow-down me-1"></i>Bajos (≤150% mín)</div>
+      <div class="kpi-val" style="color:#f9a825">{{ alertas.bajo }}</div>
+    </div>
+  </div>
+  <div class="col-md-3 d-flex gap-2 align-items-center">
+    <a href="?alerta=1" class="btn btn-outline-danger w-100">
+      <i class="fas fa-exclamation-triangle me-1"></i>Solo alertas
+    </a>
+    <a href="/stock" class="btn btn-outline-secondary w-100">
+      <i class="fas fa-list me-1"></i>Todos
+    </a>
+  </div>
+</div>
+
+<div class="table-card">
+  <div class="tc-header">
+    <h6><i class="fas fa-warehouse me-2"></i>Stock ({{ rows|length }} productos)</h6>
+    <form class="ms-auto d-flex gap-2" method="get">
+      <input type="text" name="q" value="{{ search }}" class="form-control form-control-sm" placeholder="Buscar..." style="width:200px">
+      {% if alerta %}<input type="hidden" name="alerta" value="1">{% endif %}
+      <button class="btn btn-sm btn-outline-secondary"><i class="fas fa-search"></i></button>
+    </form>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>Código</th><th>Descripción</th><th>Categoría</th>
+          <th class="text-center">Stock Actual</th>
+          <th class="text-center">Mínimo</th>
+          <th class="text-center">Máximo</th>
+          <th class="text-center">Estado</th>
+          <th>Valor Stock</th>
+          <th>Proveedor Hab.</th>
+          <th>Últ. Ingreso</th>
+          <th>Editar</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in rows %}
+        <tr>
+          <td><code>{{ r.codigo_interno }}</code></td>
+          <td><strong>{{ r.descripcion }}</strong></td>
+          <td><small>{{ r.categoria }}</small></td>
+          <td class="text-center fw-bold
+            {% if r.estado=='SIN STOCK' %}text-danger
+            {% elif r.estado=='CRITICO' %}text-warning
+            {% elif r.estado=='BAJO' %}text-warning
+            {% else %}text-success{% endif %}">
+            {{ r.stock_actual }}
+          </td>
+          <td class="text-center">{{ r.stock_minimo }}</td>
+          <td class="text-center">{{ r.stock_maximo }}</td>
+          <td class="text-center">
+            {% if r.estado=='SIN STOCK' %}<span class="badge badge-sinstock">⛔ SIN STOCK</span>
+            {% elif r.estado=='CRITICO' %}<span class="badge badge-critico">🔴 CRÍTICO</span>
+            {% elif r.estado=='BAJO' %}<span class="badge badge-bajo">🟡 BAJO</span>
+            {% elif r.estado=='EXCESO' %}<span class="badge badge-exceso">🟣 EXCESO</span>
+            {% else %}<span class="badge badge-normal">🟢 NORMAL</span>{% endif %}
+          </td>
+          <td>{{ fmt_ars(r.valor_stock or 0) }}</td>
+          <td><small>{{ r.proveedor_habitual or '—' }}</small></td>
+          <td><small>{{ r.ultimo_ingreso or '—' }}</small></td>
+          <td>
+            <button class="btn btn-xs btn-outline-primary" style="font-size:.75rem;padding:2px 7px"
+              onclick="editStock({{ r.id }}, {{ r.stock_actual }}, {{ r.stock_minimo }}, {{ r.stock_maximo }}, '{{ r.proveedor_habitual or '' }}')">
+              <i class="fas fa-edit"></i>
+            </button>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="11" class="empty-state"><i class="fas fa-check-circle" style="color:#3a7d44"></i><br>Sin alertas de stock</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#1a2e1a;color:#fff">
+        <h6 class="modal-title"><i class="fas fa-edit me-2"></i>Actualizar Stock</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="editForm" action="">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-bold">Stock Actual</label>
+              <input type="number" name="stock_actual" id="esActual" class="form-control" min="0" step="0.001">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Stock Mínimo</label>
+              <input type="number" name="stock_minimo" id="esMin" class="form-control" min="0" step="0.001">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Stock Máximo</label>
+              <input type="number" name="stock_maximo" id="esMax" class="form-control" min="0" step="0.001">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Proveedor Habitual</label>
+              {% if proveedores %}
+              <div class="input-group">
+                <input type="text" name="proveedor_habitual" id="esProv"
+                       class="form-control" placeholder="Escribí o elegí de la lista"
+                       list="listProveedores" autocomplete="off">
+                <button type="button" class="btn btn-outline-secondary"
+                        onclick="document.getElementById('esProv').value=''"
+                        title="Limpiar">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+              <datalist id="listProveedores">
+                {% for p in proveedores %}
+                <option value="{{ p.nombre }}">{{ p.nombre }}{% if p.telefono %} — {{ p.telefono }}{% endif %}</option>
+                {% endfor %}
+              </datalist>
+              <small class="text-muted">
+                <i class="fas fa-info-circle me-1"></i>
+                Elegí de la lista o escribí un nombre libre.
+                <a href="/proveedores" target="_blank" style="color:#3a7d44">Gestionar proveedores</a>
+              </small>
+              {% else %}
+              <input type="text" name="proveedor_habitual" id="esProv"
+                     class="form-control" placeholder="Nombre del proveedor">
+              <small class="text-muted">
+                <a href="/proveedores" target="_blank" style="color:#3a7d44">
+                  <i class="fas fa-plus me-1"></i>Cargar proveedores primero
+                </a>
+              </small>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editStock(pid, actual, min, max, prov){
+  document.getElementById('esActual').value = actual;
+  document.getElementById('esMin').value = min;
+  document.getElementById('esMax').value = max;
+  document.getElementById('esProv').value = prov;
+  document.getElementById('editForm').action = `/stock/${pid}/editar`;
+  new bootstrap.Modal(document.getElementById('editModal')).show();
+}
+</script>
+{% endblock %}

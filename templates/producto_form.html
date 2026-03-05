@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% block title %}{{ accion }} Producto{% endblock %}
+{% block page_title %}<i class="fas fa-box me-2" style="color:#3a7d44"></i>{{ accion }} Producto{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-8">
+<div class="form-card">
+  <form method="post">
+    <div class="row g-3">
+      {% if producto %}
+      <div class="col-12">
+        <div class="alert alert-info py-2 mb-0">
+          <strong>Código Interno:</strong> {{ producto.codigo_interno }}
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="col-md-8">
+        <label class="form-label">Descripción <span class="text-danger">*</span></label>
+        <input type="text" name="descripcion" class="form-control" required
+          value="{{ producto.descripcion if producto else '' }}" placeholder="Nombre del producto">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Código de Barras</label>
+        <div class="input-group">
+          <input type="text" name="codigo_barras" class="form-control" id="barcodeInput"
+            value="{{ producto.codigo_barras if producto else '' }}"
+            placeholder="Escanear o escribir">
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="btnLookupOFF" title="Buscar en OpenFoodFacts">
+            <i class="fas fa-search"></i>
+          </button>
+        </div>
+        <small class="text-muted" id="offResult"></small>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Marca</label>
+        <input type="text" name="marca" class="form-control" id="marcaInput"
+          value="{{ producto.marca if producto else '' }}" placeholder="Ej: La Serenísima">
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">Categoría</label>
+        <select name="categoria" class="form-select">
+          <option value="">— Seleccionar —</option>
+          {% for cat in categorias %}
+          <option value="{{ cat }}" {% if producto and producto.categoria==cat %}selected{% endif %}>{{ cat }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Unidad</label>
+        <select name="unidad" class="form-select">
+          {% for u in ['Unidad','Kg','100g','Litro','500ml','250ml','Pack','Docena','x peso'] %}
+          <option value="{{ u }}" {% if producto and producto.unidad==u %}selected{% endif %}>{{ u }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">¿Se vende por peso?</label>
+        <select name="por_peso" class="form-select">
+          <option value="0" {% if not (producto and producto.por_peso) %}selected{% endif %}>No</option>
+          <option value="1" {% if producto and producto.por_peso %}selected{% endif %}>Sí</option>
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label">Costo ($) <span class="text-danger">*</span></label>
+        <div class="input-group">
+          <span class="input-group-text">$</span>
+          <input type="number" name="costo" class="form-control" id="costoInput"
+            value="{{ producto.costo if producto else '' }}" min="0" step="0.01" required
+            oninput="calcMargen()">
+        </div>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Precio de Venta ($) <span class="text-danger">*</span></label>
+        <div class="input-group">
+          <span class="input-group-text">$</span>
+          <input type="number" name="precio_venta" class="form-control" id="pvInput"
+            value="{{ producto.precio_venta if producto else '' }}" min="0" step="0.01" required
+            oninput="calcMargen()">
+        </div>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">IVA</label>
+        <select name="iva" class="form-select">
+          {% for iv in ['21%','10.5%','0%'] %}
+          <option value="{{ iv }}" {% if producto and producto.iva==iv %}selected{% endif %}>{{ iv }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Margen</label>
+        <div id="margenDisplay" class="form-control text-center fw-bold" style="background:#f8f8f8">—</div>
+      </div>
+
+      <div class="col-12"><hr><div class="section-title">Stock Inicial</div></div>
+      <div class="col-md-4">
+        <label class="form-label">Stock Actual</label>
+        <input type="number" name="stock_actual" class="form-control"
+          value="{{ stock.stock_actual if stock else '0' }}" min="0" step="0.001">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Stock Mínimo <small class="text-muted">(alerta)</small></label>
+        <input type="number" name="stock_minimo" class="form-control"
+          value="{{ stock.stock_minimo if stock else '5' }}" min="0" step="0.001">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Stock Máximo</label>
+        <input type="number" name="stock_maximo" class="form-control"
+          value="{{ stock.stock_maximo if stock else '50' }}" min="0" step="0.001">
+      </div>
+
+      {% if producto %}
+      <div class="col-md-4">
+        <label class="form-label">Activo</label>
+        <select name="activo" class="form-select">
+          <option value="1" {% if producto.activo %}selected{% endif %}>Sí</option>
+          <option value="0" {% if not producto.activo %}selected{% endif %}>No</option>
+        </select>
+      </div>
+      {% endif %}
+
+      <div class="col-12 d-flex gap-2 mt-2">
+        <button type="submit" class="btn btn-primary px-4">
+          <i class="fas fa-save me-1"></i>Guardar
+        </button>
+        <a href="/productos" class="btn btn-outline-secondary">Cancelar</a>
+      </div>
+    </div>
+  </form>
+</div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function calcMargen(){
+  const c = parseFloat(document.getElementById('costoInput').value) || 0;
+  const p = parseFloat(document.getElementById('pvInput').value) || 0;
+  const el = document.getElementById('margenDisplay');
+  if(c>0 && p>0){
+    const m = ((p-c)/c*100);
+    el.textContent = m.toFixed(1)+'%';
+    el.style.color = m<20?'#c62828':m>=35?'#2e7d32':'#f57f17';
+  } else {
+    el.textContent = '—';
+    el.style.color = '#666';
+  }
+}
+// Barcode scanner
+document.getElementById('barcodeInput').addEventListener('keypress',e=>{ if(e.key==='Enter')e.preventDefault(); });
+calcMargen();
+
+// OpenFoodFacts lookup by barcode
+document.getElementById('btnLookupOFF').addEventListener('click', function(){
+  const bc = document.getElementById('barcodeInput').value.trim();
+  if (!bc) return;
+  const res = document.getElementById('offResult');
+  res.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Buscando en OpenFoodFacts...';
+  fetch('/api/barcode/' + bc)
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        const p = data.producto;
+        if (p.name) document.querySelector('[name=descripcion]').value = p.name;
+        if (p.brand) document.getElementById('marcaInput').value = p.brand;
+        const catSel = document.querySelector('[name=categoria]');
+        if (p.category && catSel) {
+          for (let opt of catSel.options) {
+            if (opt.value === p.category) { opt.selected = true; break; }
+          }
+        }
+        res.innerHTML = '<span class="text-success"><i class="fas fa-check me-1"></i>Datos completados desde OpenFoodFacts</span>';
+      } else {
+        res.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>' + data.msg + '</span>';
+      }
+    })
+    .catch(()=> res.innerHTML = '<span class="text-danger">Sin conexión a internet</span>');
+});
+</script>
+{% endblock %}

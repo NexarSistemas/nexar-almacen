@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}Historial de Versiones{% endblock %}
+{% block page_title %}<i class="fas fa-code-branch me-2" style="color:#3a7d44"></i>Historial de Versiones — Changelog{% endblock %}
+
+{% block content %}
+<style>
+.cl-card{background:#fff;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.07);padding:20px 24px;margin-bottom:16px;border-left:4px solid #3a7d44;}
+.cl-card.nueva-funcion{border-left-color:#3a7d44;}
+.cl-card.correccion{border-left-color:#1565c0;}
+.cl-card.actualizacion{border-left-color:#e65100;}
+.badge-tipo{border-radius:20px;font-size:.72rem;padding:3px 12px;font-weight:700;display:inline-block;}
+.badge-nueva-funcion{background:#e8f5e9;color:#2e7d32;}
+.badge-correccion{background:#e3f2fd;color:#1565c0;}
+.badge-actualizacion{background:#fff3e0;color:#e65100;}
+.version-pill{background:#1a2e1a;color:#fff;border-radius:20px;padding:4px 14px;font-size:.9rem;font-weight:700;}
+.current-pill{background:#3a7d44;color:#fff;border-radius:20px;padding:4px 14px;font-size:.9rem;font-weight:700;}
+</style>
+
+<div class="row g-3">
+  <div class="col-lg-8 mx-auto">
+    <div style="background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.07);padding:20px 24px;margin-bottom:20px">
+      <div class="d-flex align-items-center gap-3">
+        <div>
+          <div style="font-size:.85rem;color:#888">Versión instalada</div>
+          <span class="current-pill">v{{ app_version }}</span>
+        </div>
+        <div class="ms-3">
+          <div style="font-size:.85rem;color:#888">Creado por</div>
+          <div class="fw-bold" style="color:#1a2e1a">Rolando Navarta</div>
+        </div>
+        <div class="ms-auto">
+          <a href="/acerca" class="btn btn-outline-success btn-sm"><i class="fas fa-info-circle me-1"></i>Acerca de</a>
+        </div>
+      </div>
+    </div>
+
+    {% for entry in entries %}
+    {% set tipo_class = 'nueva-funcion' if entry.tipo == 'Nueva función' else ('correccion' if entry.tipo == 'Corrección' else 'actualizacion') %}
+    {% set badge_class = 'badge-nueva-funcion' if entry.tipo == 'Nueva función' else ('badge-correccion' if entry.tipo == 'Corrección' else 'badge-actualizacion') %}
+    <div class="cl-card {{ tipo_class }}">
+      <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+          {% if entry.version == app_version %}
+          <span class="current-pill">v{{ entry.version }}</span>
+          <span class="badge-tipo badge-nueva-funcion ms-1">ACTUAL</span>
+          {% else %}
+          <span class="version-pill">v{{ entry.version }}</span>
+          {% endif %}
+          <span class="badge-tipo {{ badge_class }}">{{ entry.tipo }}</span>
+        </div>
+        <small class="text-muted"><i class="fas fa-calendar me-1"></i>{{ entry.fecha }}</small>
+      </div>
+      <h6 class="fw-bold mb-1" style="color:#1a2e1a">{{ entry.titulo }}</h6>
+      {% if entry.descripcion %}
+      <p style="font-size:.88rem;color:#555;margin-bottom:0;line-height:1.6">{{ entry.descripcion }}</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    {% if not entries %}
+    <div class="text-center py-5 text-muted">
+      <i class="fas fa-code-branch" style="font-size:2rem;opacity:.3"></i>
+      <p class="mt-3">No hay entradas en el historial todavía.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
