@@ -12,7 +12,15 @@ import threading
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import database as db
 
-APP_VERSION = "1.5.0"
+# Versión dinámica: se lee del archivo VERSION (fuente única de verdad)
+def _read_version():
+    try:
+        v = open(os.path.join(os.path.dirname(__file__), 'VERSION')).read().strip()
+        return v if v else "1.5.1"
+    except Exception:
+        return "1.5.1"
+
+APP_VERSION = _read_version()
 
 app = Flask(__name__)
 app.secret_key = 'almacen-navarta-2026-xK9mP3qR7'
@@ -194,14 +202,14 @@ def login():
         password = request.form.get('password','')
         user = db.verificar_password(username, password)
         if user:
-            from datetime import date as _date
+            from datetime import datetime as _dt
             session['user'] = {
                 'id':       user['id'],
                 'username': user['username'],
                 'nombre':   user['nombre_completo'] or user['username'],
                 'rol':      user['rol'],
             }
-            session['login_date'] = _date.today().isoformat()
+            session['login_date'] = _dt.now().isoformat()
             next_url = request.form.get('next') or url_for('dashboard')
             flash(f'✅ Bienvenido, {user["nombre_completo"] or username}!', 'success')
             return redirect(next_url)

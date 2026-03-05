@@ -71,6 +71,9 @@ def _seed_changelog(c):
         ('1.5.0','2026-03-02','Nueva función',
          'Puerto aleatorio + Cierre de sesión + Actualizaciones + Ventana nativa',
          'Puerto aleatorio para evitar conflictos. Cierre de sesión automático al apagar. Sistema de actualización sin reinstalar. Ventana independiente tipo app nativa. Botón apagar en login.'),
+        ('1.5.1','2026-03-05','Corrección',
+         'Fix login loop al reiniciar',
+         'Corregido bug donde login_date usaba solo fecha YYYY-MM-DD causando loop infinito al comparar con sessions_invalidated_at datetime completo. Ahora ambos usan datetime ISO completo.'),
     ]
     for ver, fecha, tipo, titulo, desc in entries:
         c.execute(
