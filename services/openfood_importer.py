@@ -26,6 +26,7 @@ import urllib.parse
 import urllib.error
 import logging
 import os
+import ssl
 
 # ─── Logging ─────────────────────────────────────────────────────────────────
 logger = logging.getLogger("openfood_importer")
@@ -36,15 +37,44 @@ if not logger.handlers:
 logger.setLevel(logging.INFO)
 
 # ─── Configuración ────────────────────────────────────────────────────────────
-API_BASE = "https://world.openfoodfacts.org/cgi/search.pl"
-API_TIMEOUT = 15          # segundos por request
-PAGE_SIZE   = 100         # max permitido por OFF
-DELAY_S     = 0.4         # pausa entre páginas (respeto al rate-limit)
-USER_AGENT  = "AlmacenGestion/1.3.0 (contacto: rolojnb@outlook.com.ar)"
+API_BASE    = "https://world.openfoodfacts.org/cgi/search.pl"
+API_TIMEOUT = 45           # segundos por request (OFF puede tardar en primera respuesta)
+API_RETRIES = 3            # reintentos automáticos por página
+PAGE_SIZE   = 100          # max permitido por OFF
+DELAY_S     = 0.5          # pausa entre páginas (respeto al rate-limit)
+USER_AGENT  = "AlmacenGestion/1.5.1 (contacto: rolojnb@outlook.com.ar)"
 
-# Ruta de la base de datos (relativa a este archivo → ../almacen.db)
-_HERE  = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(_HERE, "..", "almacen.db")
+def _ssl_context():
+    """Contexto SSL que funciona tanto en Python normal como en exe PyInstaller."""
+    try:
+        import certifi
+        ctx = ssl.create_default_context(cafile=certifi.where())
+        return ctx
+    except Exception:
+        # Fallback: deshabilitar verificación SSL
+        # (ocurre en exe PyInstaller donde no hay certs del sistema)
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
+
+# Ruta de la base de datos — misma lógica que database.py:
+# 1. Variable de entorno ALMACEN_DB_PATH (instaladores Windows/deb y exe PyInstaller)
+# 2. En Windows sin env var: %APPDATA%\AlmacenGestion\almacen.db
+# 3. Fallback: junto al proyecto (portable/Linux)
+def _resolve_db_path() -> str:
+    env = os.environ.get("ALMACEN_DB_PATH", "")
+    if env:
+        return env
+    if os.name == "nt":
+        appdata = os.environ.get("APPDATA", os.path.expanduser("~"))
+        data_dir = os.path.join(appdata, "AlmacenGestion")
+        os.makedirs(data_dir, exist_ok=True)
+        return os.path.join(data_dir, "almacen.db")
+    _HERE = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(_HERE, "..", "almacen.db")
+
+DB_PATH = _resolve_db_path()
 
 
 # ─── Mapeo OpenFoodFacts → categorías del sistema ────────────────────────────
@@ -255,16 +285,21 @@ def _fetch_page(page: int, page_size: int = PAGE_SIZE,
         url,
         headers={"User-Agent": USER_AGENT}
     )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            raw = resp.read()
-        return json.loads(raw)
-    except urllib.error.URLError as exc:
-        logger.warning("Error de red en página %d: %s", page, exc)
-    except json.JSONDecodeError as exc:
-        logger.warning("JSON inválido en página %d: %s", page, exc)
-    except Exception as exc:
-        logger.warning("Error inesperado en página %d: %s", page, exc)
+    ctx = _ssl_context()
+    for attempt in range(1, API_RETRIES + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                raw = resp.read()
+            return json.loads(raw)
+        except urllib.error.URLError as exc:
+            logger.warning("Red (intento %d/%d) pag %d: %s", attempt, API_RETRIES, page, exc)
+        except json.JSONDecodeError as exc:
+            logger.warning("JSON invalido pag %d: %s", page, exc)
+            return None
+        except Exception as exc:
+            logger.warning("Error (intento %d/%d) pag %d: %s", attempt, API_RETRIES, page, exc)
+        if attempt < API_RETRIES:
+            time.sleep(2 * attempt)
     return None
 
 
@@ -472,6 +507,12 @@ def import_products(limit: int = 350, timeout: int = API_TIMEOUT) -> dict:
                         """,
                         (codigo, p["barcode"], p["name"], p["brand"], cat_name)
                     )
+                    # Crear fila en stock para que aparezca en la vista de Stock
+                    new_id = cursor.lastrowid
+                    cursor.execute(
+                        "INSERT OR IGNORE INTO stock "                        "(producto_id, stock_actual, stock_minimo, stock_maximo) "                        "VALUES (?, 0, 5, 50)",
+                        (new_id,)
+                    )
                     stats["inserted"] += 1
                 except sqlite3.IntegrityError:
                     # UNIQUE violation (codigo_interno) — reintentar con +1
@@ -652,7 +693,7 @@ def check_connectivity(timeout: int = 5) -> bool:
             "https://world.openfoodfacts.org",
             headers={"User-Agent": USER_AGENT}
         )
-        urllib.request.urlopen(req, timeout=timeout)
+        urllib.request.urlopen(req, timeout=timeout, context=_ssl_context())
         return True
     except Exception:
         return False
@@ -660,8 +701,15 @@ def check_connectivity(timeout: int = 5) -> bool:
 
 def get_stats() -> dict:
     """
-    Retorna estadísticas actuales de la DB relacionadas con la importación.
+    Retorna estadisticas actuales de la DB relacionadas con la importacion.
+    Llama init_db() primero para garantizar que las tablas existen.
     """
+    try:
+        import database as _db
+        _db.init_db()
+    except Exception:
+        pass
+
     conn = _get_conn()
     try:
         cur = conn.cursor()

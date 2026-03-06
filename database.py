@@ -6,7 +6,22 @@ import time as _time
 from datetime import datetime, date, timedelta
 from calendar import month_name
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'almacen.db')
+# Ruta de la base de datos:
+# 1. Variable de entorno ALMACEN_DB_PATH (instaladores .deb y Windows)
+# 2. En Windows sin env var: %APPDATA%\AlmacenGestion\almacen.db  (evita readonly en Program Files)
+# 3. Fallback: junto al script (portable/Linux)
+def _resolve_db_path():
+    env = os.environ.get('ALMACEN_DB_PATH', '')
+    if env:
+        return env
+    if os.name == 'nt':  # Windows
+        appdata = os.environ.get('APPDATA', os.path.expanduser('~'))
+        data_dir = os.path.join(appdata, 'AlmacenGestion')
+        os.makedirs(data_dir, exist_ok=True)
+        return os.path.join(data_dir, 'almacen.db')
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'almacen.db')
+
+DB_PATH = _resolve_db_path()
 
 def get_conn():
     conn = sqlite3.connect(DB_PATH)
@@ -363,6 +378,15 @@ def init_db():
     ]
     for cat in cats:
         c.execute("INSERT OR IGNORE INTO categorias (nombre) VALUES (?)", (cat,))
+
+    # Reparar productos importados sin fila de stock
+    # (puede ocurrir si fueron importados por openfood_importer antes de este fix)
+    c.execute("""
+        INSERT OR IGNORE INTO stock (producto_id, stock_actual, stock_minimo, stock_maximo)
+        SELECT id, 0, 5, 50 FROM productos
+        WHERE activo=1
+        AND id NOT IN (SELECT producto_id FROM stock)
+    """)
 
     conn.commit()
     conn.close()

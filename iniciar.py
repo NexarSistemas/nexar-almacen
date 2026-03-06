@@ -16,14 +16,26 @@ import socket
 import signal
 import importlib.util
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Cuando corre como .exe PyInstaller los archivos están en sys._MEIPASS
+if getattr(sys, 'frozen', False):
+    BASE_DIR = sys._MEIPASS
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(BASE_DIR)
 sys.path.insert(0, BASE_DIR)
 
-IS_WIN = sys.platform == 'win32'
-IS_MAC = sys.platform == 'darwin'
+IS_WIN   = sys.platform == 'win32'
+IS_MAC   = sys.platform == 'darwin'
+IS_FROZEN = getattr(sys, 'frozen', False)  # True cuando corre como .exe de PyInstaller
 
 PORT_FILE = os.path.join(BASE_DIR, '.port')
+
+# Garantizar que la DB apunte a AppData en Windows (antes de importar database o app)
+if os.name == 'nt' and not os.environ.get('ALMACEN_DB_PATH'):
+    _appdata = os.environ.get('APPDATA', os.path.expanduser('~'))
+    _data_dir = os.path.join(_appdata, 'AlmacenGestion')
+    os.makedirs(_data_dir, exist_ok=True)
+    os.environ['ALMACEN_DB_PATH'] = os.path.join(_data_dir, 'almacen.db')
 
 # ─────────────────────────────────────────────
 # Colores consola
@@ -48,6 +60,9 @@ def has_module(name):
 # Instalar dependencias obligatorias
 # ─────────────────────────────────────────────
 def install_required():
+    # Cuando corre como .exe PyInstaller todo ya está embebido — no hay pip
+    if IS_FROZEN:
+        return
 
     needed = [p for p in ('flask','openpyxl','reportlab') if not has_module(p)]
 
@@ -70,6 +85,9 @@ def install_required():
 # Instalar pywebview en background
 # ─────────────────────────────────────────────
 def try_install_webview_background():
+    # Cuando corre como .exe PyInstaller no se puede instalar nada
+    if IS_FROZEN:
+        return
 
     if has_module("webview"):
         return
