@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session, send_file
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session, send_file, send_from_directory
 from datetime import date, datetime, timedelta
 from functools import wraps
 import json
@@ -22,9 +22,18 @@ def _read_version():
 
 APP_VERSION = _read_version()
 
-app = Flask(__name__)
+aapp = Flask(__name__)
 app.secret_key = 'almacen-navarta-2026-xK9mP3qR7'
 app.jinja_env.add_extension('jinja2.ext.loopcontrols')
+
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(
+        os.path.join(app.root_path, 'static/icons'),
+        'sistema_almacen_icon.ico',
+        mimetype='image/vnd.microsoft.icon'
+    )
 
 # ─── BACKUP SCHEDULER ────────────────────────────────────────────────────────
 _backup_timer = None
@@ -140,8 +149,6 @@ def before():
     # Allow public routes without login
     public = {'/login', '/static'}
     if any(request.path.startswith(p) for p in public):
-        return
-    if request.path == '/favicon.ico':
         return
     # Invalidar sesión si el sistema fue apagado desde otra sesión
     if 'user' in session:

@@ -5,6 +5,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es).
 Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto.
 
 ---
+## 1.5.2 - 2026-03-07
+
+### Mejoras
+- Integración correcta de favicon mediante Flask (`/favicon.ico`)
+- Iconos movidos a `static/icons/`
+- Mejora en organización de archivos estáticos
 
 ## [1.5.1] — 2026-03-05 — Corrección
 
