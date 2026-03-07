@@ -109,7 +109,7 @@ Ver historial completo en [CHANGELOG.md](CHANGELOG.md) o en la app: **Menú → 
 | Versión | Fecha | Tipo | Descripción |
 |---------|-------|------|-------------|
 | **1.5.2** | 2026-03-07 | Mejoras | Integración, Organización y Mejora del manejo de favicon en Flask  |
-| **1.5.1** | 2026-03-05 | Corrección | Fix login loop al reiniciar |
+| 1.5.1 | 2026-03-05 | Corrección | Fix login loop al reiniciar |
 | 1.5.0 | 2026-03-02 | Nueva función | Puerto aleatorio, ventana nativa, actualizaciones |
 | 1.4.0 | 2026-02-27 | Nueva función | Filtros OFF, lista negra, proveedor en stock |
 | 1.3.0 | 2026-02-27 | Nueva función | OpenFoodFacts, demo por tiempo |
