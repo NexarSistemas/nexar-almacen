@@ -89,6 +89,12 @@ def _seed_changelog(c):
         ('1.5.1','2026-03-05','Corrección',
          'Fix login loop al reiniciar',
          'Corregido bug donde login_date usaba solo fecha YYYY-MM-DD causando loop infinito al comparar con sessions_invalidated_at datetime completo. Ahora ambos usan datetime ISO completo.'),
+        ('1.5.2','2026-03-07','Mejoras',
+         'Integración de favicon y organización de estáticos',
+         'Ruta dedicada /favicon.ico en Flask. Iconos movidos a static/icons/. Mejora en organización de archivos estáticos.'),
+        ('1.5.3','2026-03-07','Corrección',
+         'Fix loop de login al apagar el sistema',
+         'Corregido bug en rutas /apagar y /apagar_rapido: usaban date.today() en lugar de datetime.now() para sessions_invalidated_at, causando loop de login al reiniciar. Fallbacks de versión actualizados.'),
     ]
     for ver, fecha, tipo, titulo, desc in entries:
         c.execute(

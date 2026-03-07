@@ -5,12 +5,25 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es).
 Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto.
 
 ---
-## 1.5.2 - 2026-03-07
+
+## [1.5.3] — 2026-03-07 — Corrección
+
+### Corregido
+- Bug crítico: rutas `/apagar` y `/apagar_rapido` usaban `date.today().isoformat()` (formato `YYYY-MM-DD`) para escribir `sessions_invalidated_at`, mientras que el check de login comparaba contra `datetime.now().isoformat()` (formato `YYYY-MM-DDTHH:MM:SS`). La comparación de strings fallaba siempre, causando loop de login al reiniciar después de apagar desde la app. Mismo bug que se corrigió en 1.5.1 pero quedó sin aplicar en las rutas de apagado.
+- Fallback de versión en `app.py` e `iniciar.py` actualizado a `1.5.3`.
+- Comentario de encabezado en `iniciar.py` actualizado a v1.5.3.
+- `_seed_changelog` en `database.py` incluye ahora entradas de versiones 1.5.2 y 1.5.3.
+
+---
+
+## [1.5.2] — 2026-03-07 — Mejoras
 
 ### Mejoras
 - Integración correcta de favicon mediante Flask (`/favicon.ico`)
 - Iconos movidos a `static/icons/`
 - Mejora en organización de archivos estáticos
+
+---
 
 ## [1.5.1] — 2026-03-05 — Corrección
 
@@ -53,54 +66,43 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 
 ### Agregado
 - Integración con API **OpenFoodFacts**: importación de productos reales argentinos con barcode, nombre, marca y categoría asignada automáticamente.
-- Módulo `services/openfood_importer.py` standalone con funciones `import_products()` y `update_products()`.
-- Comandos CLI: `flask import-products` y `flask update-products`.
-- Pantalla **Importar Productos** (`/productos/importar`) con 3 opciones: dataset local, importación OFF, actualización.
-- Búsqueda de producto por barcode en tiempo real desde la pantalla de importación.
-- Sistema de **demo por tiempo**: 30 días desde la primera instalación (fecha fijada una sola vez, nunca se resetea).
-- Changelog visible en la aplicación (`/changelog` y `/acerca`).
+- Importación masiva con servicio dedicado `services/openfood_importer.py`.
+- Modo demo con límite de 30 días desde la instalación.
+- Pantalla de licencia (`/licencia`) para activar el sistema con clave.
 
 ---
 
 ## [1.2.1] — 2026-02-24 — Corrección
 
 ### Corregido
-- Sidebar con scroll cuando el menú supera la altura de la pantalla.
-- `check_deps()` robusto con fallback para entornos sin `importlib.util`.
-- Encoding UTF-8 en instaladores.
-
-### Agregado
-- Módulo de **respaldos automáticos** programables desde Configuración.
-- Botón de **apagado del sistema** desde el menú (para cerrar el servidor Flask limpiamente).
+- Sidebar con scroll vertical para pantallas pequeñas.
+- `check_deps` robusto ante entornos sin pip.
+- Módulo de respaldos automáticos con scheduler configurable.
+- Botón de apagado del sistema desde el menú.
 
 ---
 
 ## [1.2.0] — 2026-02-01 — Nueva función
 
 ### Agregado
-- Dashboard con gráficos de ventas diarios/semanales/mensuales.
-- Módulo de **Estadísticas** con análisis por temporada, medio de pago y tendencia.
-- Módulo de **Análisis de rentabilidad**: top productos, margen por categoría, recomendaciones.
-- Gestión de **Usuarios** con roles: `admin` y `usuario`. El admin puede crear, editar y desactivar usuarios.
+- Dashboard con gráficos de ventas mensuales (Chart.js).
+- Módulo de estadísticas: ventas por mes, semana, medio de pago y temporada.
+- Módulo de análisis de rentabilidad: top productos, bottom, margen estimado.
+- Gestión de múltiples usuarios con roles admin/vendedor.
+- Cierre de sesión automático al apagar. Sistema de actualización sin reinstalar. Ventana independiente tipo app nativa. Botón apagar en login.
 
 ---
 
 ## [1.1.0] — 2026-01-15 — Nueva función
 
 ### Agregado
-- **Cuenta Corriente Clientes**: registro de movimientos, saldo, alertas de deuda.
-- **Cuenta Corriente Proveedores**: facturas pendientes, pagos, alertas de vencimiento a 30 días.
-- Integración automática: las ventas con medio "Cuenta Corriente" se registran en la CC del cliente seleccionado.
+- Módulo CC Clientes: cuenta corriente con movimientos y alertas de deuda.
+- Módulo CC Proveedores: facturas pendientes, pagos, alertas de vencimiento.
 
 ---
 
-## [1.0.0] — 2026-01-01 — Lanzamiento inicial
+## [1.0.0] — 2026-01-01 — Lanzamiento
 
-### Incluido
-- Módulos: Productos, Stock, Punto de Venta, Historial de Ventas, Compras, Caja, Gastos, Configuración.
-- Base de datos SQLite sin servidor.
-- Compatibilidad con lectores de barras USB (HID).
-- Múltiples medios de pago: Efectivo, Débito, Crédito, Transferencia, QR/Billetera Virtual, Cuenta Corriente.
-- Ticket de venta en pantalla.
-- Alertas de stock: Sin Stock, Crítico, Bajo, Exceso.
-- Instalación portable: solo requiere Python 3.8+ y `pip install flask openpyxl reportlab`.
+### Agregado
+- Primera versión del Sistema de Gestión para Almacenes.
+- Módulos de Ventas, Stock, Caja y Gastos.

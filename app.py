@@ -16,9 +16,9 @@ import database as db
 def _read_version():
     try:
         v = open(os.path.join(os.path.dirname(__file__), 'VERSION')).read().strip()
-        return v if v else "1.5.1"
+        return v if v else "1.5.3"
     except Exception:
-        return "1.5.1"
+        return "1.5.3"
 
 APP_VERSION = _read_version()
 
@@ -1348,7 +1348,7 @@ def apagar_sistema():
     4. Detiene Flask.
     """
     try:
-        db.set_config({'sessions_invalidated_at': db.date.today().isoformat()})
+        db.set_config({'sessions_invalidated_at': db.datetime.now().isoformat()})
     except Exception:
         pass
     session.clear()
@@ -1365,7 +1365,7 @@ def apagar_sistema():
 def apagar_rapido():
     """Apagado desde la pantalla de login (sin requerir admin)."""
     try:
-        db.set_config({'sessions_invalidated_at': db.date.today().isoformat()})
+        db.set_config({'sessions_invalidated_at': db.datetime.now().isoformat()})
     except Exception:
         pass
     session.clear()
