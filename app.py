@@ -22,7 +22,7 @@ def _read_version():
 
 APP_VERSION = _read_version()
 
-aapp = Flask(__name__)
+app = Flask(__name__)
 app.secret_key = 'almacen-navarta-2026-xK9mP3qR7'
 app.jinja_env.add_extension('jinja2.ext.loopcontrols')
 
