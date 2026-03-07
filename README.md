@@ -1,9 +1,9 @@
-# 🛒 Sistema de Gestión para Almacenes — v1.5.1
+# 🛒 Sistema de Gestión para Almacenes — v1.5.2
 
 Sistema completo de gestión para almacenes desarrollado en Python + Flask + SQLite.
 Funciona sin servidor, sin instalación compleja. Solo Python y un ZIP.
 
-**Versión actual:** `1.5.1`
+**Versión actual:** `1.5.2`
 **Desarrollado por:** Rolando Navarta · con Claude.ai · 2026
 
 ---
@@ -108,6 +108,7 @@ Ver historial completo en [CHANGELOG.md](CHANGELOG.md) o en la app: **Menú → 
 
 | Versión | Fecha | Tipo | Descripción |
 |---------|-------|------|-------------|
+| **1.5.2** | 2026-03-07 | Mejoras | Integración, Organización y Mejora del manejo de favicon en Flask  |
 | **1.5.1** | 2026-03-05 | Corrección | Fix login loop al reiniciar |
 | 1.5.0 | 2026-03-02 | Nueva función | Puerto aleatorio, ventana nativa, actualizaciones |
 | 1.4.0 | 2026-02-27 | Nueva función | Filtros OFF, lista negra, proveedor en stock |
