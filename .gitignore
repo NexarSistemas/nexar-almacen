@@ -15,3 +15,6 @@ __pycache__/
 # Editor
 .vscode/
 .idea/
+
+# base de datos*.db
+*.db
