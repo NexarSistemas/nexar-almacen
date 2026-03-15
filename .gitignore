@@ -21,3 +21,8 @@ __pycache__/
 
 # copias de seguridad
 .bak
+
+# otros archivos temporales
+*.tmp
+*.log
+*.port
