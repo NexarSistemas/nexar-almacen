@@ -235,26 +235,18 @@ def logout():
 @app.route('/licencia')
 @login_required
 def licencia():
-    status     = db.get_demo_status()
+    status = db.get_demo_status()
     machine_id = db.get_machine_id()
-    lic_info   = db.get_license_info() if not status['demo'] else None
-    return render_template('licencia.html',
-                           status=status,
-                           machine_id=machine_id,
-                           lic_info=lic_info)
+    return render_template('licencia.html', status=status, machine_id=machine_id)
 
 @app.route('/licencia/activar', methods=['POST'])
 @admin_required
 def licencia_activar():
-    token = request.form.get('token', '').strip()
-    if not token:
-        flash('❌ No ingresaste ningún token. Pegá el código que recibiste por WhatsApp.', 'danger')
-        return redirect(url_for('licencia'))
-    ok, msg = db.activar_licencia(token)
-    if ok:
-        flash('🎉 ¡Licencia activada exitosamente! Sistema desbloqueado por completo.', 'success')
+    codigo = request.form.get('codigo','').strip()
+    if db.activar_licencia(codigo):
+        flash('🎉 ¡Licencia activada exitosamente! Sistema desbloqueado al completo.', 'success')
     else:
-        flash(f'❌ {msg}', 'danger')
+        flash('❌ Código de activación inválido. Verificá el código e intentá nuevamente.', 'danger')
     return redirect(url_for('licencia'))
 
 # ─── USUARIOS (admin only) ───────────────────────────────────────────────────
