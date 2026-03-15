@@ -18,3 +18,5 @@ __pycache__/
 
 # base de datos*.db
 *.db
+
+# copias de seguridad
