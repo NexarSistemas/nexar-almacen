@@ -1,4 +1,4 @@
-# 🛒 Sistema de Gestión para Almacenes — v1.5.3
+# 🛒 Sistema de Gestión para Almacenes — v1.5.4
 
 Sistema completo de gestión para almacenes desarrollado en Python + Flask + SQLite.
 Funciona sin servidor, sin instalación compleja. Solo Python y un ZIP.
