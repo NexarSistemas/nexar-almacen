@@ -20,3 +20,4 @@ __pycache__/
 *.db
 
 # copias de seguridad
+.bak
