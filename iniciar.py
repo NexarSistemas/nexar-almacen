@@ -7,6 +7,16 @@
 """
 
 import sys
+# Fix encoding para consola Windows (cp1252 no soporta caracteres Unicode)
+# try/except porque en exe sin consola stdout/stderr pueden ser None
+if sys.platform == 'win32':
+    try:
+        if sys.stdout is not None:
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        if sys.stderr is not None:
+            sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
 import os
 import subprocess
 import threading
@@ -263,7 +273,7 @@ def main():
 
         import webview
 
-        print(cyan('  → Ventana independiente abierta (modo app nativa)'))
+        print(cyan('  > Ventana independiente abierta (modo app nativa)'))
 
         webview.create_window(
             "Almacén Gestión",

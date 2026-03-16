@@ -687,13 +687,22 @@ def update_products(max_pages: int | None = None,
 # ─── Utilidades auxiliares ────────────────────────────────────────────────────
 
 def check_connectivity(timeout: int = 5) -> bool:
-    """Verifica si hay conexión con OpenFoodFacts."""
+    """Verifica si hay conexión a internet."""
+    # Usa HTTP (no HTTPS) para evitar problemas de certificados SSL
+    # en ejecutables PyInstaller donde certifi puede no estar disponible
     try:
         req = urllib.request.Request(
-            "https://world.openfoodfacts.org",
+            "http://www.openfoodfacts.org",
             headers={"User-Agent": USER_AGENT}
         )
-        urllib.request.urlopen(req, timeout=timeout, context=_ssl_context())
+        urllib.request.urlopen(req, timeout=timeout)
+        return True
+    except Exception:
+        pass
+    # Fallback: intenta con Google DNS como segunda verificación
+    try:
+        import socket
+        socket.create_connection(("8.8.8.8", 53), timeout=timeout)
         return True
     except Exception:
         return False
