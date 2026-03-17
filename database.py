@@ -1304,25 +1304,83 @@ def editar_usuario(uid, nombre, rol):
 
 import base64 as _base64
 
-_ALMACEN_PUBLIC_KEY_PEM = b"""-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApLcG8Uq6+sV4E1mlWY5z
-zZC8H2i4EM0s2jGq8XCcVOJipamw+1rvzHSoAjgmtnJCw8+218yR3PXK90NqSguO
-9blAfsxswwtlid9RxwPQ1y8jU1LuZd65DeowgGtu+4lrNjeIZqmesarPbgOIMZ3q
-PZpurtOUjy74moR5pwGIPQk9TLl685MeyYcDdV9UO0uiiYyxS+yopRvvOrhXJlH0
-C5I+KeCqjOLXglTXOXoYFXOUXwWajT/FFjXHabWO/yCA8igXqn+rdt+bPoLBfmYk
-0FjjYn2HrwRB8NZ4Lv4pQc30EukM32Nyri80Dak8/dtjNLPrc0wTzAvqeyUDHHKu
-dQIDAQAB
------END PUBLIC KEY-----"""
+# ─── DEMO / LICENCIA RSA ─────────────────────────────────────────────────────
+# Verificacion RSA usando SOLO stdlib Python (base64, hashlib).
+# Sin cryptography, sin rsa, sin pyasn1.
+# Funciona en cualquier exe PyInstaller sin instalar nada extra.
+
+import base64 as _base64
+import hashlib as _hashlib_rsa
+
+_ALMACEN_PUBLIC_KEY_PEM = (
+    b"-----BEGIN PUBLIC KEY-----\n"
+    b"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApLcG8Uq6+sV4E1mlWY5z\n"
+    b"zZC8H2i4EM0s2jGq8XCcVOJipamw+1rvzHSoAjgmtnJCw8+218yR3PXK90NqSguO\n"
+    b"9blAfsxswwtlid9RxwPQ1y8jU1LuZd65DeowgGtu+4lrNjeIZqmesarPbgOIMZ3q\n"
+    b"PZpurtOUjy74moR5pwGIPQk9TLl685MeyYcDdV9UO0uiiYyxS+yopRvvOrhXJlH0\n"
+    b"C5I+KeCqjOLXglTXOXoYFXOUXwWajT/FFjXHabWO/yCA8igXqn+rdt+bPoLBfmYk\n"
+    b"0FjjYn2HrwRB8NZ4Lv4pQc30EukM32Nyri80Dak8/dtjNLPrc0wTzAvqeyUDHHKu\n"
+    b"dQIDAQAB\n"
+    b"-----END PUBLIC KEY-----"
+)
+
+# SHA256 DigestInfo header (RFC 3447 / PKCS1v15)
+_SHA256_HEADER = bytes([
+    0x30,0x31,0x30,0x0d,0x06,0x09,0x60,0x86,0x48,0x01,
+    0x65,0x03,0x04,0x02,0x01,0x05,0x00,0x04,0x20
+])
 
 
-def _load_public_key():
+def _parse_asn1_len(data, pos):
+    b = data[pos]; pos += 1
+    if b < 0x80:
+        return b, pos
+    n = b & 0x7f
+    return int.from_bytes(data[pos:pos+n], 'big'), pos + n
+
+
+def _parse_asn1_int(data, pos):
+    assert data[pos] == 0x02; pos += 1
+    length, pos = _parse_asn1_len(data, pos)
+    return int.from_bytes(data[pos:pos+length], 'big'), pos + length
+
+
+def _load_pubkey():
+    """Extrae (n, e) de la clave publica PEM usando solo stdlib."""
+    lines = _ALMACEN_PUBLIC_KEY_PEM.strip().split(b'\n')
+    der = _base64.b64decode(b''.join(l for l in lines if not l.startswith(b'-----')))
+    pos = 0
+    assert der[pos] == 0x30; pos += 1
+    _, pos = _parse_asn1_len(der, pos)
+    assert der[pos] == 0x30; pos += 1
+    alg_len, pos = _parse_asn1_len(der, pos)
+    pos += alg_len
+    assert der[pos] == 0x03; pos += 1
+    _, pos = _parse_asn1_len(der, pos)
+    pos += 1
+    assert der[pos] == 0x30; pos += 1
+    _, pos = _parse_asn1_len(der, pos)
+    n, pos = _parse_asn1_int(der, pos)
+    e, _   = _parse_asn1_int(der, pos)
+    return n, e
+
+
+def _rsa_verify(message: bytes, signature: bytes) -> bool:
+    """Verifica firma PKCS1v15 SHA256 usando solo aritmetica entera."""
     try:
-        from cryptography.hazmat.primitives import serialization
-        return serialization.load_pem_public_key(_ALMACEN_PUBLIC_KEY_PEM)
-    except ImportError:
-        raise RuntimeError(
-            "Falta el paquete 'cryptography'. Instalalo con: pip install cryptography"
-        )
+        n, e = _load_pubkey()
+        k = (n.bit_length() + 7) // 8
+        if len(signature) != k:
+            return False
+        m = pow(int.from_bytes(signature, 'big'), e, n).to_bytes(k, 'big')
+        if m[0] != 0x00 or m[1] != 0x01:
+            return False
+        sep = m.find(b'\x00', 2)
+        if sep < 0 or any(b != 0xFF for b in m[2:sep]):
+            return False
+        return m[sep+1:] == _SHA256_HEADER + _hashlib_rsa.sha256(message).digest()
+    except Exception:
+        return False
 
 
 def get_machine_id() -> str:
@@ -1336,30 +1394,22 @@ def is_demo_mode() -> bool:
 
 
 def get_demo_status() -> dict:
-    """Retorna el estado del demo basado en los 30 días desde instalación."""
     cfg  = get_config()
     demo = cfg.get('demo_mode', '1') == '1'
-
     if not demo:
-        return {
-            'demo': False, 'dias_restantes': 0, 'vencido': False,
-            'aviso_proximo': False, 'install_date': '', 'dias_usados': 0,
-        }
-
+        return {'demo': False, 'dias_restantes': 0, 'vencido': False,
+                'aviso_proximo': False, 'install_date': '', 'dias_usados': 0}
     install_str = cfg.get('demo_install_date', '')
     dias_demo   = int(cfg.get('demo_dias', '30'))
-
     try:
         install_dt = date.fromisoformat(install_str)
     except Exception:
         install_dt = date.today()
         set_config({'demo_install_date': install_dt.isoformat()})
-
     dias_usados    = (date.today() - install_dt).days
     dias_restantes = max(0, dias_demo - dias_usados)
     vencido        = dias_restantes == 0
     aviso_proximo  = not vencido and dias_restantes <= 7
-
     return {
         'demo':            demo,
         'install_date':    install_str,
@@ -1377,7 +1427,6 @@ def get_demo_status() -> dict:
 
 
 def get_license_info() -> dict:
-    """Retorna info de la licencia activa (solo cuando demo_mode = '0')."""
     cfg = get_config()
     return {
         'type':         cfg.get('license_type', 'DEMO'),
@@ -1388,36 +1437,21 @@ def get_license_info() -> dict:
 
 
 def validar_licencia_rsa(token_b64: str) -> tuple:
-    """
-    Valida un token Base64 de licencia Almacén.
-    Retorna: (ok: bool, mensaje: str, license_data: dict | None)
-    """
     try:
-        from cryptography.hazmat.primitives import hashes
-        from cryptography.hazmat.primitives.asymmetric import padding
         import json as _json
-
-        # 1. Decodificar Base64 → dict
         try:
-            json_bytes = _base64.b64decode(token_b64.strip())
-            data       = _json.loads(json_bytes.decode())
+            data = _json.loads(_base64.b64decode(token_b64.strip()).decode())
         except Exception:
-            return False, "El token no es válido. Verificá que lo hayas copiado completo.", None
-
-        # 2. Verificar producto
+            return False, "El token no es valido. Verifica que lo hayas copiado completo.", None
         if data.get("product") != "almacen":
-            return False, "Este token no es una licencia de Almacén Gestión.", None
-
-        # 3. Extraer firma
-        signature_hex = data.get("public_signature", "")
-        if not signature_hex:
+            return False, "Este token no es una licencia de Almacen Gestion.", None
+        sig_hex = data.get("public_signature", "")
+        if not sig_hex:
             return False, "El token no contiene firma digital.", None
         try:
-            signature = bytes.fromhex(signature_hex)
+            signature = bytes.fromhex(sig_hex)
         except ValueError:
-            return False, "La firma digital del token está corrupta.", None
-
-        # 4. Reconstruir el payload exacto que firmó el generador
+            return False, "La firma digital del token esta corrupta.", None
         is_multi = "hardware_ids" in data
         if is_multi:
             payload_dict = {
@@ -1436,52 +1470,26 @@ def validar_licencia_rsa(token_b64: str) -> tuple:
                 "type":         data["type"],
             }
         payload_bytes = _json.dumps(payload_dict, sort_keys=True).encode()
-
-        # 5. Verificar firma RSA con clave pública embebida
-        try:
-            public_key = _load_public_key()
-            public_key.verify(
-                signature,
-                payload_bytes,
-                padding.PKCS1v15(),
-                hashes.SHA256()
-            )
-        except Exception:
-            return False, "La firma digital es inválida. El token fue alterado o no corresponde a este sistema.", None
-
-        # 6. Verificar que esta PC esté autorizada en la licencia
+        if not _rsa_verify(payload_bytes, signature):
+            return False, "La firma digital es invalida. El token fue alterado o no corresponde a este sistema.", None
         machine_id = get_machine_id()
         if is_multi:
-            authorized = machine_id in data["hardware_ids"]
+            authorized = machine_id in data.get("hardware_ids", [])
         else:
-            authorized = (machine_id == data["hardware_id"])
-
+            authorized = (machine_id == data.get("hardware_id"))
         if not authorized:
             mid = machine_id
             mid_fmt = f"{mid[:4]}-{mid[4:8]}-{mid[8:12]}-{mid[12:16]}"
-            return (
-                False,
-                f"Esta licencia no está autorizada para esta computadora.\n"
-                f"Tu ID de instalación es: {mid_fmt}\n"
-                "Contactá al desarrollador para obtener la licencia correcta.",
-                None,
-            )
-
+            return False, f"Esta licencia no esta autorizada para esta computadora.\nTu ID es: {mid_fmt}\nContacta al desarrollador.", None
         return True, "OK", data
-
-    except Exception as e:
-        return False, f"Error al validar la licencia: {e}", None
+    except Exception as ex:
+        return False, f"Error al validar la licencia: {ex}", None
 
 
 def activar_licencia(token_b64: str) -> tuple:
-    """
-    Activa la licencia desde el token Base64.
-    Retorna: (ok: bool, mensaje: str)
-    """
     ok, msg, data = validar_licencia_rsa(token_b64)
     if not ok:
         return False, msg
-
     from datetime import datetime as _dt
     set_config({
         'demo_mode':            '0',
@@ -1492,7 +1500,7 @@ def activar_licencia(token_b64: str) -> tuple:
     })
     return True, "Licencia activada correctamente."
 
-# ─── CHANGELOG ───────────────────────────────────────────────────────────────
+
 def get_changelog():
     return q("SELECT * FROM changelog ORDER BY id DESC")
 
