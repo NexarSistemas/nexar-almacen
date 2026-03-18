@@ -95,7 +95,7 @@ def _seed_changelog(c):
         ('1.5.3','2026-03-07','Corrección',
          'Fix loop de login al apagar el sistema',
          'Corregido bug en rutas /apagar y /apagar_rapido: usaban date.today() en lugar de datetime.now() para sessions_invalidated_at, causando loop de login al reiniciar. Fallbacks de versión actualizados.'),
-         ('1.5.4','2026-03-15','Mejora de seguridad',
+        ('1.5.4','2026-03-15','Mejora de seguridad',
          'Sistema de licencias RSA',
          'Reemplaza validación HMAC por firma digital RSA de 2048 bits. Token Base64. Soporte MONO y MULTI (1, 3 o 10 PCs). Proceso de transferencia de licencia entre PCs.'),
         ('1.5.5','2026-03-18','Corrección',
