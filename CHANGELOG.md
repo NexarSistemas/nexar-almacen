@@ -5,6 +5,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es).
 Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto.
 
 ---
+## [1.5.5] — 2026-03-18 — Corrección
+
+### Corregido
+- Bug: el botón "Ver Ticket" en Punto de Venta y el link de ticket en Historial de Ventas tenían `target="_blank"`, lo que hacía que se abrieran en el navegador externo del sistema. Al hacerlo, el navegador no tenía la sesión activa de la app y pedía login. Ahora ambos abren el ticket dentro de la misma ventana de la aplicación.
+
+---
 
 ## [1.5.4] — 2026-03-15
 ### Mejora de seguridad
@@ -14,6 +20,7 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 - **Proceso de transferencia**: cambio de PC sin perder la licencia adquirida
 - **Retrocompatibilidad**: la demo de 30 días funciona igual que antes
 
+---
 
 ## [1.5.3] — 2026-03-07 — Corrección
 

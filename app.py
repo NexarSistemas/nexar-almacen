@@ -16,9 +16,9 @@ import database as db
 def _read_version():
     try:
         v = open(os.path.join(os.path.dirname(__file__), 'VERSION')).read().strip()
-        return v if v else "1.5.3"
+        return v if v else "1.5.5"
     except Exception:
-        return "1.5.3"
+        return "1.5.5"
 
 APP_VERSION = _read_version()
 
