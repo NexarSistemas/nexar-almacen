@@ -412,15 +412,154 @@ def init_db():
 
     conn.commit()
     conn.close()
-    # _seed_demo_data() eliminado: la app se distribuye sin datos de ejemplo.
-    # Los productos se importan desde Productos -> Importar Productos.
+    _seed_demo_data()
 
 def _seed_demo_data():
-    """Deshabilitado: la app se distribuye sin datos de ejemplo.
-    Usar Productos -> Importar Productos para cargar el dataset local
-    (361 productos reales) o importar desde OpenFoodFacts.
-    """
-    return
+    """Insert demo products and sample data if DB is empty"""
+    # Use config flag to avoid re-seeding if user deleted demo data
+    cfg = get_config()
+    if cfg.get('demo_seeded') == '1':
+        return
+    if q("SELECT COUNT(*) as n FROM productos", fetchone=True)['n'] > 0:
+        # Products exist, just mark as seeded
+        set_config({'demo_seeded': '1'})
+        return
+
+    productos = [
+        ('PRD-0001','7790580001001','Leche entera 1L','Lácteos','Litro',0,450,700,'21%'),
+        ('PRD-0002','7790580001002','Yogur entero 200g','Lácteos','Unidad',0,180,300,'21%'),
+        ('PRD-0003','7790895901003','Aceite girasol 900ml','Aceites / Condimentos / Salsas','Unidad',0,800,1200,'21%'),
+        ('PRD-0004','7791234000004','Arroz 000 1Kg','Cereales / Harinas / Pastas','Unidad',0,320,500,'10.5%'),
+        ('PRD-0005','7790895905005','Fideos spaghetti 500g','Cereales / Harinas / Pastas','Unidad',0,250,400,'10.5%'),
+        ('PRD-0006','7792222000006','Coca Cola 1.5L','Bebidas','Unidad',0,600,950,'21%'),
+        ('PRD-0007','7792222000007','Agua mineral 1.5L','Bebidas','Unidad',0,250,400,'21%'),
+        ('PRD-0008','7791234000008','Mate La Jerba 500g','Infusiones','Unidad',0,800,1250,'10.5%'),
+        ('PRD-0009','7790895900009','Azúcar 1Kg','No Perecederos','Unidad',0,380,600,'10.5%'),
+        ('PRD-0010','7790580000010','Harina 000 1Kg','Cereales / Harinas / Pastas','Unidad',0,300,480,'10.5%'),
+        ('PRD-0011','','Jamón cocido','Fiambres (x peso)','Kg',1,3800,6500,'21%'),
+        ('PRD-0012','','Queso cremoso','Fiambres (x peso)','Kg',1,4200,7000,'21%'),
+        ('PRD-0013','','Pan francés','Pan / Panadería (x peso)','Kg',1,600,1000,'0%'),
+        ('PRD-0014','','Tomate','Verduras / Frutas (x peso)','Kg',1,400,800,'0%'),
+        ('PRD-0015','7794000000015','Jabón en polvo 1Kg','Limpieza del Hogar','Unidad',0,900,1450,'21%'),
+        ('PRD-0016','7794000000016','Lavandina 1L','Limpieza del Hogar','Unidad',0,350,600,'21%'),
+        ('PRD-0017','7794111000017','Champú 400ml','Higiene Personal','Unidad',0,700,1100,'21%'),
+        ('PRD-0018','7793000000018','Papel higiénico x4','Papel / Descartables','Pack',0,550,900,'21%'),
+        ('PRD-0019','7791234000019','Café molido 250g','Infusiones','Unidad',0,650,1050,'10.5%'),
+        ('PRD-0020','7790895900020','Sal fina 500g','No Perecederos','Unidad',0,120,200,'10.5%'),
+        ('PRD-0021','7792000000021','Gaseosa Pepsi 2.25L','Bebidas','Unidad',0,580,920,'21%'),
+        ('PRD-0022','7791000000022','Galletitas 150g','Golosinas / Confitería','Unidad',0,200,350,'10.5%'),
+        ('PRD-0023','7792500000023','Cerveza 1L','Bebidas Alcohólicas','Unidad',0,900,1500,'21%'),
+        ('PRD-0024','','Manzana verde','Verduras / Frutas (x peso)','Kg',1,350,700,'0%'),
+        ('PRD-0025','7793500000025','Detergente 500ml','Limpieza del Hogar','Unidad',0,280,450,'21%'),
+    ]
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    stock_vals = [
+        (10,5,30),(8,5,20),(25,10,60),(30,10,80),(20,10,60),
+        (15,10,50),(20,10,60),(12,5,30),(40,15,100),(35,15,100),
+        (2,1,5),(3,1,5),(5,2,15),(8,3,20),(6,3,20),
+        (12,5,30),(4,3,15),(10,5,30),(8,4,20),(50,20,120),
+        (12,8,40),(20,10,50),(8,5,25),(6,2,15),(15,8,40),
+    ]
+
+    for i, p in enumerate(productos):
+        c.execute("""INSERT INTO productos
+            (codigo_interno,codigo_barras,descripcion,categoria,unidad,por_peso,costo,precio_venta,iva)
+            VALUES (?,?,?,?,?,?,?,?,?)""", p)
+        pid = c.lastrowid
+        st = stock_vals[i]
+        c.execute("INSERT INTO stock (producto_id,stock_actual,stock_minimo,stock_maximo) VALUES (?,?,?,?)",
+                  (pid, st[0], st[1], st[2]))
+
+    # Demo clients
+    clients = [
+        ('CLI-001','García, María','DNI 25.000.001','11-1111-1111','','30000'),
+        ('CLI-002','López, Juan Carlos','DNI 30.500.002','11-2222-2222','','50000'),
+        ('CLI-003','Fernández, Ana','DNI 28.300.003','11-3333-3333','','20000'),
+        ('CLI-004','Martínez, Pedro','DNI 22.100.005','11-4444-4444','','35000'),
+    ]
+    for cl in clients:
+        c.execute("INSERT INTO clientes (codigo,nombre,dni_cuit,telefono,email,limite_credito) VALUES (?,?,?,?,?,?)", cl)
+
+    # Demo suppliers
+    provs = [
+        ('PROV-001','Lácteos del Sur SRL','30-70111222-3','011-4001-0001','ventas@lacteos.com',30),
+        ('PROV-002','Distribuidora Norte SA','30-70333444-5','011-4002-0002','pedidos@norte.com',15),
+        ('PROV-003','Bebidas & Más','30-70555666-7','011-4003-0003','comercial@bymas.com',30),
+        ('PROV-004','Limpieza Total','30-70777888-9','011-4004-0004','limpiezatotal@email.com',7),
+        ('PROV-005','Todo en Harinas','30-70900100-1','011-4005-0005','',15),
+    ]
+    for p in provs:
+        c.execute("INSERT INTO proveedores (codigo,nombre,cuit,telefono,email,dias_credito) VALUES (?,?,?,?,?,?)", p)
+
+    conn.commit()
+
+    # Demo sales for last 90 days
+    import random
+    random.seed(42)
+    seasons = {1:'Verano',2:'Verano',3:'Verano',4:'Otoño',5:'Otoño',
+               6:'Invierno',7:'Invierno',8:'Invierno',9:'Primavera',
+               10:'Primavera',11:'Primavera',12:'Verano'}
+    medios = ['Efectivo','Efectivo','Efectivo','Débito','QR / Billetera Virtual','Transferencia']
+    prods_list = c.execute("SELECT id, codigo_interno, descripcion, categoria, unidad, precio_venta FROM productos WHERE por_peso=0").fetchall()
+    ticket_num = 1001
+
+    today = date.today()
+    for day_offset in range(90, 0, -1):
+        sale_date = today - timedelta(days=day_offset)
+        date_str = sale_date.isoformat()
+        season = seasons[sale_date.month]
+        daily = random.randint(4, 12)
+        for _ in range(daily):
+            prod = random.choice(prods_list)
+            qty = random.randint(1, 3)
+            dto = random.choice([0.0, 0.0, 0.0, 0.05, 0.10])
+            price = prod['precio_venta']
+            subtot = round(qty * price * (1 - dto), 2)
+            medio = random.choice(medios)
+            c.execute("""INSERT INTO ventas (numero_ticket,fecha,hora,cliente_nombre,medio_pago,subtotal,total,temporada)
+                VALUES (?,?,?,?,?,?,?,?)""",
+                (ticket_num, date_str, '10:00', 'Mostrador', medio, subtot, subtot, season))
+            vid = c.lastrowid
+            c.execute("""INSERT INTO ventas_detalle
+                (venta_id,producto_id,codigo_interno,descripcion,categoria,unidad,cantidad,precio_unitario,descuento,subtotal)
+                VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                (vid, prod['id'], prod['codigo_interno'], prod['descripcion'],
+                 prod['categoria'], prod['unidad'], qty, price, dto, subtot))
+            ticket_num += 1
+
+    # Demo expenses
+    today_str = today.isoformat()
+    exp_data = [
+        (today_str, 'Gasto', 'Alquiler', 'Alquiler local', 80000, 'Transferencia', 'Propietario', 'SI (necesario)'),
+        ((today - timedelta(days=30)).isoformat(), 'Gasto', 'Alquiler', 'Alquiler local', 80000, 'Transferencia', 'Propietario', 'SI (necesario)'),
+        ((today - timedelta(days=5)).isoformat(), 'Gasto', 'Servicios', 'Factura luz', 12000, 'Efectivo', 'EDESUR', 'SI (necesario)'),
+        ((today - timedelta(days=10)).isoformat(), 'Gasto', 'Internet/Teléfono', 'Internet fibra', 6500, 'Débito', 'Telecom', 'SI (necesario)'),
+        ((today - timedelta(days=15)).isoformat(), 'Gasto', 'Publicidad', 'Redes sociales', 3000, 'QR / Billetera Virtual', 'Meta Ads', 'NO (prescindible)'),
+        ((today - timedelta(days=20)).isoformat(), 'Gasto', 'Mantenimiento', 'Reparación heladera', 15000, 'Efectivo', 'Técnico', 'SI (necesario)'),
+        ((today - timedelta(days=3)).isoformat(), 'Gasto', 'Impuestos/Tasas', 'Ingresos brutos', 18000, 'Transferencia', 'AFIP', 'SI (necesario)'),
+    ]
+    for e in exp_data:
+        c.execute("""INSERT INTO gastos (fecha,tipo,categoria,descripcion,monto,medio_pago,proveedor,necesario)
+            VALUES (?,?,?,?,?,?,?,?)""", e)
+
+    # Demo supplier invoices
+    inv_data = [
+        (1, 'FAC-0001', (today - timedelta(days=5)).isoformat(), (today + timedelta(days=25)).isoformat(), 45000, 0),
+        (2, 'FAC-0002', (today - timedelta(days=10)).isoformat(), (today + timedelta(days=5)).isoformat(), 32000, 0),
+        (3, 'FAC-0003', (today - timedelta(days=2)).isoformat(), (today + timedelta(days=28)).isoformat(), 67000, 0),
+        (4, 'FAC-0004', (today - timedelta(days=8)).isoformat(), (today - timedelta(days=1)).isoformat(), 15000, 0),
+    ]
+    for inv in inv_data:
+        c.execute("""INSERT INTO facturas_proveedores (proveedor_id,numero_factura,fecha,fecha_vencimiento,importe,pagado)
+            VALUES (?,?,?,?,?,?)""", inv)
+
+    conn.commit()
+    conn.close()
+    print("[DB] Demo data seeded successfully")
+    set_config({'demo_seeded': '1'})
 
 # ─── CONFIG ──────────────────────────────────────────────────────────────────
 def get_config():
