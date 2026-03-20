@@ -5,6 +5,76 @@ import hmac as _hmac
 import time as _time
 from datetime import datetime, date, timedelta
 from calendar import month_name
+import base64 as _b64
+import hashlib as _hl
+
+def _get_telemetry_path() -> str:
+    """Ruta del archivo externo de control de demo."""
+    if os.name == 'nt':
+        base = os.environ.get('APPDATA', os.path.expanduser('~'))
+        folder = os.path.join(base, 'AlmacenGestion')
+    else:
+        base = os.environ.get('XDG_DATA_HOME',
+                              os.path.join(os.path.expanduser('~'), '.local', 'share'))
+        folder = os.path.join(base, 'AlmacenGestion')
+    os.makedirs(folder, exist_ok=True)
+    return os.path.join(folder, 'telemetry.bin')
+
+
+def _encode_date(date_str: str, machine_id: str) -> str:
+    """
+    Codifica la fecha junto con el machine_id para que el contenido
+    no sea legible ni obvio.
+    Formato interno: base64( sha256(machine_id)[:8] + ":" + date_str )
+    """
+    salt   = _hl.sha256(machine_id.encode()).hexdigest()[:8]
+    raw    = f"{salt}:{date_str}"
+    return _b64.b64encode(raw.encode()).decode()
+
+
+def _decode_date(encoded: str, machine_id: str) -> str | None:
+    """
+    Decodifica y verifica que el contenido corresponda a este machine_id.
+    Retorna la fecha ISO o None si es inválido/de otra máquina.
+    """
+    try:
+        raw  = _b64.b64decode(encoded.strip()).decode()
+        salt = _hl.sha256(machine_id.encode()).hexdigest()[:8]
+        if not raw.startswith(f"{salt}:"):
+            return None  # archivo de otra máquina o corrupto
+        return raw.split(":", 1)[1]
+    except Exception:
+        return None
+
+
+def _read_telemetry(machine_id: str) -> str | None:
+    """
+    Lee la fecha de instalación del archivo externo.
+    Retorna fecha ISO string o None si no existe o es inválido.
+    """
+    path = _get_telemetry_path()
+    try:
+        with open(path, 'r') as f:
+            encoded = f.read().strip()
+        return _decode_date(encoded, machine_id)
+    except Exception:
+        return None
+
+
+def _write_telemetry(date_str: str, machine_id: str) -> bool:
+    """
+    Escribe la fecha de instalación en el archivo externo.
+    Retorna True si tuvo éxito.
+    """
+    path = _get_telemetry_path()
+    try:
+        encoded = _encode_date(date_str, machine_id)
+        with open(path, 'w') as f:
+            f.write(encoded)
+        return True
+    except Exception:
+        return False
+
 
 # Ruta de la base de datos:
 # 1. Variable de entorno ALMACEN_DB_PATH (instaladores .deb y Windows)
@@ -22,6 +92,24 @@ def _resolve_db_path():
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'almacen.db')
 
 DB_PATH = _resolve_db_path()
+
+TIER_LIMITS = {
+    "DEMO": {
+        "productos_off": None,   # ilimitado durante 30 días
+        "clientes":      None,
+        "proveedores":   None,
+    },
+    "BASICA": {
+        "productos_off": 200,    # máx 200 productos importados desde OFF
+        "clientes":      100,    # máx 100 clientes en CC
+        "proveedores":   50,     # máx 50 proveedores
+    },
+    "PRO": {
+        "productos_off": None,   # ilimitado
+        "clientes":      None,
+        "proveedores":   None,
+    },
+}
 
 def get_conn():
     conn = sqlite3.connect(DB_PATH)
@@ -101,6 +189,12 @@ def _seed_changelog(c):
         ('1.5.5','2026-03-18','Corrección',
          'Fix ticket abría navegador externo pidiendo login',
          'El botón Ver Ticket en Punto de Venta y el link de ticket en Historial tenían target="_blank", abriéndose en el navegador del sistema sin sesión activa. Ahora abren dentro de la misma ventana de la app.'),
+        ('1.6.0','2026-03-19','Nueva función',
+         'Sistema de tiers: Plan Básico y Plan Pro',
+         'Plan Básico pago único U$D 30 con límites (200 productos OFF, 100 clientes, 50 proveedores). '
+         'Plan Pro mensual U$D 6 ilimitado con estadísticas históricas, análisis, actualizaciones y soporte. '
+         'Anti-reinstall con telemetry.bin codificado. Pantalla de licencia renovada con comparativa de planes.'),
+
     ]
     for ver, fecha, tipo, titulo, desc in entries:
         c.execute(
@@ -339,11 +433,38 @@ def init_db():
         machine_id = str(uuid.uuid4()).replace('-','').upper()[:16]
         c.execute("INSERT INTO config VALUES ('machine_id',?)", (machine_id,))
 
-    # Fix install date: set once, never overwrite
+    # ── Fix install date con anti-reinstall ──────────────────────────────────
+    # 1. Obtener machine_id (ya fue generado arriba en este mismo init_db)
+    _mid_row = c.execute("SELECT valor FROM config WHERE clave='machine_id'").fetchone()
+    _mid     = _mid_row['valor'] if _mid_row else 'UNKNOWN'
+
+    # 2. Leer fecha del archivo externo (telemetry.bin)
+    _telem_date = _read_telemetry(_mid)
+
+    # 3. Leer fecha de la DB
     inst = c.execute("SELECT valor FROM config WHERE clave='demo_install_date'").fetchone()
-    if not inst or not inst['valor']:
-        today = date.today().isoformat()
-        c.execute("INSERT OR REPLACE INTO config VALUES ('demo_install_date',?)", (today,))
+    _db_date = inst['valor'] if inst and inst['valor'] else None
+
+    if _telem_date:
+        # El archivo externo existe y es válido — es la fuente de verdad
+        # Si la DB fue borrada y recreada, restaurar la fecha original
+        if _db_date != _telem_date:
+            c.execute(
+                "INSERT OR REPLACE INTO config VALUES ('demo_install_date',?)",
+                (_telem_date,)
+            )
+    elif _db_date:
+        # La DB tiene fecha pero el archivo no existe (primera vez post-update)
+        # Crear el archivo externo con la fecha que ya tiene la DB
+        _write_telemetry(_db_date, _mid)
+    else:
+        # Ni DB ni archivo — primera instalación real
+        _today = date.today().isoformat()
+        c.execute(
+            "INSERT OR REPLACE INTO config VALUES ('demo_install_date',?)",
+            (_today,)
+        )
+        _write_telemetry(_today, _mid)
 
     # ── DB MIGRATIONS ──────────────────────────────────────────────────────────
     # v1.5.4: agregar claves de licencia RSA si no existen (para instalaciones previas)
@@ -352,6 +473,9 @@ def init_db():
         ('license_max_machines', '1'),
         ('license_key',          ''),
         ('license_activated_at', ''),
+        ('license_tier',         'DEMO'),    # DEMO / BASICA / PRO
+        ('license_expires_at',   ''),        # fecha ISO vencimiento Pro, vacío = no vence
+
     ]:
         c.execute("INSERT OR IGNORE INTO config VALUES (?,?)", (_k, _v))
 
@@ -1266,7 +1390,21 @@ def get_demo_status() -> dict:
     if not demo:
         return {'demo': False, 'dias_restantes': 0, 'vencido': False,
                 'aviso_proximo': False, 'install_date': '', 'dias_usados': 0}
+    # Verificar fecha de instalación con anti-reinstall
+    machine_id  = get_machine_id()
+    telem_date  = _read_telemetry(machine_id)
     install_str = cfg.get('demo_install_date', '')
+
+    if telem_date:
+        # El archivo externo es la fuente de verdad
+        if telem_date != install_str:
+            # La DB fue reseteada — restaurar fecha original
+            set_config({'demo_install_date': telem_date})
+            install_str = telem_date
+    elif install_str:
+        # Archivo no existe pero DB tiene fecha — crear archivo
+        _write_telemetry(install_str, machine_id)
+    # Si ninguno tiene fecha, init_db() ya lo maneja
     dias_demo   = int(cfg.get('demo_dias', '30'))
     try:
         install_dt = date.fromisoformat(install_str)
@@ -1297,9 +1435,11 @@ def get_license_info() -> dict:
     cfg = get_config()
     return {
         'type':         cfg.get('license_type', 'DEMO'),
+        'tier':         cfg.get('license_tier', 'DEMO'),
         'max_machines': int(cfg.get('license_max_machines', '1')),
         'license_key':  cfg.get('license_key', ''),
         'activated_at': cfg.get('license_activated_at', ''),
+        'expires_at':   cfg.get('license_expires_at', ''),
     }
 
 
@@ -1319,35 +1459,47 @@ def validar_licencia_rsa(token_b64: str) -> tuple:
             signature = bytes.fromhex(sig_hex)
         except ValueError:
             return False, "La firma digital del token esta corrupta.", None
+
         is_multi = "hardware_ids" in data
+
+        # Reconstruir payload exactamente igual que el generador
+        # Incluye tier y expires_at en la firma
         if is_multi:
             payload_dict = {
+                "expires_at":   data.get("expires_at"),
                 "hardware_ids": sorted(data["hardware_ids"]),
                 "license_key":  data["license_key"],
                 "max_machines": data["max_machines"],
                 "product":      "almacen",
+                "tier":         data.get("tier", "BASICA"),
                 "type":         data["type"],
             }
         else:
             payload_dict = {
+                "expires_at":   data.get("expires_at"),
                 "hardware_id":  data["hardware_id"],
                 "license_key":  data["license_key"],
                 "max_machines": data["max_machines"],
                 "product":      "almacen",
+                "tier":         data.get("tier", "BASICA"),
                 "type":         data["type"],
             }
+
         payload_bytes = _json.dumps(payload_dict, sort_keys=True).encode()
         if not _rsa_verify(payload_bytes, signature):
             return False, "La firma digital es invalida. El token fue alterado o no corresponde a este sistema.", None
+
         machine_id = get_machine_id()
         if is_multi:
             authorized = machine_id in data.get("hardware_ids", [])
         else:
             authorized = (machine_id == data.get("hardware_id"))
+
         if not authorized:
             mid = machine_id
             mid_fmt = f"{mid[:4]}-{mid[4:8]}-{mid[8:12]}-{mid[12:16]}"
             return False, f"Esta licencia no esta autorizada para esta computadora.\nTu ID es: {mid_fmt}\nContacta al desarrollador.", None
+
         return True, "OK", data
     except Exception as ex:
         return False, f"Error al validar la licencia: {ex}", None
@@ -1358,12 +1510,16 @@ def activar_licencia(token_b64: str) -> tuple:
     if not ok:
         return False, msg
     from datetime import datetime as _dt
+    tier       = data.get("tier", "BASICA")
+    expires_at = data.get("expires_at") or ""
     set_config({
         'demo_mode':            '0',
         'license_type':         data.get('type', 'MONO'),
+        'license_tier':         tier,
         'license_max_machines': str(data.get('max_machines', 1)),
         'license_key':          data.get('license_key', ''),
         'license_activated_at': _dt.now().isoformat(),
+        'license_expires_at':   expires_at,
     })
     return True, "Licencia activada correctamente."
 
@@ -1525,3 +1681,77 @@ def get_blacklist_set() -> set:
     _ensure_blacklist_table()
     rows = q("SELECT barcode FROM barcode_blacklist")
     return {r['barcode'] for r in rows}
+
+def get_tier() -> str:
+    """
+    Devuelve el tier activo: 'DEMO', 'BASICA' o 'PRO'.
+    Si es PRO pero venció, devuelve 'BASICA' (mantiene acceso básico).
+    """
+    cfg = get_config()
+    if cfg.get('demo_mode', '1') == '1':
+        return 'DEMO'
+    tier = cfg.get('license_tier', 'BASICA')
+    if tier == 'PRO':
+        expires_at = cfg.get('license_expires_at', '')
+        if expires_at:
+            try:
+                from datetime import date
+                if date.today() > date.fromisoformat(expires_at):
+                    return 'BASICA'   # Pro vencido → baja a Básica, no a Demo
+            except Exception:
+                pass
+    return tier
+
+
+def is_pro_expired() -> bool:
+    """True si tenía Pro pero venció."""
+    cfg = get_config()
+    if cfg.get('demo_mode', '1') == '1':
+        return False
+    if cfg.get('license_tier', 'BASICA') != 'PRO':
+        return False
+    expires_at = cfg.get('license_expires_at', '')
+    if not expires_at:
+        return False
+    try:
+        from datetime import date
+        return date.today() > date.fromisoformat(expires_at)
+    except Exception:
+        return False
+
+
+def check_tier_limit(recurso: str) -> dict:
+    """
+    Verifica si se puede crear un nuevo recurso según el tier activo.
+
+    recurso: 'clientes' | 'proveedores' | 'productos_off'
+
+    Retorna:
+        {'ok': True}  → puede crear
+        {'ok': False, 'actual': N, 'limite': N, 'tier': 'BASICA'}  → bloqueado
+    """
+    tier = get_tier()
+    limite = TIER_LIMITS.get(tier, {}).get(recurso)
+    if limite is None:
+        return {'ok': True}   # ilimitado en este tier
+
+    # Contar actuales en DB
+    conteos = {
+        'clientes':      "SELECT COUNT(*) FROM clientes WHERE activo=1",
+        'proveedores':   "SELECT COUNT(*) FROM proveedores WHERE activo=1",
+        'productos_off': (
+            "SELECT COUNT(*) FROM productos "
+            "WHERE activo=1 AND codigo_barras != '' "
+            "AND (codigo_barras LIKE '779%' OR codigo_barras LIKE '780%')"
+        ),
+    }
+    sql = conteos.get(recurso)
+    if not sql:
+        return {'ok': True}
+
+    row = q(sql, fetchone=True)
+    actual = row[0] if row else 0
+
+    if actual >= limite:
+        return {'ok': False, 'actual': actual, 'limite': limite, 'tier': tier}
+    return {'ok': True}

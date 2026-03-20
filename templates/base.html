@@ -156,9 +156,11 @@ input:focus,select:focus,textarea:focus{border-color:#3a7d44 !important;box-shad
   <a href="/blacklist" class="nav-link {% if '/blacklist' in request.path %}active{% endif %}">
     <i class="fas fa-ban"></i> Lista Negra
   </a>
+  {% if is_admin and tier != 'BASICA' %}
   <a href="/actualizacion" class="nav-link {% if '/actualizacion' in request.path %}active{% endif %}">
     <i class="fas fa-sync-alt"></i> Actualización
   </a>
+  {% endif %}
   <a href="/acerca" class="nav-link {% if '/acerca' in request.path or '/changelog' in request.path %}active{% endif %}">
     <i class="fas fa-info-circle"></i> Acerca de
   </a>
@@ -173,6 +175,13 @@ input:focus,select:focus,textarea:focus{border-color:#3a7d44 !important;box-shad
           <i class="fas fa-user-circle me-1"></i>{{ current_user.nombre or current_user.username or '' }}
         </div>
         <div style="color:#666;font-size:.72rem;text-transform:capitalize;">{{ current_user.rol or '' }}</div>
+        <div style="color:#666;font-size:.72rem;">Plan: {{ tier or 'BASICA' }}</div>
+        {% if pro_expired %}
+        <div style="background:#fff3e0;border-radius:4px;padding:2px 8px;font-size:.7rem;color:#e65100;margin-top:4px">
+          <i class="fas fa-exclamation-triangle me-1"></i>Pro vencido — Plan Básico activo
+          <a href="/licencia" style="color:#e65100;font-weight:700"> Renovar</a>
+        </div>
+        {% endif %}
       </div>
       <a href="/logout" style="color:#ef9a9a;font-size:.8rem;text-decoration:none;" title="Cerrar sesión">
         <i class="fas fa-sign-out-alt"></i>

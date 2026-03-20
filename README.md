@@ -1,9 +1,9 @@
-# 🛒 Sistema de Gestión para Almacenes — v1.5.5
+# 🛒 Sistema de Gestión para Almacenes — v1.6.0
 
 Sistema completo de gestión para almacenes desarrollado en Python + Flask + SQLite.
 Funciona sin servidor, sin instalación compleja. Solo Python y un ZIP.
 
-**Versión actual:** `1.5.5`
+**Versión actual:** `1.6.0`
 **Desarrollado por:** Rolando Navarta · con Claude.ai · 2026
 
 ---
@@ -28,6 +28,20 @@ Funciona sin servidor, sin instalación compleja. Solo Python y un ZIP.
 
 ---
 
+## 💳 Planes de licencia
+
+| Plan | Precio | Productos OFF | Clientes | Proveedores | Estadísticas | Actualizaciones |
+|------|--------|--------------|----------|-------------|--------------|-----------------|
+| **Demo** | Gratis | Ilimitado 30 días | Ilimitado | Ilimitado | Completas | — |
+| **Básico** | U$D 30 único | Máx 200 | Máx 100 | Máx 50 | Solo hoy | ❌ |
+| **Pro** | U$D 6/mes | Ilimitado | Ilimitado | Ilimitado | Completas | ✅ Siempre última |
+
+- Al cancelar el Plan Pro → conservás el Plan Básico sin perder datos
+- Si volvés al Pro después de cancelar → 20% del precio de upgrade + mensualidad
+- Contacto para licencias: [WhatsApp +549 264 585-8874](https://wa.me/5492645858874)
+
+---
+
 ## 📋 Módulos incluidos
 
 | Módulo | Descripción |
@@ -42,11 +56,11 @@ Funciona sin servidor, sin instalación compleja. Solo Python y un ZIP.
 | 💸 **Gastos** | Registro y clasificación |
 | 👥 **CC Clientes** | Cuenta corriente con movimientos y alertas de deuda |
 | 🏭 **CC Proveedores** | Facturas pendientes, pagos, alertas de vencimiento |
-| 📈 **Estadísticas** | Ventas mensuales, semanales, medios de pago, temporadas |
-| 🔍 **Análisis** | Rentabilidad, top productos, recomendaciones estacionales |
+| 📈 **Estadísticas** | Ventas mensuales, semanales, medios de pago, temporadas *(Pro)* |
+| 🔍 **Análisis** | Rentabilidad, top productos, recomendaciones estacionales *(Pro)* |
 | ☁️ **Importar Productos** | Importación desde OpenFoodFacts (Argentina) o dataset local |
 | 🚫 **Lista Negra** | Barcodes bloqueados para no reimportar |
-| 🔄 **Actualización** | Aplicar nueva versión sin reinstalar (no toca la base de datos) |
+| 🔄 **Actualización** | Aplicar nueva versión sin reinstalar *(Pro)* |
 | ⚙️ **Configuración** | Datos del negocio, categorías, márgenes, respaldos |
 | 👤 **Usuarios** | Roles admin/vendedor, alta y baja de usuarios |
 | 📜 **Changelog** | Historial de versiones dentro de la aplicación |
@@ -71,7 +85,7 @@ Compatible con lectores USB (HID). Sin configuración: el código se ingresa dir
 
 ---
 
-## 🔄 Cómo actualizar sin reinstalar
+## 🔄 Cómo actualizar sin reinstalar *(Plan Pro)*
 
 1. Obtené el ZIP de la nueva versión
 2. En la aplicación: **Menú → Actualización**
@@ -91,6 +105,7 @@ almacen/
 ├── database.py             ← Lógica de datos y migraciones
 ├── productos_seed.py       ← Dataset local de 361 productos argentinos
 ├── openfoodfacts.py        ← Módulo API OpenFoodFacts (legacy)
+├── license_verifier.py     ← Verificación de licencia online
 ├── VERSION                 ← Versión actual (fuente de verdad)
 ├── CHANGELOG.md            ← Historial de versiones
 ├── README.md               ← Este archivo
@@ -108,7 +123,8 @@ Ver historial completo en [CHANGELOG.md](CHANGELOG.md) o en la app: **Menú → 
 
 | Versión | Fecha | Tipo | Descripción |
 |---------|-------|------|-------------|
-| **1.5.5** | 2026-03-18 | Corrección | Fix ticket abría navegador externo pidiendo login |
+| **1.6.0** | 2026-03-19 | Nueva función | Sistema de tiers: Plan Básico y Plan Pro, anti-reinstall |
+| 1.5.5 | 2026-03-18 | Corrección | Fix ticket abría navegador externo pidiendo login |
 | 1.5.4 | 2026-03-15 | Seguridad | Sistema de licencias RSA con soporte MONO y MULTI |
 | 1.5.3 | 2026-03-07 | Corrección | Fix loop de login al apagar desde la app |
 | 1.5.2 | 2026-03-07 | Mejoras | Integración, Organización y Mejora del manejo de favicon en Flask |

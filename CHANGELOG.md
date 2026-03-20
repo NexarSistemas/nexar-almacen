@@ -5,6 +5,21 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es).
 Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto.
 
 ---
+
+## [1.6.0] — 2026-03-19 — Nueva función
+
+### Agregado
+- **Sistema de tiers de licencia**: Plan Básico (pago único U$D 30) y Plan Pro (mensual U$D 6).
+- **Límites por tier en Plan Básico**: máx 200 productos desde OpenFoodFacts, 100 clientes, 50 proveedores. Sin categorías personalizadas ni actualizaciones.
+- **Plan Pro**: ilimitado en todos los recursos + estadísticas históricas + análisis de rentabilidad + actualizaciones incluidas + soporte prioritario.
+- **Al cancelar Pro**: el sistema baja automáticamente a Básico sin perder datos cargados.
+- **Estadísticas y análisis bloqueados** en Plan Básico con llamador visual a Pro.
+- **Anti-reinstall**: archivo `telemetry.bin` en AppData/AppData local que preserva la fecha de inicio de demo aunque se borre la base de datos. El contenido está codificado y vinculado al machine_id.
+- **Pantalla de licencia renovada**: muestra tier activo, barras de uso actual (productos OFF, clientes, proveedores) y comparativa clara entre planes.
+- **Generador de licencias actualizado**: nuevos tipos `PRO_MONO` y `PRO_MULTI_3` con campos `tier` y `expires_at` en el payload RSA firmado.
+
+---
+
 ## [1.5.5] — 2026-03-18 — Corrección
 
 ### Corregido

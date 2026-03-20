@@ -16,9 +16,9 @@ import database as db
 def _read_version():
     try:
         v = open(os.path.join(os.path.dirname(__file__), 'VERSION')).read().strip()
-        return v if v else "1.5.5"
+        return v if v else "1.6.0"
     except Exception:
-        return "1.5.5"
+        return "1.6.0"
 
 APP_VERSION = _read_version()
 
@@ -173,6 +173,7 @@ def inject_globals():
             WHERE fecha_vencimiento <= date('now','+30 days') AND importe > pagado""", fetchone=True)
         cfg = db.get_config()
         demo_status = db.get_demo_status()
+
         return {
             'alertas_sidebar': {
                 'sin_stock': alertas['sin_stock'],
@@ -184,8 +185,14 @@ def inject_globals():
             'is_admin': session.get('user', {}).get('rol') == 'admin',
             'demo_status': demo_status,
             'app_version': APP_VERSION,
+
+            # 🔥 LICENCIAS (correcto)
+            'tier': db.get_tier(),           # 'DEMO' | 'BASICA' | 'PRO'
+            'pro_expired': db.is_pro_expired(),
+
         }
-    except Exception:
+    except Exception as e:
+        print("ERROR inject_globals:", e)  # 👈 clave para debug
         return {}
 
 # ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -238,10 +245,29 @@ def licencia():
     status     = db.get_demo_status()
     machine_id = db.get_machine_id()
     lic_info   = db.get_license_info() if not status['demo'] else None
+
+    # Calcular uso actual para mostrar barras de progreso en plan Básico
+    tier_limits = {}
+    if lic_info and lic_info.get('tier') == 'BASICA':
+        r_off  = db.q(
+            "SELECT COUNT(*) FROM productos WHERE activo=1 "
+            "AND codigo_barras != '' "
+            "AND (codigo_barras LIKE '779%' OR codigo_barras LIKE '780%')",
+            fetchone=True
+        )
+        r_cli  = db.q("SELECT COUNT(*) FROM clientes WHERE activo=1", fetchone=True)
+        r_prov = db.q("SELECT COUNT(*) FROM proveedores WHERE activo=1", fetchone=True)
+        tier_limits = {
+            'productos_off_actual': r_off[0]  if r_off  else 0,
+            'clientes_actual':      r_cli[0]  if r_cli  else 0,
+            'proveedores_actual':   r_prov[0] if r_prov else 0,
+        }
+
     return render_template('licencia.html',
                            status=status,
                            machine_id=machine_id,
-                           lic_info=lic_info)
+                           lic_info=lic_info,
+                           tier_limits=tier_limits)
 
 @app.route('/licencia/activar', methods=['POST'])
 @admin_required
@@ -252,7 +278,11 @@ def licencia_activar():
         return redirect(url_for('licencia'))
     ok, msg = db.activar_licencia(token)
     if ok:
-        flash('🎉 ¡Licencia activada exitosamente! Sistema desbloqueado por completo.', 'success')
+        tier = db.get_tier()
+        if tier == 'PRO':
+            flash('🎉 ¡Plan Pro activado! Acceso ilimitado + actualizaciones habilitadas.', 'success')
+        else:
+            flash('✅ ¡Plan Básico activado! Sistema habilitado con funciones del plan Básico.', 'success')
     else:
         flash(f'❌ {msg}', 'danger')
     return redirect(url_for('licencia'))
@@ -648,6 +678,14 @@ def cc_cliente_mov_nuevo(cid):
 @app.route('/clientes/nuevo', methods=['POST'])
 @login_required
 def cliente_nuevo():
+    check = db.check_tier_limit('clientes')
+    if not check['ok']:
+        flash(
+            f'⚠ Límite del plan Básico: máximo {check["limite"]} clientes. '
+            f'Tenés {check["actual"]}. Actualizá a Pro para agregar más.',
+            'warning'
+        )
+        return redirect(request.referrer or url_for('cc_clientes'))
     db.add_cliente(request.form.to_dict())
     flash('✅ Cliente creado', 'success')
     return redirect(request.referrer or url_for('cc_clientes'))
@@ -690,6 +728,14 @@ def factura_pagar(fid):
 @app.route('/proveedores/nuevo', methods=['POST'])
 @login_required
 def proveedor_nuevo():
+    check = db.check_tier_limit('proveedores')
+    if not check['ok']:
+        flash(
+            f'⚠ Límite del plan Básico: máximo {check["limite"]} proveedores. '
+            f'Tenés {check["actual"]}. Actualizá a Pro para agregar más.',
+            'warning'
+        )
+        return redirect(url_for('cc_proveedores'))
     db.add_proveedor(request.form.to_dict())
     flash('✅ Proveedor creado', 'success')
     return redirect(url_for('cc_proveedores'))
@@ -758,7 +804,14 @@ def config():
 @app.route('/config/categoria', methods=['POST'])
 @admin_required
 def config_categoria():
-    nombre = request.form.get('nombre','').strip()
+    if db.get_tier() == 'BASICA':
+        flash(
+            '⚠ Crear categorías personalizadas requiere el plan Pro. '
+            'Podés usar las 23 categorías incluidas en el plan Básico.',
+            'warning'
+        )
+        return redirect(url_for('config'))
+    nombre = request.form.get('nombre', '').strip()
     if nombre:
         db.add_categoria(nombre)
         flash('✅ Categoría agregada', 'success')
@@ -1205,13 +1258,42 @@ def productos_importar_seed():
 @app.route('/productos/importar/off', methods=['POST'])
 @admin_required
 def productos_importar_off():
-    """Importa productos desde OpenFoodFacts usando el nuevo servicio (requiere internet)."""
     from services.openfood_importer import import_products, check_connectivity
+
+    # Verificar límite del tier
+    check = db.check_tier_limit('productos_off')
+    if not check['ok']:
+        flash(
+            f'⚠ Límite del plan Básico: máximo {check["limite"]} productos desde OpenFoodFacts. '
+            f'Ya tenés {check["actual"]}. Actualizá a Pro para importar más.',
+            'warning'
+        )
+        return redirect(url_for('productos_importar'))
+
     if not check_connectivity(timeout=5):
         flash('❌ Sin conexión a internet. Usá la importación desde el dataset local.', 'warning')
         return redirect(url_for('productos_importar'))
+
     try:
-        limit = int(request.form.get('limit', 350))
+        # Si es Básica, limitar a lo que le queda hasta el tope
+        tier = db.get_tier()
+        if tier == 'BASICA':
+            from database import TIER_LIMITS
+            tope   = TIER_LIMITS['BASICA']['productos_off']
+            actual = check.get('actual', 0) if not check['ok'] else \
+                     db.q(
+                         "SELECT COUNT(*) FROM productos WHERE activo=1 "
+                         "AND codigo_barras != '' "
+                         "AND (codigo_barras LIKE '779%' OR codigo_barras LIKE '780%')",
+                         fetchone=True
+                     )[0]
+            limit = max(0, tope - actual)
+            if limit == 0:
+                flash('⚠ Ya alcanzaste el límite de productos OFF del plan Básico.', 'warning')
+                return redirect(url_for('productos_importar'))
+        else:
+            limit = int(request.form.get('limit', 350))
+
         stats = import_products(limit=limit)
         flash(
             f'✅ OpenFoodFacts: {stats["inserted"]} nuevos importados, '
@@ -1390,7 +1472,12 @@ def apagar_rapido():
 @app.route('/actualizacion')
 @admin_required
 def actualizacion():
-    """Página de actualización del sistema."""
+    if db.get_tier() == 'BASICA':
+        flash(
+            '⚠ Las actualizaciones del sistema están disponibles solo en el plan Pro.',
+            'warning'
+        )
+        return redirect(url_for('dashboard'))
     return render_template('actualizacion.html', app_version=APP_VERSION)
 
 
