@@ -276,6 +276,31 @@ def licencia_activar():
     if not token:
         flash('❌ No ingresaste ningún token. Pegá el código que recibiste por WhatsApp.', 'danger')
         return redirect(url_for('licencia'))
+
+    # Validar el token sin activar todavía para leer el tier
+    ok, msg, data = db.validar_licencia_rsa(token)
+    if not ok:
+        flash(f'❌ {msg}', 'danger')
+        return redirect(url_for('licencia'))
+
+    tier_token = data.get('tier', 'BASICA')
+
+    # Si el token es PRO, verificar que ya tenga Básica activa
+    if tier_token == 'PRO':
+        cfg = db.get_config()
+        tiene_basica = (
+            cfg.get('demo_mode', '1') == '0' and
+            cfg.get('license_tier', '') == 'BASICA'
+        )
+        if not tiene_basica:
+            flash(
+                '⚠ Para activar el Plan Pro primero debés activar el Plan Básico. '
+                'Contactá al desarrollador para adquirir el bundle Básica + Pro.',
+                'warning'
+            )
+            return redirect(url_for('licencia'))
+
+    # Activar la licencia
     ok, msg = db.activar_licencia(token)
     if ok:
         tier = db.get_tier()
