@@ -31,3 +31,4 @@ __pycache__/
 build/
 dist/
 dist*/
+Output/
