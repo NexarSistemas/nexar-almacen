@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# build_deb.sh — Genera el paquete .deb para Almacén Gestión
+# build_deb.sh — Genera el paquete .deb para Nexar Stock
 # Uso: bash build_deb.sh
 # Requiere: dpkg-deb, python3
 # ============================================================
@@ -10,8 +10,8 @@ set -e
 VERSION="1.6.0"
 PACKAGE="almacen-gestion"
 ARCH="all"
-MAINTAINER="Rolando Navarta <rolojnb@outlook.com.ar>"
-DESCRIPTION="Sistema de Gestión para Almacenes — v${VERSION}"
+MAINTAINER="Nexar Sistemas <rolojnb@outlook.com.ar>"
+DESCRIPTION="Nexar Stock — v${VERSION}"
 
 # Directorio de trabajo
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -21,7 +21,7 @@ INSTALL_DIR="${PKG_DIR}/opt/almacen-gestion"
 DEBIAN_DIR="${PKG_DIR}/DEBIAN"
 
 echo "=================================================="
-echo "  Almacén Gestión — Builder .deb v${VERSION}"
+echo "  Nexar Stock — Builder .deb v${VERSION}"
 echo "=================================================="
 
 # Limpiar build anterior
@@ -84,8 +84,8 @@ cat > "${PKG_DIR}/usr/share/applications/almacen-gestion.desktop" << EOF
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Almacén Gestión
-GenericName=Sistema de Gestión para Almacenes
+Name=Nexar Stock
+GenericName=Nexar Stock
 Comment=Control completo de ventas, stock, caja y más
 Exec=/usr/local/bin/almacen
 Icon=almacen-gestion
@@ -126,7 +126,7 @@ cat > "${DEBIAN_DIR}/postinst" << 'EOF'
 #!/bin/bash
 set -e
 
-echo "Instalando dependencias de Python para Almacén Gestión..."
+echo "Instalando dependencias de Python para Nexar Stock..."
 pip3 install --quiet --break-system-packages flask openpyxl reportlab 2>/dev/null || \
 pip3 install --quiet flask openpyxl reportlab 2>/dev/null || \
 echo "Nota: las dependencias se instalarán automáticamente al primer inicio."
@@ -137,7 +137,7 @@ chmod -R a+rX /opt/almacen-gestion
 
 echo ""
 echo "================================================="
-echo "  Almacén Gestión v$(cat /opt/almacen-gestion/VERSION) instalado"
+echo "  Nexar Stock v$(cat /opt/almacen-gestion/VERSION) instalado"
 echo "================================================="
 echo "  Para iniciar: almacen"
 echo "  O desde el menú de aplicaciones"
@@ -151,7 +151,7 @@ chmod +x "${DEBIAN_DIR}/postinst"
 cat > "${DEBIAN_DIR}/prerm" << 'EOF'
 #!/bin/bash
 set -e
-echo "Desinstalando Almacén Gestión..."
+echo "Desinstalando Nexar Stock..."
 echo "Nota: tus datos (almacen.db) en ~/.local/share/AlmacenGestion/ NO se eliminan."
 exit 0
 EOF

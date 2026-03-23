@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 ╔══════════════════════════════════════════════════════════════════════╗
-║   SISTEMA DE GESTIÓN PARA ALMACENES  —  v1.6.0                      ║
-║   Creado por Rolando Navarta · Desarrollado con Claude.ai · 2026     ║
+║   NEXAR STOCK  —  v1.6.0                                           ║
+║   Creado por Nexar Sistemas · Desarrollado con Claude.ai · 2026     ║
 ╚══════════════════════════════════════════════════════════════════════╝
 """
 
@@ -183,7 +183,7 @@ def _read_version():
 
 def print_banner(url):
     ver = _read_version()
-    titulo = f'  🛒  SISTEMA DE GESTIÓN PARA ALMACENES  v{ver}  '
+    titulo = f'  🛒  NEXAR STOCK  v{ver}  '
     print()
     print(verde('╔'+'═'*54+'╗'))
     print(verde('║')+bold(titulo.ljust(54))+'   '+verde('║'))
@@ -213,7 +213,7 @@ signal.signal(signal.SIGTERM,on_exit)
 # ─────────────────────────────────────────────
 def main():
 
-    print(bold('\n  Iniciando Sistema de Gestión para Almacenes...\n'))
+    print(bold('\n  Iniciando Nexar Stock...\n'))
 
     print('  Verificando dependencias...',end=' ',flush=True)
     install_required()
@@ -276,7 +276,7 @@ def main():
         print(cyan('  > Ventana independiente abierta (modo app nativa)'))
 
         webview.create_window(
-            "Almacén Gestión",
+            "Nexar Stock",
             URL,
             width=1280,
             height=800,

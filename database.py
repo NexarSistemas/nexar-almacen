@@ -155,7 +155,7 @@ def _seed_changelog(c):
     entries = [
         ('1.0.0','2026-01-01','Nueva función',
          'Lanzamiento inicial del sistema',
-         'Primera versión del Sistema de Gestión para Almacenes con módulos de Ventas, Stock, Caja y Gastos.'),
+         'Primera versión de Nexar Stock con módulos de Ventas, Stock, Caja y Gastos.'),
         ('1.1.0','2026-01-15','Nueva función',
          'Cuentas Corrientes',
          'Se agregaron módulos de CC Clientes y CC Proveedores con alertas de vencimiento.'),
@@ -1451,7 +1451,7 @@ def validar_licencia_rsa(token_b64: str) -> tuple:
         except Exception:
             return False, "El token no es valido. Verifica que lo hayas copiado completo.", None
         if data.get("product") != "almacen":
-            return False, "Este token no es una licencia de Almacen Gestion.", None
+            return False, "Este token no es una licencia de Nexar Stock.", None
         sig_hex = data.get("public_signature", "")
         if not sig_hex:
             return False, "El token no contiene firma digital.", None

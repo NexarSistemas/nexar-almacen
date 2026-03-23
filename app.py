@@ -31,7 +31,7 @@ app.jinja_env.add_extension('jinja2.ext.loopcontrols')
 def favicon():
     return send_from_directory(
         os.path.join(app.root_path, 'static/icons'),
-        'sistema_almacen_icon.ico',
+        'nexar_stock.ico',
         mimetype='image/vnd.microsoft.icon'
     )
 
