@@ -45,7 +45,7 @@ def _map_category(tags):
 def _fetch_json(url, timeout=10):
     """Realiza un GET HTTP y devuelve el JSON parseado. None si falla."""
     try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'AlmacenGestion/1.3.0'})
+        req = urllib.request.Request(url, headers={'User-Agent': 'nexarstock/1.3.0'})
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read().decode('utf-8'))
     except Exception:

@@ -70,8 +70,8 @@ echo "→ Creando lanzador de terminal..."
 cat > "${PKG_DIR}/usr/local/bin/almacen" << 'EOF'
 #!/bin/bash
 # Guardar DB en directorio del usuario, no en /opt (que es readonly)
-export ALMACEN_DB_PATH="${HOME}/.local/share/AlmacenGestion/almacen.db"
-mkdir -p "${HOME}/.local/share/AlmacenGestion"
+export ALMACEN_DB_PATH="${HOME}/.local/share/nexarstock/almacen.db"
+mkdir -p "${HOME}/.local/share/nexarstock"
 cd /opt/almacen-gestion
 exec python3 iniciar.py "$@"
 EOF
@@ -152,7 +152,7 @@ cat > "${DEBIAN_DIR}/prerm" << 'EOF'
 #!/bin/bash
 set -e
 echo "Desinstalando Nexar Stock..."
-echo "Nota: tus datos (almacen.db) en ~/.local/share/AlmacenGestion/ NO se eliminan."
+echo "Nota: tus datos (almacen.db) en ~/.local/share/nexarstock/ NO se eliminan."
 exit 0
 EOF
 chmod +x "${DEBIAN_DIR}/prerm"

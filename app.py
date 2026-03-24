@@ -1364,7 +1364,7 @@ def api_barcode_lookup(barcode):
         if not check_connectivity(timeout=4):
             return jsonify({'ok': False, 'msg': 'Sin conexión a internet'})
         url = f'https://world.openfoodfacts.org/api/v2/product/{barcode}.json'
-        req = urllib.request.Request(url, headers={'User-Agent': 'AlmacenGestion/1.3.0'})
+        req = urllib.request.Request(url, headers={'User-Agent': 'nexarstock/1.3.0'})
         with urllib.request.urlopen(req, timeout=8) as r:
             data = json.loads(r.read())
         if data.get('status') != 1:

@@ -12,11 +12,11 @@ def _get_telemetry_path() -> str:
     """Ruta del archivo externo de control de demo."""
     if os.name == 'nt':
         base = os.environ.get('APPDATA', os.path.expanduser('~'))
-        folder = os.path.join(base, 'AlmacenGestion')
+        folder = os.path.join(base, 'nexarstock')
     else:
         base = os.environ.get('XDG_DATA_HOME',
                               os.path.join(os.path.expanduser('~'), '.local', 'share'))
-        folder = os.path.join(base, 'AlmacenGestion')
+        folder = os.path.join(base, 'nexarstock')
     os.makedirs(folder, exist_ok=True)
     return os.path.join(folder, 'telemetry.bin')
 
@@ -78,7 +78,7 @@ def _write_telemetry(date_str: str, machine_id: str) -> bool:
 
 # Ruta de la base de datos:
 # 1. Variable de entorno ALMACEN_DB_PATH (instaladores .deb y Windows)
-# 2. En Windows sin env var: %APPDATA%\AlmacenGestion\almacen.db  (evita readonly en Program Files)
+# 2. En Windows sin env var: %APPDATA%\nexarstock\almacen.db  (evita readonly en Program Files)
 # 3. Fallback: junto al script (portable/Linux)
 def _resolve_db_path():
     env = os.environ.get('ALMACEN_DB_PATH', '')
@@ -86,7 +86,7 @@ def _resolve_db_path():
         return env
     if os.name == 'nt':  # Windows
         appdata = os.environ.get('APPDATA', os.path.expanduser('~'))
-        data_dir = os.path.join(appdata, 'AlmacenGestion')
+        data_dir = os.path.join(appdata, 'nexarstock')
         os.makedirs(data_dir, exist_ok=True)
         return os.path.join(data_dir, 'almacen.db')
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'almacen.db')

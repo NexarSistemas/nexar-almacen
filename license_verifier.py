@@ -62,7 +62,7 @@ def _descargar_json(file_id: str) -> dict | None:
     """Descarga y parsea un JSON desde Google Drive por file_id."""
     url = _DRIVE_DOWNLOAD.format(file_id=file_id)
     try:
-        req  = urllib.request.Request(url, headers={"User-Agent": "AlmacenGestion/1.5.4"})
+        req  = urllib.request.Request(url, headers={"User-Agent": "nexarstock/1.5.4"})
         resp = urllib.request.urlopen(req, timeout=TIMEOUT, context=_ssl_ctx())
         return json.loads(resp.read().decode())
     except Exception:

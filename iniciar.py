@@ -43,7 +43,7 @@ PORT_FILE = os.path.join(BASE_DIR, '.port')
 # Garantizar que la DB apunte a AppData en Windows (antes de importar database o app)
 if os.name == 'nt' and not os.environ.get('ALMACEN_DB_PATH'):
     _appdata = os.environ.get('APPDATA', os.path.expanduser('~'))
-    _data_dir = os.path.join(_appdata, 'AlmacenGestion')
+    _data_dir = os.path.join(_appdata, 'nexarstock')
     os.makedirs(_data_dir, exist_ok=True)
     os.environ['ALMACEN_DB_PATH'] = os.path.join(_data_dir, 'almacen.db')
 
