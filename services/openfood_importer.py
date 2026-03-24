@@ -42,7 +42,7 @@ API_TIMEOUT = 45           # segundos por request (OFF puede tardar en primera r
 API_RETRIES = 3            # reintentos automáticos por página
 PAGE_SIZE   = 100          # max permitido por OFF
 DELAY_S     = 0.5          # pausa entre páginas (respeto al rate-limit)
-USER_AGENT  = "nexarstock/1.5.1 (contacto: rolojnb@outlook.com.ar)"
+USER_AGENT  = "nexarstock/1.5.1 (contacto: nexarsistemas@outlook.com.ar)"
 
 def _ssl_context():
     """Contexto SSL que funciona tanto en Python normal como en exe PyInstaller."""

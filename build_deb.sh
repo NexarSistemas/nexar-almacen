@@ -8,16 +8,16 @@
 set -e
 
 VERSION="1.6.0"
-PACKAGE="almacen-gestion"
+PACKAGE="nexar-stock"
 ARCH="all"
-MAINTAINER="Nexar Sistemas <rolojnb@outlook.com.ar>"
+MAINTAINER="Nexar Sistemas <nexarsistemas@outlook.com.ar>"
 DESCRIPTION="Nexar Stock — v${VERSION}"
 
 # Directorio de trabajo
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="${SCRIPT_DIR}/build_deb"
 PKG_DIR="${BUILD_DIR}/${PACKAGE}_${VERSION}"
-INSTALL_DIR="${PKG_DIR}/opt/almacen-gestion"
+INSTALL_DIR="${PKG_DIR}/opt/nexar-stock"
 DEBIAN_DIR="${PKG_DIR}/DEBIAN"
 
 echo "=================================================="
@@ -59,9 +59,9 @@ find "${INSTALL_DIR}" -name "*.db"  -delete 2>/dev/null || true
 find "${INSTALL_DIR}" -name ".port" -delete 2>/dev/null || true
 
 # Icono
-if [ -f "${SCRIPT_DIR}/static/icons/sistema_almacen_icon.png" ]; then
-    cp "${SCRIPT_DIR}/static/icons/sistema_almacen_icon.png" \
-       "${PKG_DIR}/usr/share/pixmaps/almacen-gestion.png"
+if [ -f "${SCRIPT_DIR}/static/icons/nexar_stock_ico.png" ]; then
+    cp "${SCRIPT_DIR}/static/icons/nexar_stock_ico.png" \
+       "${PKG_DIR}/usr/share/pixmaps/nexar-stock.png"
 fi
 
 echo "→ Creando lanzador de terminal..."
@@ -72,7 +72,7 @@ cat > "${PKG_DIR}/usr/local/bin/almacen" << 'EOF'
 # Guardar DB en directorio del usuario, no en /opt (que es readonly)
 export ALMACEN_DB_PATH="${HOME}/.local/share/nexarstock/almacen.db"
 mkdir -p "${HOME}/.local/share/nexarstock"
-cd /opt/almacen-gestion
+cd /opt/nexar-stock
 exec python3 iniciar.py "$@"
 EOF
 chmod +x "${PKG_DIR}/usr/local/bin/almacen"
@@ -80,7 +80,7 @@ chmod +x "${PKG_DIR}/usr/local/bin/almacen"
 echo "→ Creando entrada de menú de escritorio..."
 
 # Entrada .desktop
-cat > "${PKG_DIR}/usr/share/applications/almacen-gestion.desktop" << EOF
+cat > "${PKG_DIR}/usr/share/applications/nexar-stock.desktop" << EOF
 [Desktop Entry]
 Version=1.0
 Type=Application
@@ -88,7 +88,7 @@ Name=Nexar Stock
 GenericName=Nexar Stock
 Comment=Control completo de ventas, stock, caja y más
 Exec=/usr/local/bin/almacen
-Icon=almacen-gestion
+Icon=nexar-stock
 Terminal=false
 Categories=Office;Finance;
 Keywords=almacen;ventas;stock;caja;gestion;
@@ -133,11 +133,11 @@ echo "Nota: las dependencias se instalarán automáticamente al primer inicio."
 
 # Permisos del ejecutable
 chmod +x /usr/local/bin/almacen
-chmod -R a+rX /opt/almacen-gestion
+chmod -R a+rX /opt/nexar-stock
 
 echo ""
 echo "================================================="
-echo "  Nexar Stock v$(cat /opt/almacen-gestion/VERSION) instalado"
+echo "  Nexar Stock v$(cat /opt/nexar-stock/VERSION) instalado"
 echo "================================================="
 echo "  Para iniciar: almacen"
 echo "  O desde el menú de aplicaciones"
@@ -182,5 +182,5 @@ echo "  Para instalar:"
 echo "  sudo dpkg -i ${DEB_FILE}"
 echo ""
 echo "  Para desinstalar:"
-echo "  sudo apt remove almacen-gestion"
+echo "  sudo apt remove nexar-stock"
 echo "=================================================="
