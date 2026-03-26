@@ -9,7 +9,32 @@ ENTRY_POINT="app.py"
 ARCH="amd64"
 
 # =========================
-# VERSION (desde archivo)
+# PATHS (ROBUSTO)
+# =========================
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+
+if [ -z "$PROJECT_ROOT" ]; then
+  echo "❌ Error: no se pudo determinar PROJECT_ROOT"
+  exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+BUILD_ROOT="$PROJECT_ROOT/build_linux"
+DIST_DIR="$PROJECT_ROOT/dist"
+DEB_DIR="$BUILD_ROOT/deb"
+
+ICON_SRC="$SCRIPT_DIR/assets/nexar-stock.png"
+
+echo "======================================"
+echo "   NEXAR STOCK - LINUX BUILD"
+echo "======================================"
+echo "Root: $PROJECT_ROOT"
+echo "Script dir: $SCRIPT_DIR"
+echo "PWD: $(pwd)"
+
+# =========================
+# VERSION (DESDE ARCHIVO)
 # =========================
 if [ -f "$PROJECT_ROOT/version" ]; then
   VERSION_FILE="$PROJECT_ROOT/version"
@@ -17,12 +42,12 @@ elif [ -f "$PROJECT_ROOT/VERSION" ]; then
   VERSION_FILE="$PROJECT_ROOT/VERSION"
 else
   echo "❌ Error: no existe archivo version/VERSION en $PROJECT_ROOT"
+  ls -la "$PROJECT_ROOT"
   exit 1
 fi
 
 VERSION_BASE=$(tr -d ' \n\r' < "$VERSION_FILE")
 
-# fallback si git no está disponible (ej: CI minimal)
 if git rev-parse --short HEAD >/dev/null 2>&1; then
   GIT_HASH=$(git rev-parse --short HEAD)
   VERSION="${VERSION_BASE}+${GIT_HASH}"
@@ -33,31 +58,14 @@ fi
 echo "✔ Version detectada: $VERSION"
 
 # =========================
-# PATHS (FIX robusto)
-# =========================
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-
-BUILD_ROOT="$PROJECT_ROOT/build_linux"
-DIST_DIR="$PROJECT_ROOT/dist"
-DEB_DIR="$BUILD_ROOT/deb"
-
-PKG_NAME="${APP_NAME}_${VERSION}"
-PKG_DIR="$DEB_DIR/$PKG_NAME"
-
-ICON_SRC="$SCRIPT_DIR/assets/nexar-stock.png"
-
-echo "======================================"
-echo "   NEXAR STOCK - LINUX BUILD"
-echo "======================================"
-echo "Version: $VERSION"
-echo "Root: $PROJECT_ROOT"
-
-# =========================
 # LIMPIEZA
 # =========================
 echo "Limpiando..."
-rm -rf "$PROJECT_ROOT/build" "$DIST_DIR" "$PROJECT_ROOT/__pycache__" "$PROJECT_ROOT"/*.spec "$BUILD_ROOT"
+rm -rf "$PROJECT_ROOT/build" \
+       "$DIST_DIR" \
+       "$PROJECT_ROOT/__pycache__" \
+       "$PROJECT_ROOT"/*.spec \
+       "$BUILD_ROOT"
 
 # =========================
 # BUILD PORTABLE
@@ -85,6 +93,9 @@ echo "✔ Portable listo: $DIST_DIR/$APP_NAME"
 # =========================
 echo "Creando estructura .deb..."
 
+PKG_NAME="${APP_NAME}_${VERSION}"
+PKG_DIR="$DEB_DIR/$PKG_NAME"
+
 mkdir -p "$PKG_DIR/DEBIAN"
 mkdir -p "$PKG_DIR/usr/local/bin"
 mkdir -p "$PKG_DIR/usr/share/applications"
@@ -97,7 +108,7 @@ cp "$DIST_DIR/$APP_NAME" "$PKG_DIR/usr/local/bin/$APP_NAME"
 chmod +x "$PKG_DIR/usr/local/bin/$APP_NAME"
 
 # =========================
-# ICONO (FIX)
+# ICONO
 # =========================
 if [ -f "$ICON_SRC" ]; then
   cp "$ICON_SRC" "$PKG_DIR/usr/share/pixmaps/$APP_NAME.png"
@@ -124,7 +135,7 @@ EOF
 chmod 644 "$PKG_DIR/usr/share/applications/$APP_NAME.desktop"
 
 # =========================
-# CONTROL FILE (FIX VERSION)
+# CONTROL FILE
 # =========================
 cat <<EOF > "$PKG_DIR/DEBIAN/control"
 Package: $APP_NAME
@@ -166,8 +177,11 @@ mv "${PKG_DIR}.deb" "$FINAL_DEB"
 # =========================
 mkdir -p "$PROJECT_ROOT/release"
 
-cp "$DIST_DIR/$APP_NAME" "$PROJECT_ROOT/release/${APP_NAME}-linux-portable-${VERSION}"
-cp "$FINAL_DEB" "$PROJECT_ROOT/release/${APP_NAME}-linux-installer-${VERSION}.deb"
+cp "$DIST_DIR/$APP_NAME" \
+   "$PROJECT_ROOT/release/${APP_NAME}-linux-portable-${VERSION}"
+
+cp "$FINAL_DEB" \
+   "$PROJECT_ROOT/release/${APP_NAME}-linux-installer-${VERSION}.deb"
 
 echo "======================================"
 echo "✔ BUILD COMPLETO"
