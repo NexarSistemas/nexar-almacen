@@ -110,7 +110,7 @@ chmod +x "$PKG_DIR/usr/local/bin/$APP_NAME"
 # =========================
 # ICONO
 # =========================
-ICON_SRC="$PROJECT_ROOT/static/icons/nexar_stock.png"
+ICON_SRC="$PROJECT_ROOT/static/icons/nexar_stock_ico.png"
 
 if [ -f "$ICON_SRC" ]; then
   cp "$ICON_SRC" "$PKG_DIR/usr/share/pixmaps/$APP_NAME.png"
