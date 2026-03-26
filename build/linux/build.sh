@@ -1,193 +1,186 @@
 #!/bin/bash
+# ============================================================
+# build_deb.sh — Genera el paquete .deb para Nexar Stock
+# Uso: bash build_deb.sh
+# Requiere: dpkg-deb, python3
+# ============================================================
+
 set -e
 
-# =========================
-# CONFIG
-# =========================
-APP_NAME="nexar-stock"
-ENTRY_POINT="app.py"
-ARCH="amd64"
+VERSION="1.6.0"
+PACKAGE="nexar-stock"
+ARCH="all"
+MAINTAINER="Nexar Sistemas <nexarsistemas@outlook.com.ar>"
+DESCRIPTION="Nexar Stock — v${VERSION}"
 
-# =========================
-# PATHS (ROBUSTO)
-# =========================
-PROJECT_ROOT="$(git rev-parse --show-toplevel)"
-
-if [ -z "$PROJECT_ROOT" ]; then
-  echo "❌ Error: no se pudo determinar PROJECT_ROOT"
-  exit 1
-fi
-
+# Directorio de trabajo
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BUILD_DIR="${SCRIPT_DIR}/build_deb"
+PKG_DIR="${BUILD_DIR}/${PACKAGE}_${VERSION}"
+INSTALL_DIR="${PKG_DIR}/opt/nexar-stock"
+DEBIAN_DIR="${PKG_DIR}/DEBIAN"
 
-BUILD_ROOT="$PROJECT_ROOT/build_linux"
-DIST_DIR="$PROJECT_ROOT/dist"
-DEB_DIR="$BUILD_ROOT/deb"
+echo "=================================================="
+echo "  Nexar Stock — Builder .deb v${VERSION}"
+echo "=================================================="
 
-ICON_SRC="$SCRIPT_DIR/assets/nexar-stock.png"
+# Limpiar build anterior
+rm -rf "${BUILD_DIR}"
+mkdir -p "${INSTALL_DIR}"
+mkdir -p "${DEBIAN_DIR}"
+mkdir -p "${PKG_DIR}/usr/local/bin"
+mkdir -p "${PKG_DIR}/usr/share/applications"
+mkdir -p "${PKG_DIR}/usr/share/pixmaps"
 
-echo "======================================"
-echo "   NEXAR STOCK - LINUX BUILD"
-echo "======================================"
-echo "Root: $PROJECT_ROOT"
-echo "Script dir: $SCRIPT_DIR"
-echo "PWD: $(pwd)"
+echo "→ Copiando archivos del sistema..."
 
-# =========================
-# VERSION (DESDE ARCHIVO)
-# =========================
-if [ -f "$PROJECT_ROOT/version" ]; then
-  VERSION_FILE="$PROJECT_ROOT/version"
-elif [ -f "$PROJECT_ROOT/VERSION" ]; then
-  VERSION_FILE="$PROJECT_ROOT/VERSION"
-else
-  echo "❌ Error: no existe archivo version/VERSION en $PROJECT_ROOT"
-  ls -la "$PROJECT_ROOT"
-  exit 1
+# Archivos principales
+cp "${SCRIPT_DIR}/iniciar.py"          "${INSTALL_DIR}/"
+cp "${SCRIPT_DIR}/app.py"              "${INSTALL_DIR}/"
+cp "${SCRIPT_DIR}/database.py"         "${INSTALL_DIR}/"
+cp "${SCRIPT_DIR}/openfoodfacts.py"    "${INSTALL_DIR}/"
+cp "${SCRIPT_DIR}/productos_seed.py"   "${INSTALL_DIR}/"
+cp "${SCRIPT_DIR}/license_verifier.py" "${INSTALL_DIR}/"
+cp "${SCRIPT_DIR}/VERSION"             "${INSTALL_DIR}/"
+cp "${SCRIPT_DIR}/CHANGELOG.md"        "${INSTALL_DIR}/"
+cp "${SCRIPT_DIR}/README.md"           "${INSTALL_DIR}/"
+cp "${SCRIPT_DIR}/LICENSE"             "${INSTALL_DIR}/"
+
+# Carpetas
+cp -r "${SCRIPT_DIR}/templates"   "${INSTALL_DIR}/"
+cp -r "${SCRIPT_DIR}/static"      "${INSTALL_DIR}/"
+cp -r "${SCRIPT_DIR}/services"    "${INSTALL_DIR}/"
+cp -r "${SCRIPT_DIR}/keys"        "${INSTALL_DIR}/"
+
+# Eliminar __pycache__ y archivos temporales
+find "${INSTALL_DIR}" -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+find "${INSTALL_DIR}" -name "*.pyc" -delete 2>/dev/null || true
+find "${INSTALL_DIR}" -name "*.db"  -delete 2>/dev/null || true
+find "${INSTALL_DIR}" -name ".port" -delete 2>/dev/null || true
+
+# Icono
+if [ -f "${SCRIPT_DIR}/static/icons/nexar_stock_ico.png" ]; then
+    cp "${SCRIPT_DIR}/static/icons/nexar_stock_ico.png" \
+       "${PKG_DIR}/usr/share/pixmaps/nexar-stock.png"
 fi
 
-VERSION_BASE=$(tr -d ' \n\r' < "$VERSION_FILE")
+echo "→ Creando lanzador de terminal..."
 
-if git rev-parse --short HEAD >/dev/null 2>&1; then
-  GIT_HASH=$(git rev-parse --short HEAD)
-  VERSION="${VERSION_BASE}+${GIT_HASH}"
-else
-  VERSION="$VERSION_BASE"
-fi
+# Script ejecutable en /usr/local/bin/almacen
+cat > "${PKG_DIR}/usr/local/bin/almacen" << 'EOF'
+#!/bin/bash
+# Guardar DB en directorio del usuario, no en /opt (que es readonly)
+export ALMACEN_DB_PATH="${HOME}/.local/share/nexarstock/almacen.db"
+mkdir -p "${HOME}/.local/share/nexarstock"
+cd /opt/nexar-stock
+exec python3 iniciar.py "$@"
+EOF
+chmod +x "${PKG_DIR}/usr/local/bin/almacen"
 
-echo "✔ Version detectada: $VERSION"
+echo "→ Creando entrada de menú de escritorio..."
 
-# =========================
-# LIMPIEZA
-# =========================
-echo "Limpiando..."
-rm -rf "$PROJECT_ROOT/build" \
-       "$DIST_DIR" \
-       "$PROJECT_ROOT/__pycache__" \
-       "$PROJECT_ROOT"/*.spec \
-       "$BUILD_ROOT"
-
-# =========================
-# BUILD PORTABLE
-# =========================
-echo "Generando portable..."
-
-cd "$PROJECT_ROOT"
-
-pyinstaller \
-  --onefile \
-  --name "$APP_NAME" \
-  --add-data "templates:templates" \
-  --add-data "static:static" \
-  "$ENTRY_POINT"
-
-if [ ! -f "$DIST_DIR/$APP_NAME" ]; then
-  echo "❌ Error: no se generó el binario"
-  exit 1
-fi
-
-echo "✔ Portable listo: $DIST_DIR/$APP_NAME"
-
-# =========================
-# ESTRUCTURA DEB
-# =========================
-echo "Creando estructura .deb..."
-
-PKG_NAME="${APP_NAME}_${VERSION}"
-PKG_DIR="$DEB_DIR/$PKG_NAME"
-
-mkdir -p "$PKG_DIR/DEBIAN"
-mkdir -p "$PKG_DIR/usr/local/bin"
-mkdir -p "$PKG_DIR/usr/share/applications"
-mkdir -p "$PKG_DIR/usr/share/pixmaps"
-
-# =========================
-# BINARIO
-# =========================
-cp "$DIST_DIR/$APP_NAME" "$PKG_DIR/usr/local/bin/$APP_NAME"
-chmod +x "$PKG_DIR/usr/local/bin/$APP_NAME"
-
-# =========================
-# ICONO
-# =========================
-ICON_SRC="$PROJECT_ROOT/static/icons/nexar_stock_ico.png"
-
-if [ -f "$ICON_SRC" ]; then
-  cp "$ICON_SRC" "$PKG_DIR/usr/share/pixmaps/$APP_NAME.png"
-  echo "✔ Icono agregado"
-else
-  echo "❌ Icono no encontrado: $ICON_SRC"
-  ls -la "$PROJECT_ROOT/static/icons"
-  exit 1
-fi
-
-# =========================
-# DESKTOP ENTRY
-# =========================
-cat <<EOF > "$PKG_DIR/usr/share/applications/$APP_NAME.desktop"
+# Entrada .desktop
+cat > "${PKG_DIR}/usr/share/applications/nexar-stock.desktop" << EOF
 [Desktop Entry]
-Name=Nexar Stock
-Exec=/usr/local/bin/$APP_NAME
-Icon=$APP_NAME
+Version=1.0
 Type=Application
-Categories=Office;
+Name=Nexar Stock
+GenericName=Nexar Stock
+Comment=Control completo de ventas, stock, caja y más
+Exec=/usr/local/bin/almacen
+Icon=nexar-stock
 Terminal=false
+Categories=Office;Finance;
+Keywords=almacen;ventas;stock;caja;gestion;
 StartupNotify=true
 EOF
 
-chmod 644 "$PKG_DIR/usr/share/applications/$APP_NAME.desktop"
+echo "→ Calculando tamaño instalado..."
+INSTALLED_SIZE=$(du -sk "${INSTALL_DIR}" | cut -f1)
 
-# =========================
-# CONTROL FILE
-# =========================
-cat <<EOF > "$PKG_DIR/DEBIAN/control"
-Package: $APP_NAME
-Version: $VERSION
-Section: office
+echo "→ Generando metadata del paquete..."
+
+# DEBIAN/control
+cat > "${DEBIAN_DIR}/control" << EOF
+Package: ${PACKAGE}
+Version: ${VERSION}
+Architecture: ${ARCH}
+Maintainer: ${MAINTAINER}
+Installed-Size: ${INSTALLED_SIZE}
+Depends: python3 (>= 3.8), python3-pip
+Recommends: python3-flask, python3-openpyxl
+Section: misc
 Priority: optional
-Architecture: $ARCH
-Maintainer: Rolo
-Depends: libc6
-Description: Nexar Stock - Sistema de gestión de inventario profesional
+Homepage: https://wa.me/5492645858874
+Description: ${DESCRIPTION}
+ Sistema completo de gestión para pequeños comercios.
+ Incluye: Punto de Venta, Stock, Caja, Gastos, Cuentas Corrientes,
+ Estadísticas, Importación desde OpenFoodFacts y más.
+ Funciona localmente sin servidor externo.
+ .
+ Planes disponibles: Demo (30 días), Básico (pago único), Pro (mensual).
 EOF
 
-chmod 644 "$PKG_DIR/DEBIAN/control"
-
-# =========================
-# POSTINST
-# =========================
-cat <<EOF > "$PKG_DIR/DEBIAN/postinst"
+# DEBIAN/postinst — se ejecuta después de instalar
+cat > "${DEBIAN_DIR}/postinst" << 'EOF'
 #!/bin/bash
 set -e
-update-desktop-database || true
-echo "Nexar Stock instalado correctamente"
+
+echo "Instalando dependencias de Python para Nexar Stock..."
+pip3 install --quiet --break-system-packages flask openpyxl reportlab 2>/dev/null || \
+pip3 install --quiet flask openpyxl reportlab 2>/dev/null || \
+echo "Nota: las dependencias se instalarán automáticamente al primer inicio."
+
+# Permisos del ejecutable
+chmod +x /usr/local/bin/almacen
+chmod -R a+rX /opt/nexar-stock
+
+echo ""
+echo "================================================="
+echo "  Nexar Stock v$(cat /opt/nexar-stock/VERSION) instalado"
+echo "================================================="
+echo "  Para iniciar: almacen"
+echo "  O desde el menú de aplicaciones"
+echo "================================================="
+
+exit 0
 EOF
+chmod +x "${DEBIAN_DIR}/postinst"
 
-chmod 755 "$PKG_DIR/DEBIAN/postinst"
+# DEBIAN/prerm — se ejecuta antes de desinstalar
+cat > "${DEBIAN_DIR}/prerm" << 'EOF'
+#!/bin/bash
+set -e
+echo "Desinstalando Nexar Stock..."
+echo "Nota: tus datos (almacen.db) en ~/.local/share/nexarstock/ NO se eliminan."
+exit 0
+EOF
+chmod +x "${DEBIAN_DIR}/prerm"
 
-# =========================
-# BUILD DEB
-# =========================
-echo "Construyendo .deb..."
+# DEBIAN/postrm — se ejecuta después de desinstalar
+cat > "${DEBIAN_DIR}/postrm" << 'EOF'
+#!/bin/bash
+set -e
+# Limpiar entradas de menú obsoletas si las hay
+update-desktop-database /usr/share/applications 2>/dev/null || true
+exit 0
+EOF
+chmod +x "${DEBIAN_DIR}/postrm"
 
-dpkg-deb --build "$PKG_DIR"
+echo "→ Construyendo paquete .deb..."
 
-FINAL_DEB="${APP_NAME}-${VERSION}.deb"
-mv "${PKG_DIR}.deb" "$FINAL_DEB"
+# Construir el .deb
+DEB_FILE="${BUILD_DIR}/${PACKAGE}_${VERSION}_${ARCH}.deb"
+dpkg-deb --build --root-owner-group "${PKG_DIR}" "${DEB_FILE}"
 
-# =========================
-# OUTPUT FINAL
-# =========================
-mkdir -p "$PROJECT_ROOT/release"
-
-cp "$DIST_DIR/$APP_NAME" \
-   "$PROJECT_ROOT/release/${APP_NAME}-linux-portable-${VERSION}"
-
-cp "$FINAL_DEB" \
-   "$PROJECT_ROOT/release/${APP_NAME}-linux-installer-${VERSION}.deb"
-
-echo "======================================"
-echo "✔ BUILD COMPLETO"
-echo "======================================"
-echo "Portable: release/${APP_NAME}-linux-portable-${VERSION}"
-echo "DEB:      release/${APP_NAME}-linux-installer-${VERSION}.deb"
+echo ""
+echo "=================================================="
+echo "  ✅ Paquete generado exitosamente:"
+echo "  ${DEB_FILE}"
+echo ""
+echo "  Para instalar:"
+echo "  sudo dpkg -i ${DEB_FILE}"
+echo ""
+echo "  Para desinstalar:"
+echo "  sudo apt remove nexar-stock"
+echo "=================================================="
