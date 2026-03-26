@@ -110,11 +110,14 @@ chmod +x "$PKG_DIR/usr/local/bin/$APP_NAME"
 # =========================
 # ICONO
 # =========================
+ICON_SRC="$PROJECT_ROOT/static/icons/nexar_stock.png"
+
 if [ -f "$ICON_SRC" ]; then
   cp "$ICON_SRC" "$PKG_DIR/usr/share/pixmaps/$APP_NAME.png"
   echo "✔ Icono agregado"
 else
   echo "❌ Icono no encontrado: $ICON_SRC"
+  ls -la "$PROJECT_ROOT/static/icons"
   exit 1
 fi
 
