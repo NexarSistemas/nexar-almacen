@@ -11,7 +11,7 @@ ARCH="amd64"
 # =========================
 # VERSION (desde archivo)
 # =========================
-VERSION_FILE="$PROJECT_ROOT/version"
+VERSION_FILE="$PROJECT_ROOT/VERSION"
 
 if [ ! -f "$VERSION_FILE" ]; then
   echo "❌ Error: no existe archivo version en $VERSION_FILE"
