@@ -29,8 +29,8 @@ respaldo/
 *.port
 
 # build y distribución
-build/
-dist/
-dist*/
-Output/
-build_*/
+# build/
+# dist/
+# dist*/
+# Output/
+# build_*/
