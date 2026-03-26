@@ -11,19 +11,26 @@ ARCH="amd64"
 # =========================
 # VERSION (desde archivo)
 # =========================
-VERSION_FILE="$PROJECT_ROOT/VERSION"
-
-if [ ! -f "$VERSION_FILE" ]; then
-  echo "❌ Error: no existe archivo version en $VERSION_FILE"
+if [ -f "$PROJECT_ROOT/version" ]; then
+  VERSION_FILE="$PROJECT_ROOT/version"
+elif [ -f "$PROJECT_ROOT/VERSION" ]; then
+  VERSION_FILE="$PROJECT_ROOT/VERSION"
+else
+  echo "❌ Error: no existe archivo version/VERSION en $PROJECT_ROOT"
   exit 1
 fi
 
-VERSION_BASE=$(cat "$VERSION_FILE" | tr -d ' \n')
+VERSION_BASE=$(tr -d ' \n\r' < "$VERSION_FILE")
 
-# opcional: agregar hash (recomendado para builds internos)
-GIT_HASH=$(git rev-parse --short HEAD)
+# fallback si git no está disponible (ej: CI minimal)
+if git rev-parse --short HEAD >/dev/null 2>&1; then
+  GIT_HASH=$(git rev-parse --short HEAD)
+  VERSION="${VERSION_BASE}+${GIT_HASH}"
+else
+  VERSION="$VERSION_BASE"
+fi
 
-VERSION="${VERSION_BASE}+${GIT_HASH}"
+echo "✔ Version detectada: $VERSION"
 
 # =========================
 # PATHS (FIX robusto)
