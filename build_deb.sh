@@ -107,7 +107,7 @@ Version: ${VERSION}
 Architecture: ${ARCH}
 Maintainer: ${MAINTAINER}
 Installed-Size: ${INSTALLED_SIZE}
-Depends: python3 (>= 3.8), python3-pip, python3-gi, gir1.2-webkit2-4.0, libwebkit2gtk-4.0-37
+Depends: python3 (>= 3.8), python3-pip, python3-gi
 Recommends: python3-flask, python3-openpyxl
 Section: misc
 Priority: optional
