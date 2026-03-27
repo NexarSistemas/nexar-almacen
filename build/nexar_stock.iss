@@ -1,4 +1,4 @@
-﻿; ════════════════════════════════════════════════════════════
+; ════════════════════════════════════════════════════════════
 ; build/nexar_stock.iss — Script de Inno Setup 6
 ;
 ; Genera un instalador profesional para Windows que:
@@ -101,7 +101,8 @@ Filename: "{app}\{#AppExeName}"; Description: "Iniciar {#AppName} ahora"; Flags:
 ; ── MENSAJES PERSONALIZADOS ─────────────────────────────────
 [Messages]
 WelcomeLabel1=Bienvenido al instalador de {#AppName} v{#AppVersion}
-WelcomeLabel2=Este asistente instalará {#AppName} en tu computadora.%n%nNexar Stock es un sistema de gestión completo para almacenes y pequeños comercios.%n%nCerrá todas las demás aplicaciones antes de continuar.
-FinishedHeadingLabel=Instalación completada
-FinishedLabel={#AppName} v{#AppVersion} se instaló correctamente.%n%nHacé clic en Finalizar para cerrar el asistente.
-```
+WelcomeLabel2=Este asistente instalará {#AppName} en tu computadora.%n%n \
+  Nexar Stock es un sistema de gestion completo para almacenes y pequenos comercios.%n%n \
+  Cerra todas las demas aplicaciones antes de continuar.
+FinishedHeadingLabel=Instalacion completada
+FinishedLabel={#AppName} v{#AppVersion} se instalo correctamente.%n%nHace clic en Finalizar para cerrar el asistente.
