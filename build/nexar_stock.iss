@@ -117,11 +117,9 @@ procedure InitializeWizard();
 begin
   if not IsWebView2Installed() then
     MsgBox(
-      'Atención: Microsoft WebView2 Runtime no está instalado.' + #13#10 +
-      #13#10 +
+      'Atención: Microsoft WebView2 Runtime no está instalado.' + #13#10 + #13#10 +
       'Nexar Stock puede funcionar sin él, pero la aplicación se abrirá ' +
-      'en el navegador predeterminado en lugar de una ventana propia.' + #13#10 +
-      #13#10 +
+      'en el navegador predeterminado en lugar de una ventana propia.' + #13#10 + #13#10 +
       'Para instalar WebView2 visitá: aka.ms/getwebview2' + #13#10 +
       '(suele estar incluido en Windows 10/11 actualizado)',
       mbInformation, MB_OK
