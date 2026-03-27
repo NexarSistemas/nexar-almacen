@@ -105,23 +105,3 @@ WelcomeLabel2=Este asistente instalará {#AppName} en tu computadora.%n%nNexar S
 FinishedHeadingLabel=Instalación completada
 FinishedLabel={#AppName} v{#AppVersion} se instaló correctamente.%n%nHacé clic en Finalizar para cerrar el asistente.
 ```
-
----
-
-## Estructura final del repo
-
-Después de crear los tres archivos, la estructura queda así:
-```
-tu-repo/
-├── .github/
-│   └── workflows/
-│       └── build.yml          ← NUEVO
-├── build/
-│   ├── nexar_stock.spec       ← NUEVO
-│   └── nexar_stock.iss        ← NUEVO
-├── app.py
-├── database.py
-├── iniciar.py
-├── build_deb.sh               ← ya existía
-├── VERSION
-└── ...
