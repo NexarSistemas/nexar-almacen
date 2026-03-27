@@ -162,11 +162,10 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             dpkg-dev \
-            gir1.2-webkit2-4.0 \
             python3-gi \
             python3-gi-cairo \
             libgtk-3-0 \
-            libwebkit2gtk-4.0-37
+            libwebkit2gtk-4.1
           echo "OK — dependencias de sistema instaladas"
 
       - name: Crear carpeta de distribución
