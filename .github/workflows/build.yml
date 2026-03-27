@@ -1,13 +1,13 @@
 # ════════════════════════════════════════════════════════════
 # .github/workflows/build.yml
-# Pipeline de compilación de Nexar Stock
+# Pipeline de compilación de Nexar Almacen
 #
 # Se ejecuta en cada push a main o master.
 # Genera los paquetes de distribución para Windows y Linux,
 # y un SHA256SUMS.txt con los checksums de todos los archivos.
 # ════════════════════════════════════════════════════════════
 
-name: Build Nexar Stock
+name: Build Nexar Almacen
 
 on:
   push:
@@ -51,16 +51,16 @@ jobs:
 
       - name: Compilar EXE con PyInstaller
         run: |
-          pyinstaller build/nexar_stock.spec --distpath dist --workpath build/work --noconfirm
+          pyinstaller build/nexar_almacen.spec --distpath dist --workpath build/work --noconfirm
 
       - name: Verificar que el EXE existe
         shell: pwsh
         run: |
-          if (Test-Path "dist\NexarStock.exe") {
-            $mb = [math]::Round((Get-Item "dist\NexarStock.exe").Length / 1MB, 1)
-            Write-Host "OK — NexarStock.exe generado: $mb MB"
+          if (Test-Path "dist\NexarAlmacen.exe") {
+            $mb = [math]::Round((Get-Item "dist\NexarAlmacen.exe").Length / 1MB, 1)
+            Write-Host "OK — NexarAlmacen.exe generado: $mb MB"
           } else {
-            Write-Error "FALLO — NexarStock.exe no encontrado en dist/"
+            Write-Error "FALLO — NexarAlmacen.exe no encontrado en dist/"
             exit 1
           }
 
@@ -77,7 +77,7 @@ jobs:
             Write-Host "OK — LICENSE.txt creado desde LICENSE.md"
           } else {
             # Fallback: crear un archivo mínimo para que Inno Setup no falle
-            "Nexar Stock — Todos los derechos reservados. Nexar Sistemas 2026." | Out-File "LICENSE.txt" -Encoding UTF8
+            "Nexar Almacen — Todos los derechos reservados. Nexar Sistemas 2026." | Out-File "LICENSE.txt" -Encoding UTF8
             Write-Host "AVISO — LICENSE no encontrado, se creó un archivo mínimo"
           }
 
@@ -86,7 +86,7 @@ jobs:
         run: |
           $ver = "${{ steps.ver.outputs.VERSION }}"
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          & $iscc "/DAppVersion=$ver" "build\nexar_stock.iss"
+          & $iscc "/DAppVersion=$ver" "build\nexar_almacen.iss"
           if ($LASTEXITCODE -ne 0) {
             Write-Error "Inno Setup falló con código $LASTEXITCODE"
             exit 1
@@ -96,30 +96,30 @@ jobs:
         shell: pwsh
         run: |
           $ver = "${{ steps.ver.outputs.VERSION }}"
-          Rename-Item "dist\NexarStock.exe" "NexarStock_${ver}_Windows_Standalone.exe"
+          Rename-Item "dist\NexarAlmacen.exe" "NexarAlmacen_${ver}_Windows_Standalone.exe"
 
       - name: Crear ZIP portable Windows
         shell: pwsh
         run: |
           $ver = "${{ steps.ver.outputs.VERSION }}"
-          New-Item -ItemType Directory -Force -Path "portable_tmp\NexarStock" | Out-Null
+          New-Item -ItemType Directory -Force -Path "portable_tmp\NexarAlmacen" | Out-Null
           $archivos = @(
             "app.py", "database.py", "iniciar.py", "openfoodfacts.py",
             "productos_seed.py", "license_verifier.py"
           )
           foreach ($f in $archivos) {
-            if (Test-Path $f) { Copy-Item $f "portable_tmp\NexarStock\" }
+            if (Test-Path $f) { Copy-Item $f "portable_tmp\NexarAlmacen\" }
           }
           $docs = @("VERSION", "CHANGELOG.md", "README.md", "requirements.txt", "LICENSE")
           foreach ($f in $docs) {
-            if (Test-Path $f) { Copy-Item $f "portable_tmp\NexarStock\" }
+            if (Test-Path $f) { Copy-Item $f "portable_tmp\NexarAlmacen\" }
           }
           $carpetas = @("templates", "static", "services", "keys")
           foreach ($d in $carpetas) {
-            if (Test-Path $d) { Copy-Item $d "portable_tmp\NexarStock\" -Recurse }
+            if (Test-Path $d) { Copy-Item $d "portable_tmp\NexarAlmacen\" -Recurse }
           }
-          Compress-Archive -Path "portable_tmp\NexarStock" `
-            -DestinationPath "dist\NexarStock_${ver}_Windows_Portable.zip" -Force
+          Compress-Archive -Path "portable_tmp\NexarAlmacen" `
+            -DestinationPath "dist\NexarAlmacen_${ver}_Windows_Portable.zip" -Force
           Remove-Item "portable_tmp" -Recurse -Force
           Write-Host "OK — ZIP portable Windows creado"
 
@@ -138,7 +138,7 @@ jobs:
       - name: Subir artefactos Windows
         uses: actions/upload-artifact@v4
         with:
-          name: nexar-stock-windows-${{ steps.ver.outputs.VERSION }}
+          name: nexar-almacen-windows-${{ steps.ver.outputs.VERSION }}
           path: dist/
           retention-days: 30
 
@@ -174,19 +174,19 @@ jobs:
       - name: Crear ZIP portable Linux
         run: |
           VER="${{ steps.ver.outputs.VERSION }}"
-          mkdir -p portable_tmp/NexarStock
+          mkdir -p portable_tmp/NexarAlmacen
           for f in app.py database.py iniciar.py openfoodfacts.py \
                    productos_seed.py license_verifier.py; do
-            [ -f "$f" ] && cp "$f" portable_tmp/NexarStock/
+            [ -f "$f" ] && cp "$f" portable_tmp/NexarAlmacen/
           done
           for f in VERSION CHANGELOG.md README.md requirements.txt LICENSE; do
-            [ -f "$f" ] && cp "$f" portable_tmp/NexarStock/
+            [ -f "$f" ] && cp "$f" portable_tmp/NexarAlmacen/
           done
           for d in templates static services keys; do
-            [ -d "$d" ] && cp -r "$d" portable_tmp/NexarStock/
+            [ -d "$d" ] && cp -r "$d" portable_tmp/NexarAlmacen/
           done
           cd portable_tmp
-          zip -r "../dist/NexarStock_${VER}_Linux_Portable.zip" NexarStock/
+          zip -r "../dist/NexarAlmacen_${VER}_Linux_Portable.zip" NexarAlmacen/
           cd ..
           rm -rf portable_tmp
           echo "OK — ZIP portable Linux creado"
@@ -199,7 +199,7 @@ jobs:
       - name: Copiar .deb a dist/
         run: |
           VER="${{ steps.ver.outputs.VERSION }}"
-          DEB="build_deb/nexar-stock_${VER}_all.deb"
+          DEB="build_deb/nexar-almacen_${VER}_all.deb"
           if [ -f "$DEB" ]; then
             cp "$DEB" dist/
             echo "OK — .deb copiado"
@@ -219,7 +219,7 @@ jobs:
       - name: Subir artefactos Linux
         uses: actions/upload-artifact@v4
         with:
-          name: nexar-stock-linux-${{ steps.ver.outputs.VERSION }}
+          name: nexar-almacen-linux-${{ steps.ver.outputs.VERSION }}
           path: dist/
           retention-days: 30
 
@@ -240,20 +240,20 @@ jobs:
       - name: Descargar artefactos Windows
         uses: actions/download-artifact@v4
         with:
-          name: nexar-stock-windows-${{ steps.ver.outputs.VERSION }}
+          name: nexar-almacen-windows-${{ steps.ver.outputs.VERSION }}
           path: todos/
 
       - name: Descargar artefactos Linux
         uses: actions/download-artifact@v4
         with:
-          name: nexar-stock-linux-${{ steps.ver.outputs.VERSION }}
+          name: nexar-almacen-linux-${{ steps.ver.outputs.VERSION }}
           path: todos/
 
       - name: Generar SHA256SUMS.txt combinado
         run: |
           VER="${{ steps.ver.outputs.VERSION }}"
           cd todos
-          echo "# Nexar Stock v${VER} — SHA256 Checksums" > SHA256SUMS.txt
+          echo "# Nexar Almacen v${VER} — SHA256 Checksums" > SHA256SUMS.txt
           echo "# Generado: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> SHA256SUMS.txt
           echo "" >> SHA256SUMS.txt
           for f in $(ls | grep -v "SHA256SUMS" | sort); do
@@ -266,6 +266,6 @@ jobs:
       - name: Subir SHA256SUMS.txt
         uses: actions/upload-artifact@v4
         with:
-          name: nexar-stock-checksums-${{ steps.ver.outputs.VERSION }}
+          name: nexar-almacen-checksums-${{ steps.ver.outputs.VERSION }}
           path: todos/SHA256SUMS.txt
           retention-days: 30

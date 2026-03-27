@@ -1,15 +1,15 @@
 # ════════════════════════════════════════════════════════════
-# build/nexar_stock.spec — Configuración de PyInstaller
+# build/nexar_almacen.spec — Configuración de PyInstaller
 #
 # Genera un único .exe que incluye todo lo necesario para
-# ejecutar Nexar Stock sin instalar Python.
+# ejecutar Nexar Almacen sin instalar Python.
 #
 # Para compilar manualmente desde la raíz del proyecto:
-#   pyinstaller build/nexar_stock.spec --distpath dist --noconfirm
+#   pyinstaller build/nexar_almacen.spec --distpath dist --noconfirm
 # ════════════════════════════════════════════════════════════
 
 # ════════════════════════════════════════════════════════════
-# build/nexar_stock.spec — Configuración de PyInstaller
+# build/nexar_almacen.spec — Configuración de PyInstaller
 # ════════════════════════════════════════════════════════════
 
 import os
@@ -127,7 +127,7 @@ exe = EXE(
     a.datas,
     [],
 
-    name='NexarStock',
+    name='NexarAlmacen',
 
     debug=False,
     bootloader_ignore_signals=False,
@@ -148,5 +148,5 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
 
-    icon=os.path.join(PROJ, 'static', 'icons', 'nexar_stock_ico.ico'),
+    icon=os.path.join(PROJ, 'static', 'icons', 'nexar_almacen_ico.ico'),
 )

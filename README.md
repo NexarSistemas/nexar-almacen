@@ -1,4 +1,4 @@
-# 🛒 Nexar Stock — v1.6.0
+# 🛒 Nexar Almacen — v1.6.0
 
 Sistema completo de gestión para almacenes desarrollado en Python + Flask + SQLite.
 Funciona sin servidor, sin instalación compleja. Solo Python y un ZIP.

@@ -1,5 +1,5 @@
 ; ════════════════════════════════════════════════════════════
-; build/nexar_stock.iss — Script de Inno Setup 6
+; build/nexar_almacen.iss — Script de Inno Setup 6
 ;
 ; Genera un instalador profesional para Windows que:
 ;   - Instala en la carpeta del usuario (sin requerir admin)
@@ -8,7 +8,7 @@
 ;   - Incluye desinstalador automático
 ;
 ; Para compilar manualmente:
-;   ISCC.exe /DAppVersion=1.6.0 build\nexar_stock.iss
+;   ISCC.exe /DAppVersion=1.6.0 build\nexar_almacen.iss
 ;
 ; GitHub Actions pasa la versión automáticamente.
 ; ════════════════════════════════════════════════════════════
@@ -17,15 +17,15 @@
 ; Si no se pasa /DAppVersion desde la línea de comando,
 ; usa "1.0.0" como valor por defecto
 ; ════════════════════════════════════════════════════════════
-; build/nexar_stock.iss — Script de Inno Setup 6
+; build/nexar_almacen.iss — Script de Inno Setup 6
 ; ════════════════════════════════════════════════════════════
 
 #ifndef AppVersion
   #define AppVersion "1.0.0"
 #endif
 
-#define AppName      "Nexar Stock"
-#define AppExeName   "NexarStock.exe"
+#define AppName      "Nexar Almacen"
+#define AppExeName   "NexarAlmacen.exe"
 #define AppPublisher "Nexar Sistemas"
 #define AppURL       "https://wa.me/5492645858874"
 
@@ -44,9 +44,9 @@ DefaultGroupName={#AppName}
 AllowNoIcons=yes
 
 OutputDir=..\dist\installer
-OutputBaseFilename=NexarStock_{#AppVersion}_Setup
+OutputBaseFilename=NexarAlmacen_{#AppVersion}_Setup
 
-SetupIconFile=..\static\icons\nexar_stock_ico.ico
+SetupIconFile=..\static\icons\nexar_almacen_ico.ico
 
 ; ─── CAMBIO: el usuario debe aceptar la licencia antes de instalar ────────
 ; Inno Setup muestra esta pantalla automáticamente antes de cualquier otro paso
@@ -73,7 +73,7 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 Name: "desktopicon"; Description: "Crear acceso directo en el Escritorio"; GroupDescription: "Opciones adicionales:"
 
 [Files]
-Source: "..\dist\NexarStock.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\NexarAlmacen.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{userprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Comment: "Sistema de gestión para almacenes"
@@ -85,7 +85,7 @@ Filename: "{app}\{#AppExeName}"; Description: "Iniciar {#AppName} ahora"; Flags:
 
 [Messages]
 WelcomeLabel1=Bienvenido al instalador de {#AppName} v{#AppVersion}
-WelcomeLabel2=Este asistente instalará {#AppName} en tu computadora.%n%nNexar Stock es un sistema de gestión completo para almacenes y pequeños comercios.%n%nCerrá todas las demás aplicaciones antes de continuar.
+WelcomeLabel2=Este asistente instalará {#AppName} en tu computadora.%n%nNexar Almacen es un sistema de gestión completo para almacenes y pequeños comercios.%n%nCerrá todas las demás aplicaciones antes de continuar.
 FinishedHeadingLabel=Instalación completada
 FinishedLabel={#AppName} v{#AppVersion} se instaló correctamente.%n%nHacé clic en Finalizar para cerrar el asistente.
 
@@ -118,7 +118,7 @@ begin
   if not IsWebView2Installed() then
     MsgBox(
       'Atención: Microsoft WebView2 Runtime no está instalado.' + #13#10 + #13#10 +
-      'Nexar Stock puede funcionar sin él, pero la aplicación se abrirá ' +
+      'Nexar Almacen puede funcionar sin él, pero la aplicación se abrirá ' +
       'en el navegador predeterminado en lugar de una ventana propia.' + #13#10 + #13#10 +
       'Para instalar WebView2 visitá: aka.ms/getwebview2' + #13#10 +
       '(suele estar incluido en Windows 10/11 actualizado)',

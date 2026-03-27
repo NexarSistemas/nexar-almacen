@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ╔══════════════════════════════════════════════════════════════════════╗
-║   NEXAR STOCK  —  v1.6.0                                           ║
+║   NEXAR ALMACEN  —  v1.6.0                                           ║
 ║   Creado por Nexar Sistemas · Desarrollado con Claude.ai · 2026     ║
 ╚══════════════════════════════════════════════════════════════════════╝
 """
@@ -43,7 +43,7 @@ PORT_FILE = os.path.join(BASE_DIR, '.port')
 # Garantizar que la DB apunte a AppData en Windows (antes de importar database o app)
 if os.name == 'nt' and not os.environ.get('ALMACEN_DB_PATH'):
     _appdata = os.environ.get('APPDATA', os.path.expanduser('~'))
-    _data_dir = os.path.join(_appdata, 'nexarstock')
+    _data_dir = os.path.join(_appdata, 'nexaralmacen')
     os.makedirs(_data_dir, exist_ok=True)
     os.environ['ALMACEN_DB_PATH'] = os.path.join(_data_dir, 'almacen.db')
 
@@ -183,7 +183,7 @@ def _read_version():
 
 def print_banner(url):
     ver = _read_version()
-    titulo = f'  🛒  NEXAR STOCK  v{ver}  '
+    titulo = f'  🛒  NEXAR ALMACEN  v{ver}  '
     print()
     print(verde('╔'+'═'*54+'╗'))
     print(verde('║')+bold(titulo.ljust(54))+'   '+verde('║'))
@@ -213,7 +213,7 @@ signal.signal(signal.SIGTERM,on_exit)
 # ─────────────────────────────────────────────
 def main():
 
-    print(bold('\n  Iniciando Nexar Stock...\n'))
+    print(bold('\n  Iniciando Nexar Almacen...\n'))
 
     print('  Verificando dependencias...',end=' ',flush=True)
     install_required()
@@ -276,7 +276,7 @@ def main():
         print(cyan('  > Ventana independiente abierta (modo app nativa)'))
 
         webview.create_window(
-            "Nexar Stock",
+            "Nexar Almacen",
             URL,
             width=1280,
             height=800,

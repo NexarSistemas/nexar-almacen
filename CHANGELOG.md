@@ -1,4 +1,4 @@
-# Changelog — Nexar Stock
+# Changelog — Nexar Almacen
 
 Todas las versiones publicadas de este proyecto están documentadas aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es).
@@ -135,5 +135,5 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 ## [1.0.0] — 2026-01-01 — Lanzamiento
 
 ### Agregado
-- Primera versión de Nexar Stock.
+- Primera versión de Nexar Almacen.
 - Módulos de Ventas, Stock, Caja y Gastos.

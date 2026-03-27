@@ -42,7 +42,7 @@ API_TIMEOUT = 45           # segundos por request (OFF puede tardar en primera r
 API_RETRIES = 3            # reintentos automáticos por página
 PAGE_SIZE   = 100          # max permitido por OFF
 DELAY_S     = 0.5          # pausa entre páginas (respeto al rate-limit)
-USER_AGENT  = "nexarstock/1.5.1 (contacto: nexarsistemas@outlook.com.ar)"
+USER_AGENT  = "nexaralmacen/1.5.1 (contacto: nexarsistemas@outlook.com.ar)"
 
 def _ssl_context():
     """Contexto SSL que funciona tanto en Python normal como en exe PyInstaller."""
@@ -60,7 +60,7 @@ def _ssl_context():
 
 # Ruta de la base de datos — misma lógica que database.py:
 # 1. Variable de entorno ALMACEN_DB_PATH (instaladores Windows/deb y exe PyInstaller)
-# 2. En Windows sin env var: %APPDATA%\nexarstock\almacen.db
+# 2. En Windows sin env var: %APPDATA%\nexaralmacen\almacen.db
 # 3. Fallback: junto al proyecto (portable/Linux)
 def _resolve_db_path() -> str:
     env = os.environ.get("ALMACEN_DB_PATH", "")
@@ -68,7 +68,7 @@ def _resolve_db_path() -> str:
         return env
     if os.name == "nt":
         appdata = os.environ.get("APPDATA", os.path.expanduser("~"))
-        data_dir = os.path.join(appdata, "nexarstock")
+        data_dir = os.path.join(appdata, "nexaralmacen")
         os.makedirs(data_dir, exist_ok=True)
         return os.path.join(data_dir, "almacen.db")
     _HERE = os.path.dirname(os.path.abspath(__file__))

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# build_deb.sh — Genera el paquete .deb para Nexar Stock
+# build_deb.sh — Genera el paquete .deb para Nexar Almacen
 # Uso: bash build_deb.sh
 # Requiere: dpkg-deb, python3
 # ============================================================
@@ -8,20 +8,20 @@
 set -e
 
 VERSION="1.6.0"
-PACKAGE="nexar-stock"
+PACKAGE="nexar-almacen"
 ARCH="all"
 MAINTAINER="Nexar Sistemas <nexarsistemas@outlook.com.ar>"
-DESCRIPTION="Nexar Stock — v${VERSION}"
+DESCRIPTION="Nexar Almacen — v${VERSION}"
 
 # Directorio de trabajo
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="${SCRIPT_DIR}/build_deb"
 PKG_DIR="${BUILD_DIR}/${PACKAGE}_${VERSION}"
-INSTALL_DIR="${PKG_DIR}/opt/nexar-stock"
+INSTALL_DIR="${PKG_DIR}/opt/nexar-almacen"
 DEBIAN_DIR="${PKG_DIR}/DEBIAN"
 
 echo "=================================================="
-echo "  Nexar Stock — Builder .deb v${VERSION}"
+echo "  Nexar Almacen — Builder .deb v${VERSION}"
 echo "=================================================="
 
 # Limpiar build anterior
@@ -59,9 +59,9 @@ find "${INSTALL_DIR}" -name "*.db"  -delete 2>/dev/null || true
 find "${INSTALL_DIR}" -name ".port" -delete 2>/dev/null || true
 
 # Icono
-if [ -f "${SCRIPT_DIR}/static/icons/nexar_stock_ico.png" ]; then
-    cp "${SCRIPT_DIR}/static/icons/nexar_stock_ico.png" \
-       "${PKG_DIR}/usr/share/pixmaps/nexar-stock.png"
+if [ -f "${SCRIPT_DIR}/static/icons/nexar_almacen_ico.png" ]; then
+    cp "${SCRIPT_DIR}/static/icons/nexar_almacen_ico.png" \
+       "${PKG_DIR}/usr/share/pixmaps/nexar-almacen.png"
 fi
 
 echo "→ Creando lanzador de terminal..."
@@ -70,9 +70,9 @@ echo "→ Creando lanzador de terminal..."
 cat > "${PKG_DIR}/usr/local/bin/almacen" << 'EOF'
 #!/bin/bash
 # Guardar DB en directorio del usuario, no en /opt (que es readonly)
-export ALMACEN_DB_PATH="${HOME}/.local/share/nexarstock/almacen.db"
-mkdir -p "${HOME}/.local/share/nexarstock"
-cd /opt/nexar-stock
+export ALMACEN_DB_PATH="${HOME}/.local/share/nexaralmacen/almacen.db"
+mkdir -p "${HOME}/.local/share/nexaralmacen"
+cd /opt/nexar-almacen
 exec python3 iniciar.py "$@"
 EOF
 chmod +x "${PKG_DIR}/usr/local/bin/almacen"
@@ -80,15 +80,15 @@ chmod +x "${PKG_DIR}/usr/local/bin/almacen"
 echo "→ Creando entrada de menú de escritorio..."
 
 # Entrada .desktop
-cat > "${PKG_DIR}/usr/share/applications/nexar-stock.desktop" << EOF
+cat > "${PKG_DIR}/usr/share/applications/nexar-almacen.desktop" << EOF
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Nexar Stock
-GenericName=Nexar Stock
+Name=Nexar Almacen
+GenericName=Nexar Almacen
 Comment=Control completo de ventas, stock, caja y más
 Exec=/usr/local/bin/almacen
-Icon=nexar-stock
+Icon=nexar-almacen
 Terminal=false
 Categories=Office;Finance;
 Keywords=almacen;ventas;stock;caja;gestion;
@@ -126,7 +126,7 @@ cat > "${DEBIAN_DIR}/postinst" << 'EOF'
 #!/bin/bash
 set -e
 
-echo "Instalando dependencias de Python para Nexar Stock..."
+echo "Instalando dependencias de Python para Nexar Almacen..."
 
 # Instalar Flask, exportaciones y pywebview silenciosamente
 # pywebview permite abrir la app en ventana nativa sin navegador externo
@@ -138,11 +138,11 @@ echo "Nota: las dependencias se instalarán automáticamente al primer inicio."
 
 # Permisos del ejecutable
 chmod +x /usr/local/bin/almacen
-chmod -R a+rX /opt/nexar-stock
+chmod -R a+rX /opt/nexar-almacen
 
 echo ""
 echo "================================================="
-echo "  Nexar Stock v$(cat /opt/nexar-stock/VERSION) instalado"
+echo "  Nexar Almacen v$(cat /opt/nexar-almacen/VERSION) instalado"
 echo "================================================="
 echo "  Para iniciar: almacen"
 echo "  O desde el menú de aplicaciones"
@@ -156,8 +156,8 @@ chmod +x "${DEBIAN_DIR}/postinst"
 cat > "${DEBIAN_DIR}/prerm" << 'EOF'
 #!/bin/bash
 set -e
-echo "Desinstalando Nexar Stock..."
-echo "Nota: tus datos (almacen.db) en ~/.local/share/nexarstock/ NO se eliminan."
+echo "Desinstalando Nexar Almacen..."
+echo "Nota: tus datos (almacen.db) en ~/.local/share/nexaralmacen/ NO se eliminan."
 exit 0
 EOF
 chmod +x "${DEBIAN_DIR}/prerm"
@@ -187,5 +187,5 @@ echo "  Para instalar:"
 echo "  sudo dpkg -i ${DEB_FILE}"
 echo ""
 echo "  Para desinstalar:"
-echo "  sudo apt remove nexar-stock"
+echo "  sudo apt remove nexar-almacen"
 echo "=================================================="
