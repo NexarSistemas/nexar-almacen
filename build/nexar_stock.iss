@@ -1,4 +1,4 @@
-; ════════════════════════════════════════════════════════════
+﻿; ════════════════════════════════════════════════════════════
 ; build/nexar_stock.iss — Script de Inno Setup 6
 ;
 ; Genera un instalador profesional para Windows que:
