@@ -107,7 +107,7 @@ Version: ${VERSION}
 Architecture: ${ARCH}
 Maintainer: ${MAINTAINER}
 Installed-Size: ${INSTALLED_SIZE}
-Depends: python3 (>= 3.8), python3-pip
+Depends: python3 (>= 3.8), python3-pip, python3-gi, gir1.2-webkit2-4.0, libwebkit2gtk-4.0-37
 Recommends: python3-flask, python3-openpyxl
 Section: misc
 Priority: optional
@@ -127,8 +127,13 @@ cat > "${DEBIAN_DIR}/postinst" << 'EOF'
 set -e
 
 echo "Instalando dependencias de Python para Nexar Stock..."
-pip3 install --quiet --break-system-packages flask openpyxl reportlab 2>/dev/null || \
-pip3 install --quiet flask openpyxl reportlab 2>/dev/null || \
+
+# Instalar Flask, exportaciones y pywebview silenciosamente
+# pywebview permite abrir la app en ventana nativa sin navegador externo
+pip3 install --quiet --break-system-packages \
+    flask openpyxl reportlab pywebview 2>/dev/null || \
+pip3 install --quiet \
+    flask openpyxl reportlab pywebview 2>/dev/null || \
 echo "Nota: las dependencias se instalarán automáticamente al primer inicio."
 
 # Permisos del ejecutable

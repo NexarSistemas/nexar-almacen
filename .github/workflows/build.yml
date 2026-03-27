@@ -15,15 +15,12 @@ on:
       - main
       - master
 
-# Si hacés dos pushes seguidos, cancela el build anterior
-# para no gastar minutos de Actions innecesariamente
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
 
-  # ── JOB 1: BUILD WINDOWS ───────────────────────────────────────────
   build-windows:
     name: Windows (EXE + Instalador + Portable)
     runs-on: windows-latest
@@ -33,8 +30,6 @@ jobs:
       - name: Descargar código del repositorio
         uses: actions/checkout@v4
 
-      # Lee el archivo VERSION y guarda el número en una variable
-      # que podemos usar en pasos siguientes como ${{ steps.ver.outputs.VERSION }}
       - name: Leer versión desde el archivo VERSION
         id: ver
         shell: bash
@@ -46,21 +41,18 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      # Instala solo las dependencias necesarias para compilar.
-      # No instalamos pywebview porque lo maneja el usuario final.
+      # ─── CAMBIO: se agregaron pywebview y pythonnet ───────────────────
+      # pywebview abre la ventana nativa (sin navegador externo)
+      # pythonnet es requerido por pywebview en Windows para acceder a .NET
       - name: Instalar dependencias de Python
         run: |
           python -m pip install --upgrade pip
-          pip install flask==3.0.3 openpyxl reportlab pyinstaller==6.19.0
+          pip install flask==3.0.3 openpyxl reportlab pywebview==4.4 pythonnet pyinstaller==6.19.0
 
-      # PyInstaller lee el archivo build/nexar_stock.spec y genera
-      # un único .exe en la carpeta dist/
       - name: Compilar EXE con PyInstaller
         run: |
           pyinstaller build/nexar_stock.spec --distpath dist --workpath build/work --noconfirm
 
-      # Verificación rápida: si el .exe no existe, falla el build aquí
-      # con un mensaje claro en vez de fallar más adelante con un error confuso
       - name: Verificar que el EXE existe
         shell: pwsh
         run: |
@@ -72,9 +64,23 @@ jobs:
             exit 1
           }
 
-      # Inno Setup 6 ya está pre-instalado en windows-latest.
-      # Pasamos la versión como parámetro /DAppVersion para que
-      # el instalador use el número correcto automáticamente.
+      # ─── CAMBIO: crear LICENSE.txt para que Inno Setup muestre la licencia ───
+      # Inno Setup requiere un archivo de texto con extensión .txt o .rtf
+      - name: Crear LICENSE.txt para Inno Setup
+        shell: pwsh
+        run: |
+          if (Test-Path "LICENSE") {
+            Copy-Item "LICENSE" "LICENSE.txt"
+            Write-Host "OK — LICENSE.txt creado"
+          } elseif (Test-Path "LICENSE.md") {
+            Copy-Item "LICENSE.md" "LICENSE.txt"
+            Write-Host "OK — LICENSE.txt creado desde LICENSE.md"
+          } else {
+            # Fallback: crear un archivo mínimo para que Inno Setup no falle
+            "Nexar Stock — Todos los derechos reservados. Nexar Sistemas 2026." | Out-File "LICENSE.txt" -Encoding UTF8
+            Write-Host "AVISO — LICENSE no encontrado, se creó un archivo mínimo"
+          }
+
       - name: Crear instalador con Inno Setup
         shell: pwsh
         run: |
@@ -86,26 +92,17 @@ jobs:
             exit 1
           }
 
-      # Renombra el .exe de PyInstaller a un nombre con versión,
-      # DESPUÉS de que Inno Setup ya lo usó (Inno Setup busca NexarStock.exe)
       - name: Renombrar EXE standalone con número de versión
         shell: pwsh
         run: |
           $ver = "${{ steps.ver.outputs.VERSION }}"
           Rename-Item "dist\NexarStock.exe" "NexarStock_${ver}_Windows_Standalone.exe"
 
-      # El ZIP portable contiene el código fuente Python.
-      # El usuario final necesita tener Python instalado para usarlo.
-      # Es útil para usuarios avanzados o como alternativa al instalador.
       - name: Crear ZIP portable Windows
         shell: pwsh
         run: |
           $ver = "${{ steps.ver.outputs.VERSION }}"
-
-          # Crear carpeta temporal con estructura NexarStock/
           New-Item -ItemType Directory -Force -Path "portable_tmp\NexarStock" | Out-Null
-
-          # Archivos Python principales
           $archivos = @(
             "app.py", "database.py", "iniciar.py", "openfoodfacts.py",
             "productos_seed.py", "license_verifier.py"
@@ -113,30 +110,19 @@ jobs:
           foreach ($f in $archivos) {
             if (Test-Path $f) { Copy-Item $f "portable_tmp\NexarStock\" }
           }
-
-          # Documentación y configuración
           $docs = @("VERSION", "CHANGELOG.md", "README.md", "requirements.txt", "LICENSE")
           foreach ($f in $docs) {
             if (Test-Path $f) { Copy-Item $f "portable_tmp\NexarStock\" }
           }
-
-          # Carpetas completas
           $carpetas = @("templates", "static", "services", "keys")
           foreach ($d in $carpetas) {
-            if (Test-Path $d) {
-              Copy-Item $d "portable_tmp\NexarStock\" -Recurse
-            }
+            if (Test-Path $d) { Copy-Item $d "portable_tmp\NexarStock\" -Recurse }
           }
-
-          # Comprimir todo
           Compress-Archive -Path "portable_tmp\NexarStock" `
             -DestinationPath "dist\NexarStock_${ver}_Windows_Portable.zip" -Force
-
           Remove-Item "portable_tmp" -Recurse -Force
           Write-Host "OK — ZIP portable Windows creado"
 
-      # Genera el archivo de checksums con el hash SHA256 de cada archivo.
-      # Esto permite que los usuarios verifiquen que la descarga no fue modificada.
       - name: Generar SHA256SUMS_Windows.txt
         shell: pwsh
         run: |
@@ -149,8 +135,6 @@ jobs:
           Write-Host "--- SHA256SUMS Windows ---"
           Get-Content $outFile
 
-      # Sube todos los archivos de dist/ como artefactos del workflow.
-      # Aparecen en la pestaña Actions de GitHub por 30 días.
       - name: Subir artefactos Windows
         uses: actions/upload-artifact@v4
         with:
@@ -158,7 +142,6 @@ jobs:
           path: dist/
           retention-days: 30
 
-  # ── JOB 2: BUILD LINUX ─────────────────────────────────────────────
   build-linux:
     name: Linux (ZIP Portable + .deb)
     runs-on: ubuntu-latest
@@ -172,54 +155,57 @@ jobs:
         id: ver
         run: echo "VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
 
+      # ─── CAMBIO: instalar dependencias de sistema para que el .deb
+      # pueda listar webkit2gtk en sus Depends correctamente ──────────────
+      - name: Instalar dependencias de sistema para pywebview
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            dpkg-dev \
+            gir1.2-webkit2-4.0 \
+            python3-gi \
+            python3-gi-cairo \
+            libgtk-3-0 \
+            libwebkit2gtk-4.0-37
+          echo "OK — dependencias de sistema instaladas"
+
       - name: Crear carpeta de distribución
         run: mkdir -p dist
 
-      # Mismo contenido que el ZIP portable de Windows,
-      # pero generado en Linux con el comando zip nativo
       - name: Crear ZIP portable Linux
         run: |
           VER="${{ steps.ver.outputs.VERSION }}"
           mkdir -p portable_tmp/NexarStock
-
-          # Copiar archivos Python
           for f in app.py database.py iniciar.py openfoodfacts.py \
                    productos_seed.py license_verifier.py; do
             [ -f "$f" ] && cp "$f" portable_tmp/NexarStock/
           done
-
-          # Copiar documentación
           for f in VERSION CHANGELOG.md README.md requirements.txt LICENSE; do
             [ -f "$f" ] && cp "$f" portable_tmp/NexarStock/
           done
-
-          # Copiar carpetas
           for d in templates static services keys; do
             [ -d "$d" ] && cp -r "$d" portable_tmp/NexarStock/
           done
-
           cd portable_tmp
           zip -r "../dist/NexarStock_${VER}_Linux_Portable.zip" NexarStock/
           cd ..
           rm -rf portable_tmp
           echo "OK — ZIP portable Linux creado"
 
-      # Ejecuta el script build_deb.sh que ya tenés en el repo
       - name: Construir paquete .deb
         run: |
           chmod +x build_deb.sh
           bash build_deb.sh
 
-      # Copia el .deb generado por build_deb.sh a la carpeta dist/
       - name: Copiar .deb a dist/
         run: |
           VER="${{ steps.ver.outputs.VERSION }}"
           DEB="build_deb/nexar-stock_${VER}_all.deb"
           if [ -f "$DEB" ]; then
             cp "$DEB" dist/
-            echo "OK — .deb copiado: nexar-stock_${VER}_all.deb"
+            echo "OK — .deb copiado"
           else
-            echo "ERROR — .deb no encontrado en: $DEB"
+            echo "ERROR — .deb no encontrado"
             ls -la build_deb/ 2>/dev/null || echo "La carpeta build_deb no existe"
             exit 1
           fi
@@ -238,9 +224,6 @@ jobs:
           path: dist/
           retention-days: 30
 
-  # ── JOB 3: SHA256SUMS COMBINADO ────────────────────────────────────
-  # Este job espera a que terminen los dos anteriores (needs:)
-  # Descarga todos los artefactos y genera un único SHA256SUMS.txt
   combine-checksums:
     name: Generar SHA256SUMS.txt final
     needs: [build-windows, build-linux]
@@ -248,7 +231,7 @@ jobs:
 
     steps:
 
-      - name: Descargar código (para leer VERSION)
+      - name: Descargar código
         uses: actions/checkout@v4
 
       - name: Leer versión
@@ -271,17 +254,13 @@ jobs:
         run: |
           VER="${{ steps.ver.outputs.VERSION }}"
           cd todos
-
           echo "# Nexar Stock v${VER} — SHA256 Checksums" > SHA256SUMS.txt
           echo "# Generado: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> SHA256SUMS.txt
           echo "" >> SHA256SUMS.txt
-
-          # Procesar solo archivos de distribución, no los parciales
           for f in $(ls | grep -v "SHA256SUMS" | sort); do
             hash=$(sha256sum "$f" | cut -d' ' -f1)
             echo "$hash  $f" >> SHA256SUMS.txt
           done
-
           echo "--- SHA256SUMS.txt final ---"
           cat SHA256SUMS.txt
 

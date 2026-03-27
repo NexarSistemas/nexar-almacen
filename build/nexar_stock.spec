@@ -8,25 +8,21 @@
 #   pyinstaller build/nexar_stock.spec --distpath dist --noconfirm
 # ════════════════════════════════════════════════════════════
 
+# ════════════════════════════════════════════════════════════
+# build/nexar_stock.spec — Configuración de PyInstaller
+# ════════════════════════════════════════════════════════════
+
 import os
 
-# SPECPATH = directorio donde está este archivo (build/)
-# Subimos un nivel para llegar a la raíz del proyecto
 PROJ = os.path.abspath(os.path.join(SPECPATH, '..'))
 
 block_cipher = None
 
 a = Analysis(
-    # Punto de entrada: el script que inicia el servidor Flask
     scripts=[os.path.join(PROJ, 'iniciar.py')],
-
-    # Carpeta raíz para que Python encuentre los módulos del proyecto
     pathex=[PROJ],
-
     binaries=[],
 
-    # Archivos que NO son código Python pero el programa necesita en runtime.
-    # El formato es: (origen_en_disco, destino_dentro_del_exe)
     datas=[
         (os.path.join(PROJ, 'templates'),          'templates'),
         (os.path.join(PROJ, 'static'),             'static'),
@@ -37,8 +33,6 @@ a = Analysis(
         (os.path.join(PROJ, 'productos_seed.py'),  '.'),
     ],
 
-    # Módulos que PyInstaller no detecta automáticamente
-    # porque se importan de forma dinámica o están en plugins
     hiddenimports=[
         # Flask y dependencias internas
         'flask',
@@ -59,12 +53,27 @@ a = Analysis(
         'productos_seed',
         'services',
         'services.openfood_importer',
-        # Exportaciones (Excel y PDF)
+        # Exportaciones
         'openpyxl',
         'reportlab',
         'reportlab.lib.pagesizes',
         'reportlab.platypus',
         'reportlab.lib.styles',
+        # ─── CAMBIO: pywebview y pythonnet para ventana nativa ───────────
+        # pywebview abre la app en una ventana independiente (sin navegador)
+        # pythonnet le da acceso a las APIs de Windows/.NET
+        'webview',
+        'webview.util',
+        'webview.window',
+        'webview.event',
+        'webview.screen',
+        'webview.guilib',
+        'webview.platforms',
+        'webview.platforms.winforms',
+        'webview.platforms.edgechromium',
+        'clr',
+        'clr._extra_clr_loader',
+        # ─────────────────────────────────────────────────────────────────
         # Estándar Python
         'sqlite3',
         'json',
@@ -85,16 +94,15 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
 
-    # Módulos que excluimos para reducir el tamaño del .exe
     excludes=[
-        'pywebview',     # se instala aparte si el usuario lo quiere
+        # ─── CAMBIO: pywebview ya NO está aquí — se movió a hiddenimports ──
         'tkinter',
         'matplotlib',
         'numpy',
         'pandas',
         'PIL',
         'scipy',
-        'cryptography',  # no se usa: el RSA está implementado con stdlib
+        'cryptography',
         'pytest',
         'docutils',
         'pydoc',
@@ -119,19 +127,20 @@ exe = EXE(
     a.datas,
     [],
 
-    name='NexarStock',      # nombre del archivo .exe generado
+    name='NexarStock',
 
-    debug=False,            # cambiar a True solo si el .exe falla al abrir
+    debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,               # compresión UPX: reduce el tamaño ~30%
+    upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
 
-    # console=True → muestra ventana de terminal con los logs del servidor
-    # console=False → ejecuta en segundo plano (sin logs visibles)
-    # Recomendamos True durante las primeras versiones para poder ver errores
-    console=True,
+    # ─── CAMBIO: console=False para que no aparezca la ventana negra ─────
+    # El usuario ve directamente la ventana nativa de pywebview
+    # Si necesitás ver errores durante el desarrollo, cambialo a True
+    console=False,
+    # ──────────────────────────────────────────────────────────────────────
 
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -139,7 +148,5 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
 
-    # Ícono del ejecutable — si el archivo no existe el build falla.
-    # Verificá que esta ruta sea correcta en tu repositorio.
     icon=os.path.join(PROJ, 'static', 'icons', 'nexar_stock_ico.ico'),
 )
