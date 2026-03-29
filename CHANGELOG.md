@@ -6,6 +6,22 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 
 ---
 
+## [1.7.1] — 2026-03-29 — Mejora de seguridad y build
+
+### Agregado
+- **Llave pública desde variable de entorno**: La clave pública RSA ahora se carga desde `PUBLIC_KEY` (GitHub Actions secrets), eliminando archivos sensibles del repositorio.
+- **Fallback robusto**: Si no hay `PUBLIC_KEY`, busca `keys/public_key.asc` en el directorio de la app (para builds .deb y .exe).
+- **Builds mejorados**: 
+  - Linux (.deb): Crea `keys/public_key.asc` desde `PUBLIC_KEY` si no existe la carpeta `keys`.
+  - Windows (Inno Setup): Incluye `keys/public_key.asc` generado desde `PUBLIC_KEY` en CI.
+  - PyInstaller: Bundle opcional de `keys` o archivo temporal desde env var.
+
+### Corregido
+- **Errores de build**: Scripts de build ahora manejan la ausencia de `keys/` sin fallar.
+- **Compatibilidad**: La app funciona en runtime con `PUBLIC_KEY` o archivo fallback.
+
+---
+
 ## [1.7.0] — 2026-03-28 — Mejoras y correcciones
 
 ### Agregado
