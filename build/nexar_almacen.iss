@@ -74,6 +74,7 @@ Name: "desktopicon"; Description: "Crear acceso directo en el Escritorio"; Group
 
 [Files]
 Source: "..\dist\NexarAlmacen.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\keys\public_key.asc"; DestDir: "{app}\keys"; Flags: ignoreversion
 
 [Icons]
 Name: "{userprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Comment: "Sistema de gestión para almacenes"

@@ -88,6 +88,17 @@ jobs:
             "Nexar Almacen License" | Out-File "build\LICENSE.txt"
           }
 
+      - name: Preparar clave pública para Windows
+        shell: pwsh
+        run: |
+          if (!(Test-Path "keys")) {
+            New-Item -ItemType Directory -Path "keys" | Out-Null
+          }
+          if (-not $env:PUBLIC_KEY) {
+            throw "PUBLIC_KEY no está definido en el entorno"
+          }
+          Set-Content -Path "keys\public_key.asc" -Value $env:PUBLIC_KEY -Encoding UTF8
+
       - name: Build EXE
         run: |
           pyinstaller build/nexar_almacen.spec --distpath dist --workpath build/work --noconfirm
