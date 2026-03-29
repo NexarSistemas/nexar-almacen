@@ -11,6 +11,7 @@ __pycache__/
 # Entornos
 .env
 .venv
+venv
 
 # Editor
 .vscode/
@@ -27,6 +28,7 @@ respaldo/
 *.tmp
 *.log
 *.port
+clean_history.sh
 
 # build y distribución
 # build/
