@@ -1307,17 +1307,11 @@ import base64 as _base64
 import base64 as _base64
 import hashlib as _hashlib_rsa
 
-_ALMACEN_PUBLIC_KEY_PEM = (
-    b"-----BEGIN PUBLIC KEY-----\n"
-    b"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApLcG8Uq6+sV4E1mlWY5z\n"
-    b"zZC8H2i4EM0s2jGq8XCcVOJipamw+1rvzHSoAjgmtnJCw8+218yR3PXK90NqSguO\n"
-    b"9blAfsxswwtlid9RxwPQ1y8jU1LuZd65DeowgGtu+4lrNjeIZqmesarPbgOIMZ3q\n"
-    b"PZpurtOUjy74moR5pwGIPQk9TLl685MeyYcDdV9UO0uiiYyxS+yopRvvOrhXJlH0\n"
-    b"C5I+KeCqjOLXglTXOXoYFXOUXwWajT/FFjXHabWO/yCA8igXqn+rdt+bPoLBfmYk\n"
-    b"0FjjYn2HrwRB8NZ4Lv4pQc30EukM32Nyri80Dak8/dtjNLPrc0wTzAvqeyUDHHKu\n"
-    b"dQIDAQAB\n"
-    b"-----END PUBLIC KEY-----"
-)
+# Cargar clave pública desde variable de entorno PUBLIC_KEY
+public_key_str = os.getenv("PUBLIC_KEY")
+if not public_key_str:
+    raise RuntimeError("❌ Clave pública no encontrada en variable de entorno PUBLIC_KEY")
+_ALMACEN_PUBLIC_KEY_PEM = public_key_str.encode('utf-8')
 
 # SHA256 DigestInfo header (RFC 3447 / PKCS1v15)
 _SHA256_HEADER = bytes([

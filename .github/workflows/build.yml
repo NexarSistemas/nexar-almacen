@@ -58,6 +58,8 @@ jobs:
   build-windows:
     needs: check
     runs-on: windows-latest
+    env:
+      PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
 
     steps:
       - uses: actions/checkout@v4
@@ -116,6 +118,8 @@ jobs:
   build-linux:
     needs: check
     runs-on: ubuntu-latest
+    env:
+      PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
 
     steps:
       - uses: actions/checkout@v4
