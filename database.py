@@ -1307,10 +1307,24 @@ import base64 as _base64
 import base64 as _base64
 import hashlib as _hashlib_rsa
 
-# Cargar clave pública desde variable de entorno PUBLIC_KEY
-public_key_str = os.getenv("PUBLIC_KEY")
+# Cargar clave pública desde variable de entorno PUBLIC_KEY, o fallback a keys/public_key.asc
+public_key_str = (os.getenv("PUBLIC_KEY") or "").strip()
 if not public_key_str:
-    raise RuntimeError("❌ Clave pública no encontrada en variable de entorno PUBLIC_KEY")
+    # Soporte compatibilidad con builds .deb/instalación local
+    possible_paths = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'keys', 'public_key.asc'),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'public_key.asc'),
+    ]
+    for p in possible_paths:
+        if os.path.isfile(p):
+            with open(p, 'r', encoding='utf-8') as f:
+                public_key_str = f.read().strip()
+            break
+
+if not public_key_str:
+    raise RuntimeError(
+        '❌ Clave pública no encontrada. Definí PUBLIC_KEY o colocá keys/public_key.asc.'
+    )
 _ALMACEN_PUBLIC_KEY_PEM = public_key_str.encode('utf-8')
 
 # SHA256 DigestInfo header (RFC 3447 / PKCS1v15)

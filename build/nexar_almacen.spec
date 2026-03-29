@@ -30,6 +30,16 @@ datas = [
 keys_path = os.path.join(PROJ, 'keys')
 if os.path.isdir(keys_path):
     datas.append((keys_path, 'keys'))
+else:
+    public_key_txt = os.getenv('PUBLIC_KEY', '').strip()
+    if public_key_txt:
+        tmp_key_dir = os.path.join(PROJ, 'build_tmp_keys')
+        os.makedirs(tmp_key_dir, exist_ok=True)
+        tmp_key_file = os.path.join(tmp_key_dir, 'public_key.asc')
+        with open(tmp_key_file, 'w', encoding='utf-8') as f:
+            f.write(public_key_txt + ('\n' if not public_key_txt.endswith('\n') else ''))
+        datas.append((tmp_key_file, 'keys'))
+
 
 a = Analysis(
     scripts=[os.path.join(PROJ, 'iniciar.py')],

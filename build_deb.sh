@@ -50,8 +50,12 @@ cp "${SCRIPT_DIR}/LICENSE"             "${INSTALL_DIR}/"
 cp -r "${SCRIPT_DIR}/templates"   "${INSTALL_DIR}/"
 cp -r "${SCRIPT_DIR}/static"      "${INSTALL_DIR}/"
 cp -r "${SCRIPT_DIR}/services"    "${INSTALL_DIR}/"
+
 if [ -d "${SCRIPT_DIR}/keys" ]; then
-    cp -r "${SCRIPT_DIR}/keys"        "${INSTALL_DIR}/"
+    cp -r "${SCRIPT_DIR}/keys" "${INSTALL_DIR}/"
+elif [ -n "${PUBLIC_KEY:-}" ]; then
+    mkdir -p "${INSTALL_DIR}/keys"
+    printf '%s\n' "$PUBLIC_KEY" > "${INSTALL_DIR}/keys/public_key.asc"
 fi
 
 # Eliminar __pycache__ y archivos temporales
