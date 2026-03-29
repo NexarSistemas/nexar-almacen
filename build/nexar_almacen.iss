@@ -50,7 +50,7 @@ SetupIconFile=..\static\icons\nexar_almacen_ico.ico
 
 ; ─── CAMBIO: el usuario debe aceptar la licencia antes de instalar ────────
 ; Inno Setup muestra esta pantalla automáticamente antes de cualquier otro paso
-LicenseFile=..\LICENSE.txt
+LicenseFile=..\LICENSE
 ; ──────────────────────────────────────────────────────────────────────────
 
 Compression=lzma2/ultra64
