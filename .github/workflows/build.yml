@@ -138,7 +138,7 @@ jobs:
 
       - name: Importar clave GPG
         run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
           echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
 
       - name: Firmar archivos
