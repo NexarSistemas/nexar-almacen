@@ -6,6 +6,16 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 
 ---
 
+## [1.7.0] — 2026-03-28 — Mejoras y correcciones
+
+### Agregado
+- **Pipeline de CI/CD inteligente**: automatización de releases basada en CHANGELOG, firma GPG de binarios, y creación automática de tags y releases en GitHub Actions.
+
+### Corregido
+- Enlaces a proveedores en stock.html corregidos para apuntar a /cc_proveedores.
+
+---
+
 ## [1.6.0] — 2026-03-19 — Nueva función
 
 ### Agregado

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ╔══════════════════════════════════════════════════════════════════════╗
-║   NEXAR ALMACEN  —  v1.6.0                                           ║
+║   NEXAR ALMACEN  —  v1.7.0                                           ║
 ║   Creado por Nexar Sistemas · Desarrollado con Claude.ai · 2026     ║
 ╚══════════════════════════════════════════════════════════════════════╝
 """
@@ -178,7 +178,7 @@ def _read_version():
     try:
         return open(os.path.join(BASE_DIR,'VERSION')).read().strip()
     except Exception:
-        return '1.6.0'
+        return '1.7.0'
 
 
 def print_banner(url):

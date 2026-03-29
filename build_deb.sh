@@ -7,7 +7,7 @@
 
 set -e
 
-VERSION="1.6.0"
+VERSION="1.7.0"
 PACKAGE="nexar-almacen"
 ARCH="all"
 MAINTAINER="Nexar Sistemas <nexarsistemas@outlook.com.ar>"

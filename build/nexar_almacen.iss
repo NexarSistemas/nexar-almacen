@@ -8,7 +8,7 @@
 ;   - Incluye desinstalador automático
 ;
 ; Para compilar manualmente:
-;   ISCC.exe /DAppVersion=1.6.0 build\nexar_almacen.iss
+;   ISCC.exe /DAppVersion=1.7.0 build\nexar_almacen.iss
 ;
 ; GitHub Actions pasa la versión automáticamente.
 ; ════════════════════════════════════════════════════════════

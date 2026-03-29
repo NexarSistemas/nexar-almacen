@@ -194,6 +194,10 @@ def _seed_changelog(c):
          'Plan Básico pago único U$D 30 con límites (200 productos OFF, 100 clientes, 50 proveedores). '
          'Plan Pro mensual U$D 6 ilimitado con estadísticas históricas, análisis, actualizaciones y soporte. '
          'Anti-reinstall con telemetry.bin codificado. Pantalla de licencia renovada con comparativa de planes.'),
+        ('1.7.0','2026-03-28','Mejoras y correcciones',
+         'Pipeline CI/CD inteligente y corrección de enlaces',
+         'Automatización de releases basada en CHANGELOG, firma GPG de binarios, creación automática de tags y releases. '
+         'Enlaces a proveedores en stock.html corregidos para apuntar a /cc_proveedores.'),
 
     ]
     for ver, fecha, tipo, titulo, desc in entries:
