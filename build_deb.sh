@@ -50,7 +50,9 @@ cp "${SCRIPT_DIR}/LICENSE"             "${INSTALL_DIR}/"
 cp -r "${SCRIPT_DIR}/templates"   "${INSTALL_DIR}/"
 cp -r "${SCRIPT_DIR}/static"      "${INSTALL_DIR}/"
 cp -r "${SCRIPT_DIR}/services"    "${INSTALL_DIR}/"
-cp -r "${SCRIPT_DIR}/keys"        "${INSTALL_DIR}/"
+if [ -d "${SCRIPT_DIR}/keys" ]; then
+    cp -r "${SCRIPT_DIR}/keys"        "${INSTALL_DIR}/"
+fi
 
 # Eliminar __pycache__ y archivos temporales
 find "${INSTALL_DIR}" -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
