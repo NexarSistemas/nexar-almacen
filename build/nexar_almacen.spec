@@ -18,20 +18,25 @@ PROJ = os.path.abspath(os.path.join(SPECPATH, '..'))
 
 block_cipher = None
 
+datas = [
+    (os.path.join(PROJ, 'templates'),         'templates'),
+    (os.path.join(PROJ, 'static'),            'static'),
+    (os.path.join(PROJ, 'services'),          'services'),
+    (os.path.join(PROJ, 'VERSION'),           '.'),
+    (os.path.join(PROJ, 'CHANGELOG.md'),      '.'),
+    (os.path.join(PROJ, 'productos_seed.py'), '.'),
+]
+
+keys_path = os.path.join(PROJ, 'keys')
+if os.path.isdir(keys_path):
+    datas.append((keys_path, 'keys'))
+
 a = Analysis(
     scripts=[os.path.join(PROJ, 'iniciar.py')],
     pathex=[PROJ],
     binaries=[],
 
-    datas=[
-        (os.path.join(PROJ, 'templates'),          'templates'),
-        (os.path.join(PROJ, 'static'),             'static'),
-        (os.path.join(PROJ, 'services'),           'services'),
-        (os.path.join(PROJ, 'keys'),               'keys'),
-        (os.path.join(PROJ, 'VERSION'),            '.'),
-        (os.path.join(PROJ, 'CHANGELOG.md'),       '.'),
-        (os.path.join(PROJ, 'productos_seed.py'),  '.'),
-    ],
+    datas=datas,
 
     hiddenimports=[
         # Flask y dependencias internas
