@@ -1,9 +1,4 @@
-# ════════════════════════════════════════════════════════════
-# .github/workflows/build.yml
-# Build + Release inteligente basado en CHANGELOG
-# ════════════════════════════════════════════════════════════
-
-name: Build Nexar Almacen
+name: Build & Release Nexar Almacen
 
 on:
   push:
@@ -15,41 +10,50 @@ concurrency:
 
 jobs:
 
-  # ════════════════════════════════════════════════════════════
-  # 🔍 CHECK VERSION (CLAVE DEL SISTEMA)
-  # ════════════════════════════════════════════════════════════
-  check-version:
+  # ════════════════════════════════════════
+  # 🔍 CHECK VERSION + RELEASE
+  # ════════════════════════════════════════
+  check:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.ver.outputs.VERSION }}
-      should_release: ${{ steps.check.outputs.should_release }}
+      tag_exists: ${{ steps.tag.outputs.exists }}
+      release_exists: ${{ steps.rel.outputs.exists }}
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Leer versión actual
+      - name: Leer versión
         id: ver
         run: echo "VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
 
-      - name: Verificar si ya existe tag
-        id: check
+      - name: Verificar tag
+        id: tag
         run: |
-          VER="${{ steps.ver.outputs.VERSION }}"
-          if git rev-parse "v$VER" >/dev/null 2>&1; then
-            echo "should_release=false" >> $GITHUB_OUTPUT
-            echo "Versión ya existe → NO release"
+          if git rev-parse "v${{ steps.ver.outputs.VERSION }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
           else
-            echo "should_release=true" >> $GITHUB_OUTPUT
-            echo "Nueva versión → SE GENERA release"
+            echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
-  # ════════════════════════════════════════════════════════════
+      - name: Verificar release
+        id: rel
+        run: |
+          if gh release view "v${{ steps.ver.outputs.VERSION }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ════════════════════════════════════════
   # 🪟 BUILD WINDOWS
-  # ════════════════════════════════════════════════════════════
+  # ════════════════════════════════════════
   build-windows:
-    needs: check-version
+    needs: check
     runs-on: windows-latest
 
     steps:
@@ -57,29 +61,39 @@ jobs:
 
       - name: Usar versión
         id: ver
-        run: echo "VERSION=${{ needs.check-version.outputs.version }}" >> $env:GITHUB_OUTPUT
+        run: echo "VERSION=${{ needs.check.outputs.version }}" >> $env:GITHUB_OUTPUT
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
 
-      - name: Instalar deps
+      - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
           pip install flask openpyxl reportlab pywebview pythonnet pyinstaller
+
+      - name: Preparar LICENSE para Inno Setup
+        shell: pwsh
+        run: |
+          if (Test-Path "LICENSE") {
+            Copy-Item "LICENSE" "build\LICENSE.txt"
+          } elseif (Test-Path "LICENSE.md") {
+            Copy-Item "LICENSE.md" "build\LICENSE.txt"
+          } else {
+            "Nexar Almacen License" | Out-File "build\LICENSE.txt"
+          }
 
       - name: Build EXE
         run: |
           pyinstaller build/nexar_almacen.spec --distpath dist --workpath build/work --noconfirm
 
-      - name: Crear instalador
+      - name: Instalador Inno Setup
         shell: pwsh
         run: |
           $ver="${{ steps.ver.outputs.VERSION }}"
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$ver" "build\nexar_almacen.iss"
 
-      - name: SHA256
+      - name: SHA256 Windows
         shell: pwsh
         run: |
           $out="dist\SHA256SUMS_Windows.txt"
@@ -93,11 +107,11 @@ jobs:
           name: win-${{ steps.ver.outputs.VERSION }}
           path: dist/
 
-  # ════════════════════════════════════════════════════════════
+  # ════════════════════════════════════════
   # 🐧 BUILD LINUX
-  # ════════════════════════════════════════════════════════════
+  # ════════════════════════════════════════
   build-linux:
-    needs: check-version
+    needs: check
     runs-on: ubuntu-latest
 
     steps:
@@ -105,16 +119,16 @@ jobs:
 
       - name: Usar versión
         id: ver
-        run: echo "VERSION=${{ needs.check-version.outputs.version }}" >> $GITHUB_OUTPUT
+        run: echo "VERSION=${{ needs.check.outputs.version }}" >> $GITHUB_OUTPUT
 
-      - name: Build portable + deb
+      - name: Build Linux
         run: |
           mkdir dist
           chmod +x build_deb.sh
           bash build_deb.sh
-          cp build_deb/*.deb dist/
+          cp build_deb/*.deb dist/ || true
 
-      - name: SHA256
+      - name: SHA256 Linux
         run: |
           cd dist
           sha256sum * > SHA256SUMS_Linux.txt
@@ -124,9 +138,9 @@ jobs:
           name: linux-${{ steps.ver.outputs.VERSION }}
           path: dist/
 
-  # ════════════════════════════════════════════════════════════
-  # 🔐 FIRMAR BINARIOS (GPG)
-  # ════════════════════════════════════════════════════════════
+  # ════════════════════════════════════════
+  # 🔐 FIRMA GPG (FIXED)
+  # ════════════════════════════════════════
   sign:
     needs: [build-windows, build-linux]
     runs-on: ubuntu-latest
@@ -136,26 +150,38 @@ jobs:
         with:
           path: dist/
 
-      - name: Importar clave GPG
+      - name: Configurar GPG
+        run: |
+          mkdir -p ~/.gnupg
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          gpgconf --kill gpg-agent
+
+      - name: Importar clave
         run: |
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
-          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
 
       - name: Firmar archivos
         run: |
-          find dist -type f ! -name "*.sig" -exec gpg --batch --yes --detach-sign {} \;
+          find dist -type f ! -name "*.sig" -exec \
+          gpg --batch --yes \
+              --pinentry-mode loopback \
+              --passphrase "${{ secrets.GPG_PASSPHRASE }}" \
+              --detach-sign {} \;
 
       - uses: actions/upload-artifact@v4
         with:
           name: signed
           path: dist/
 
-  # ════════════════════════════════════════════════════════════
-  # 🚀 RELEASE AUTOMÁTICA
-  # ════════════════════════════════════════════════════════════
+  # ════════════════════════════════════════
+  # 🚀 RELEASE INTELIGENTE
+  # ════════════════════════════════════════
   release:
-    needs: [check-version, sign]
-    if: needs.check-version.outputs.should_release == 'true'
+    needs: [check, sign]
+    if: |
+      needs.check.outputs.tag_exists == 'false' ||
+      needs.check.outputs.release_exists == 'false'
     runs-on: ubuntu-latest
 
     steps:
@@ -163,37 +189,30 @@ jobs:
 
       - name: Leer versión
         id: ver
-        run: echo "VERSION=${{ needs.check-version.outputs.version }}" >> $GITHUB_OUTPUT
+        run: echo "VERSION=${{ needs.check.outputs.version }}" >> $GITHUB_OUTPUT
 
       - uses: actions/download-artifact@v4
         with:
           name: signed
           path: dist/
 
-      # 🔥 EXTRAER DESDE CHANGELOG
-      - name: Generar notas desde CHANGELOG
-        id: changelog
+      - name: Generar release desde CHANGELOG
         run: |
           VER="${{ steps.ver.outputs.VERSION }}"
           awk "/## \[$VER\]/,/## \[/" CHANGELOG.md | sed '$d' > release.md
 
-          TITLE=$(head -n 1 release.md | sed 's/## \[.*\] — //')
-          echo "title=$TITLE" >> $GITHUB_OUTPUT
-
-      # 🏷️ CREAR TAG
-      - name: Crear tag
+      - name: Crear tag si no existe
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git tag v${{ steps.ver.outputs.VERSION }}
-          git push origin v${{ steps.ver.outputs.VERSION }}
+          git tag v${{ steps.ver.outputs.VERSION }} || true
+          git push origin v${{ steps.ver.outputs.VERSION }} || true
 
-      # 🚀 RELEASE
       - name: Crear Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.VERSION }}
           name: Nexar Almacen v${{ steps.ver.outputs.VERSION }}
           body_path: release.md
-          prerelease: ${{ contains(steps.ver.outputs.VERSION, '-') }}
+          prerelease: false
           files: dist/**/*
