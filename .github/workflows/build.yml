@@ -4,6 +4,9 @@ on:
   push:
     branches: [ main, master ]
 
+permissions:
+  contents: write   # 👈 ESTO ARREGLA EL 403
+
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
