@@ -6,6 +6,29 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 
 ---
 
+## [1.7.2] - 2026-04-06
+
+### Fixed
+- Corrección del sistema de versionado: la app ahora lee correctamente la versión desde el archivo VERSION en todos los entornos.
+- Solucionado problema donde builds (Windows/Linux) no reflejaban la versión real.
+- Eliminado versionado hardcodeado en build_deb.sh.
+
+### Changed
+- Unificación completa del versionado: VERSION pasa a ser la única fuente de verdad en todo el sistema.
+- Mejora en compatibilidad con PyInstaller (soporte para entorno frozen con sys._MEIPASS).
+- build_deb.sh ahora obtiene la versión automáticamente desde el archivo VERSION.
+- Validaciones agregadas para evitar builds sin archivo VERSION.
+
+### Improved
+- Consistencia entre:
+  - aplicación Python
+  - ejecutable Windows (.exe)
+  - paquete Linux (.deb)
+  - GitHub Actions (releases)
+- Mejora en robustez del pipeline de build.
+
+---
+
 ## [1.7.1] — 2026-03-29 — Mejora de seguridad y build
 
 ### Agregado

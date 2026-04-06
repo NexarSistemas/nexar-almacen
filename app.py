@@ -8,24 +8,52 @@ import signal
 import shutil
 import glob
 import threading
+import secrets
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import database as db
 
-# Versión dinámica: se lee del archivo VERSION (fuente única de verdad)
+from pathlib import Path
+
 def _read_version():
     try:
-        v = open(os.path.join(os.path.dirname(__file__), 'VERSION')).read().strip()
-        return v if v else "1.7.0"
+        # raíz del proyecto (sube un nivel desde app/)
+        base_path = Path(__file__).resolve().parent.parent
+        version_file = base_path / "VERSION"
+
+        return version_file.read_text().strip()
     except Exception:
-        return "1.7.0"
+        return "0.0.0"
 
 APP_VERSION = _read_version()
 
 app = Flask(__name__)
-app.secret_key = 'almacen-navarta-2026-xK9mP3qR7'
+app.secret_key = os.getenv("SECRET_KEY")
 app.jinja_env.add_extension('jinja2.ext.loopcontrols')
 
+def get_secret_key():
+    """
+    Obtiene la SECRET_KEY de forma segura:
+    1. Variable de entorno (GitHub Secrets / sistema)
+    2. Fallback: genera una clave temporal segura
+    """
+
+    key = os.getenv("SECRET_KEY")
+
+    if key:
+        return key
+
+    # ⚠️ Fallback (solo desarrollo o build sin secret)
+    print("⚠️ WARNING: SECRET_KEY no definida. Generando una temporal.")
+    return secrets.token_hex(32)
+
+
+def create_app():
+    app = Flask(__name__)
+
+    app.config["SECRET_KEY"] = get_secret_key()
+
+    return app
 
 @app.route('/favicon.ico')
 def favicon():

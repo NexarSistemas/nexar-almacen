@@ -2,20 +2,16 @@ name: Build & Release Nexar Almacen
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
 
 permissions:
-  contents: write   # 👈 ESTO ARREGLA EL 403
+  contents: write
 
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-
-  # ════════════════════════════════════════
-  # 🔍 CHECK VERSION + RELEASE
-  # ════════════════════════════════════════
   check:
     runs-on: ubuntu-latest
     outputs:
@@ -52,14 +48,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ════════════════════════════════════════
-  # 🪟 BUILD WINDOWS
-  # ════════════════════════════════════════
+  # 🪟 WINDOWS
   build-windows:
     needs: check
     runs-on: windows-latest
     env:
       PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
+      SECRET_KEY: ${{ secrets.SECRET_KEY }} # 👈 NUEVO
 
     steps:
       - uses: actions/checkout@v4
@@ -70,7 +65,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Instalar dependencias
         run: |
@@ -123,14 +118,13 @@ jobs:
           name: win-${{ steps.ver.outputs.VERSION }}
           path: dist/
 
-  # ════════════════════════════════════════
-  # 🐧 BUILD LINUX
-  # ════════════════════════════════════════
+  # 🐧 LINUX
   build-linux:
     needs: check
     runs-on: ubuntu-latest
     env:
       PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
+      SECRET_KEY: ${{ secrets.SECRET_KEY }} # 👈 NUEVO
 
     steps:
       - uses: actions/checkout@v4
@@ -156,9 +150,7 @@ jobs:
           name: linux-${{ steps.ver.outputs.VERSION }}
           path: dist/
 
-  # ════════════════════════════════════════
-  # 🔐 FIRMA GPG (FIXED)
-  # ════════════════════════════════════════
+  # 🔐 FIRMA
   sign:
     needs: [build-windows, build-linux]
     runs-on: ubuntu-latest
@@ -192,16 +184,13 @@ jobs:
           name: signed
           path: dist/
 
-  # ════════════════════════════════════════
-  # 🚀 RELEASE INTELIGENTE
-  # ════════════════════════════════════════
+  # 🚀 RELEASE
   release:
     needs: [check, sign]
     if: |
       needs.check.outputs.tag_exists == 'false' ||
       needs.check.outputs.release_exists == 'false'
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
