@@ -8,6 +8,7 @@ import signal
 import shutil
 import glob
 import threading
+import secrets
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import database as db
@@ -17,13 +18,62 @@ def _read_version():
     try:
         v = open(os.path.join(os.path.dirname(__file__), 'VERSION')).read().strip()
         return v if v else "1.7.0"
-    except Exception:
+    except Exception: # Fallback si no existe el archivo VERSION
         return "1.7.0"
 
 APP_VERSION = _read_version()
 
 app = Flask(__name__)
-app.secret_key = 'almacen-navarta-2026-xK9mP3qR7'
+
+def get_secret_key():
+    key = os.getenv("SECRET_KEY")
+    if key:
+        return key
+
+    # carpeta del usuario
+    config_dir = os.path.join(os.path.expanduser("~"), ".nexar")
+    os.makedirs(config_dir, exist_ok=True)
+
+    config_path = os.path.join(config_dir, "config.json")
+
+    if os.path.exists(config_path):
+        with open(config_path, "r") as f:
+            data = json.load(f)
+            if "SECRET_KEY" in data:
+                return data["SECRET_KEY"]
+
+    key = secrets.token_hex(32)
+
+    with open(config_path, "w") as f:
+        json.dump({"SECRET_KEY": key}, f)
+
+    return key
+
+
+SECRET_KEY = os.getenv("SECRET_KEY", "").strip()
+
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY no definida. Configurar variable de entorno.")
+
+app.config["SECRET_KEY"] = SECRET_KEY
+
+def get_public_key():
+    import os
+
+    # 1. entorno
+    key = os.getenv("PUBLIC_KEY")
+    if key:
+        return key
+
+    # 2. archivo
+    path = "keys/public_key.asc"
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return f.read()
+
+    # 3. error
+    raise RuntimeError("Clave pública no encontrada")
+
 app.jinja_env.add_extension('jinja2.ext.loopcontrols')
 
 

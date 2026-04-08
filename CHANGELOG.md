@@ -6,6 +6,17 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 
 ---
 
+## [1.7.2] — 2026-04-08 — Mejoras de seguridad
+
+### Mejorado
+- **Aplicación del estándar NEXAR_SECRET_KEY_STANDARD**: Se ha refactorizado el manejo de `SECRET_KEY` en `app.py` para cumplir con el estándar, asegurando que siempre se cargue desde variables de entorno, eliminando valores hardcodeados y generando un `RuntimeError` si no está definida. Esto mejora la seguridad y consistencia en la gestión de claves secretas.
+
+### Corregido
+- **Errores de build**: Scripts de build ahora manejan la ausencia de `keys/` sin fallar.
+- **Compatibilidad**: La app funciona en runtime con `PUBLIC_KEY` o archivo fallback.
+
+---
+
 ## [1.7.1] — 2026-03-29 — Mejora de seguridad y build
 
 ### Agregado
@@ -15,10 +26,6 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
   - Linux (.deb): Crea `keys/public_key.asc` desde `PUBLIC_KEY` si no existe la carpeta `keys`.
   - Windows (Inno Setup): Incluye `keys/public_key.asc` generado desde `PUBLIC_KEY` en CI.
   - PyInstaller: Bundle opcional de `keys` o archivo temporal desde env var.
-
-### Corregido
-- **Errores de build**: Scripts de build ahora manejan la ausencia de `keys/` sin fallar.
-- **Compatibilidad**: La app funciona en runtime con `PUBLIC_KEY` o archivo fallback.
 
 ---
 

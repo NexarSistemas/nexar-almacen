@@ -36,3 +36,13 @@ clean_history.sh
 # dist*/
 # Output/
 # build_*/
+build_deb/
+
+# llaves y secretos
+*.key
+*.pem
+*.secret
+*.env
+secret/
+*.asc
+keys/
