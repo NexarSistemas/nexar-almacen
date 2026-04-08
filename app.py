@@ -1591,11 +1591,23 @@ def actualizacion_aplicar():
                 if ext not in ('.py', '.html', '') and filename != '__init__.py':
                     continue
 
-                dest = os.path.join(BASE, rel.replace('/', os.sep))
-                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                # Construcción de ruta segura
+                dest = os.path.normpath(os.path.join(BASE, rel))
 
-                with zf.open(name) as src, open(dest, 'wb') as dst:
+                base_abs = os.path.abspath(BASE)
+                dest_abs = os.path.abspath(dest)
+
+                # 🔐 Validación crítica
+                if not os.path.commonpath([base_abs, dest_abs]) == base_abs:
+                    raise Exception(f"Path traversal detectado: {rel}")
+
+                # Crear carpetas
+                os.makedirs(os.path.dirname(dest_abs), exist_ok=True)
+
+                # Escribir archivo
+                with zf.open(name) as src, open(dest_abs, 'wb') as dst:
                     dst.write(src.read())
+
                 actualizados.append(rel)
 
         # Re-ejecutar migraciones de DB (solo agrega columnas/tablas nuevas)
