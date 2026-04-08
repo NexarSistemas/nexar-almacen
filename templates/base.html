@@ -250,31 +250,31 @@ input:focus,select:focus,textarea:focus{border-color:#3a7d44 !important;box-shad
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    <script>
-    function confirmarApagado() {
-        Swal.fire({
-            title: '¿Apagar el sistema?',
-            text: "Se cerrará la conexión con el servidor.",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33', // Rojo para acciones de peligro
-            cancelButtonColor: '#3a3a3a',
-            confirmButtonText: 'Apagar ahora',
-            cancelButtonText: 'Cancelar',
-            background: '#212529', // Color oscuro para que combine con tu UI
-            color: '#fff'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Buscamos el formulario por su ID y lo enviamos
-                document.getElementById('form-apagar').submit();
-            }
+<script>
+  function confirmarApagado() {
+      Swal.fire({
+          title: '¿Apagar el sistema?',
+          text: "Se cerrará la conexión con el servidor.",
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#d33', // Rojo para acciones de peligro
+          cancelButtonColor: '#3a3a3a',
+          confirmButtonText: 'Apagar ahora',
+          cancelButtonText: 'Cancelar',
+          background: '#212529', // Color oscuro para que combine con tu UI
+          color: '#fff'
+      }).then((result) => {
+          if (result.isConfirmed) {
+              // Buscamos el formulario por su ID y lo enviamos
+              document.getElementById('form-apagar').submit();
+          }
         })
     }
-    </script>
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

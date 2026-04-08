@@ -134,10 +134,8 @@ body {
   </div>
 
   <div class="login-footer">
-    <form method="post" action="/apagar_rapido"
-          onsubmit="return confirm('¿Apagar el sistema?')"
-          style="margin-bottom:10px">
-      <button type="submit"
+    <form id="form-apagar-login" method="post" action="/apagar_rapido" style="margin-bottom:10px">
+      <button type="button" onclick="confirmarApagadoLogin()"
               style="background:none;border:1px solid #ddd;border-radius:6px;
                      padding:5px 16px;font-size:.8rem;color:#999;cursor:pointer;
                      transition:all .2s"
@@ -147,8 +145,32 @@ body {
       </button>
     </form>
     Nexar Almacen · v{{ app_version }}<br>
-    Creado por <strong>Nexar Sistemas</strong> · desarrollado con Claude.ai · 2026
+    Creado por <strong>Nexar Sistemas</strong> · 2026
   </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+function confirmarApagadoLogin() {
+    Swal.fire({
+        title: '¿Apagar el sistema?',
+        text: "El servidor dejará de responder inmediatamente.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#c62828',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, apagar ahora',
+        cancelButtonText: 'Cancelar',
+        // Estilo claro para que combine con tu tarjeta de login blanca
+        background: '#ffffff',
+        color: '#333'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('form-apagar-login').submit();
+        }
+    })
+}
+</script>
 </body>
 </html>
