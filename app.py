@@ -23,7 +23,13 @@ def _read_version():
 
 APP_VERSION = _read_version()
 
-load_dotenv()
+# Carga de variables de entorno (NEXAR_SECRET_KEY_STANDARD)
+if getattr(sys, 'frozen', False):
+    # En modo EXE, buscar .env al lado del ejecutable para tomar la llave del build
+    _env_path = os.path.join(os.path.dirname(sys.executable), '.env')
+    load_dotenv(_env_path)
+
+load_dotenv() # Carga estándar para desarrollo local
 
 app = Flask(__name__)
 

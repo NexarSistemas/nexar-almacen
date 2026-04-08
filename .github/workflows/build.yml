@@ -102,9 +102,21 @@ jobs:
           }
           Set-Content -Path "keys\public_key.asc" -Value $env:PUBLIC_KEY -Encoding UTF8
 
+      - name: Generar archivo .env para compilación
+        shell: pwsh
+        run: |
+          "SECRET_KEY=$env:SECRET_KEY" | Out-File -FilePath ".env" -Encoding UTF8
+
       - name: Build EXE
         run: |
           pyinstaller build/nexar_almacen.spec --distpath dist --workpath build/work --noconfirm
+
+      - name: Asegurar .env en carpeta de distribución
+        shell: pwsh
+        run: |
+          # Copiar el .env generado a la carpeta dist para que Inno Setup lo incluya
+          Copy-Item ".env" "dist\" -Force
+          Get-ChildItem -Path "dist" -Directory | ForEach-Object { Copy-Item ".env" "$($_.FullName)\.env" -Force }
 
       - name: Instalador Inno Setup
         shell: pwsh
@@ -146,6 +158,10 @@ jobs:
       - name: Validar Secret Key
         run: |
           if [ -z "$SECRET_KEY" ]; then echo "Error: SECRET_KEY no definida"; exit 1; fi
+        shell: bash
+
+      - name: Crear .env para Linux
+        run: echo "SECRET_KEY=$SECRET_KEY" > .env
         shell: bash
 
       - name: Build Linux
