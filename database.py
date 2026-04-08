@@ -506,11 +506,9 @@ def init_db():
     _seed_changelog(c)
 
     # Default users (admin + vendedor)
-    import hashlib
-    def _hash(pw): return hashlib.sha256(pw.encode()).hexdigest()
     default_users = [
-        ('admin',    _hash('admin123'),    'admin',   'Administrador'),
-        ('vendedor', _hash('vendedor123'), 'usuario', 'Vendedor'),
+        ('admin',    generate_password_hash('admin123'),    'admin',   'Administrador'),
+        ('vendedor', generate_password_hash('vendedor123'), 'usuario', 'Vendedor'),
     ]
     for uname, phash, rol, nombre in default_users:
         c.execute("INSERT OR IGNORE INTO usuarios (username,password_hash,rol,nombre_completo) VALUES (?,?,?,?)",
