@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ╔══════════════════════════════════════════════════════════════════════╗
-║   NEXAR ALMACEN  —  v1.7.2                                           ║
+║   NEXAR ALMACEN  —  v1.7.3                                           ║
 ║   Creado por Nexar Sistemas · Desarrollado con Claude.ai · 2026     ║
 ╚══════════════════════════════════════════════════════════════════════╝
 """
@@ -74,7 +74,7 @@ def install_required():
     if IS_FROZEN:
         return
 
-    needed = [p for p in ('flask','openpyxl','reportlab','dotenv') if not has_module(p)]
+    needed = [p for p in ('flask','openpyxl','reportlab','python-dotenv') if not has_module(p)] #
 
     if not needed:
         return
@@ -178,7 +178,7 @@ def _read_version():
     try:
         return open(os.path.join(BASE_DIR,'VERSION')).read().strip()
     except Exception:
-        return '1.7.2'
+        return '1.7.3'
 
 
 def print_banner(url):

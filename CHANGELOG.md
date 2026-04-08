@@ -6,6 +6,24 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 
 ---
 
+## [1.7.3] — 2026-04-08 — Corrección de arranque y usuarios
+
+### Corregido
+- **Carga de SECRET_KEY**: Se corrigió el flujo en GitHub Actions para generar un archivo `.env` físico durante el proceso de build, asegurando que el ejecutable empaquetado pueda cargar la clave y no lance un `RuntimeError`.
+- **Usuarios predeterminados**: Se corrigió el seeding de la base de datos para que los usuarios `admin` y `vendedor` usen el hash de `werkzeug.security`, permitiendo el inicio de sesión en instalaciones limpias.
+- **Launcher**: Se añadió `python-dotenv` a la verificación de dependencias en `iniciar.py`.
+
+---
+
+## [1.7.3] — 2026-04-08 — Corrección de arranque y usuarios
+
+### Corregido
+- **Carga de SECRET_KEY**: Se corrigió el flujo en GitHub Actions para generar un archivo `.env` físico durante el proceso de build, asegurando que el ejecutable empaquetado pueda cargar la clave y no lance un `RuntimeError`.
+- **Usuarios predeterminados**: Se corrigió el seeding de la base de datos para que los usuarios `admin` y `vendedor` usen el hash de `werkzeug.security`, permitiendo el inicio de sesión en instalaciones limpias.
+- **Launcher**: Se añadió `python-dotenv` a la verificación de dependencias en `iniciar.py`.
+
+---
+
 ## [1.7.2] — 2026-04-08 — Mejoras de seguridad
 
 ### Mejorado

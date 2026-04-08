@@ -17,13 +17,19 @@ import database as db
 def _read_version():
     try:
         v = open(os.path.join(os.path.dirname(__file__), 'VERSION')).read().strip()
-        return v if v else "1.7.0"
+        return v if v else "1.7.3" # Fallback si el archivo VERSION está vacío
     except Exception: # Fallback si no existe el archivo VERSION
-        return "1.7.0"
+        return "1.7.3"
 
 APP_VERSION = _read_version()
 
 # Carga de variables de entorno (NEXAR_SECRET_KEY_STANDARD)
+# En modo EXE (PyInstaller), buscar .env al lado del ejecutable para tomar la llave del build.
+# Esto es necesario porque las variables de entorno del sistema de build no se "empaquetan"
+# automáticamente dentro del binario. El instalador debe colocar un .env junto al .exe.
+# Para desarrollo local, load_dotenv() se ejecuta después para cargar el .env del directorio raíz.
+# La doble llamada a load_dotenv() es segura, ya que solo carga variables que no han sido definidas.
+#
 if getattr(sys, 'frozen', False):
     # En modo EXE, buscar .env al lado del ejecutable para tomar la llave del build
     _env_path = os.path.join(os.path.dirname(sys.executable), '.env')

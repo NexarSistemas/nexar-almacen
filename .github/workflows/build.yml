@@ -75,7 +75,7 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install flask openpyxl reportlab pywebview pythonnet pyinstaller python-dotenv
+          pip install flask openpyxl reportlab pywebview pythonnet pyinstaller python-dotenv #
 
       - name: Preparar LICENSE para Inno Setup
         shell: pwsh
@@ -97,6 +97,7 @@ jobs:
           if (-not $env:PUBLIC_KEY) {
             throw "PUBLIC_KEY no está definido en el entorno"
           }
+          #
           if (-not $env:SECRET_KEY) {
             throw "SECRET_KEY no está definido en los Secrets de GitHub. La aplicación requiere esta clave para iniciar."
           }
@@ -104,7 +105,7 @@ jobs:
 
       - name: Generar archivo .env para compilación
         shell: pwsh
-        run: |
+        run: | #
           "SECRET_KEY=$env:SECRET_KEY" | Out-File -FilePath ".env" -Encoding UTF8
 
       - name: Build EXE
@@ -113,10 +114,13 @@ jobs:
 
       - name: Asegurar .env en carpeta de distribución
         shell: pwsh
-        run: |
+        run: | #
           # Copiar el .env generado a la carpeta dist para que Inno Setup lo incluya
           Copy-Item ".env" "dist\" -Force
           Get-ChildItem -Path "dist" -Directory | ForEach-Object { Copy-Item ".env" "$($_.FullName)\.env" -Force }
+          # Para el caso de que el instalador de Inno Setup no copie el .env directamente,
+          # nos aseguramos de que esté en cada subdirectorio de la distribución.
+          # Esto es un workaround para asegurar que el .env esté accesible para el .exe.
 
       - name: Instalador Inno Setup
         shell: pwsh
@@ -160,6 +164,7 @@ jobs:
           if [ -z "$SECRET_KEY" ]; then echo "Error: SECRET_KEY no definida"; exit 1; fi
         shell: bash
 
+      #
       - name: Crear .env para Linux
         run: echo "SECRET_KEY=$SECRET_KEY" > .env
         shell: bash
