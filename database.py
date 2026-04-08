@@ -2,6 +2,7 @@ import sqlite3
 import os
 import hashlib as _hashlib
 import hmac as _hmac
+from werkzeug.security import generate_password_hash, check_password_hash
 import time as _time
 from datetime import datetime, date, timedelta
 from calendar import month_name
@@ -1253,16 +1254,13 @@ def delete_cc_mov(mid):
 
 # ─── AUTH ────────────────────────────────────────────────────────────────────
 
-def _hash_pw(pw: str) -> str:
-    return _hashlib.sha256(pw.encode()).hexdigest()
-
 def get_usuario(username: str):
     return q("SELECT * FROM usuarios WHERE username=? AND activo=1", (username,), fetchone=True)
 
 def verificar_password(username: str, password: str):
     u = get_usuario(username)
     if not u: return None
-    if u['password_hash'] == _hash_pw(password):
+    if check_password_hash(u['password_hash'], password):
         return dict(u)
     return None
 
@@ -1272,14 +1270,14 @@ def get_usuarios():
 def crear_usuario(username, password, rol, nombre):
     try:
         q("INSERT INTO usuarios (username,password_hash,rol,nombre_completo) VALUES (?,?,?,?)",
-          (username.strip(), _hash_pw(password), rol, nombre.strip()),
+          (username.strip(), generate_password_hash(password), rol, nombre.strip()),
           fetchall=False, commit=True)
         return True
     except Exception:
         return False
 
 def cambiar_password(uid, nueva):
-    q("UPDATE usuarios SET password_hash=? WHERE id=?", (_hash_pw(nueva), uid), fetchall=False, commit=True)
+    q("UPDATE usuarios SET password_hash=? WHERE id=?", (generate_password_hash(nueva), uid), fetchall=False, commit=True)
 
 def toggle_usuario(uid):
     q("UPDATE usuarios SET activo=CASE WHEN activo=1 THEN 0 ELSE 1 END WHERE id=?", (uid,), fetchall=False, commit=True)

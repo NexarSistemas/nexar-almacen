@@ -74,7 +74,7 @@ def install_required():
     if IS_FROZEN:
         return
 
-    needed = [p for p in ('flask','openpyxl','reportlab') if not has_module(p)]
+    needed = [p for p in ('flask','openpyxl','reportlab','dotenv') if not has_module(p)]
 
     if not needed:
         return

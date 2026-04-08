@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session, send_file, send_from_directory
 from datetime import date, datetime, timedelta
 from functools import wraps
+from dotenv import load_dotenv
 import json
 import os
 import sys
@@ -8,7 +9,6 @@ import signal
 import shutil
 import glob
 import threading
-import secrets
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import database as db
@@ -23,32 +23,9 @@ def _read_version():
 
 APP_VERSION = _read_version()
 
+load_dotenv()
+
 app = Flask(__name__)
-
-def get_secret_key():
-    key = os.getenv("SECRET_KEY")
-    if key:
-        return key
-
-    # carpeta del usuario
-    config_dir = os.path.join(os.path.expanduser("~"), ".nexar")
-    os.makedirs(config_dir, exist_ok=True)
-
-    config_path = os.path.join(config_dir, "config.json")
-
-    if os.path.exists(config_path):
-        with open(config_path, "r") as f:
-            data = json.load(f)
-            if "SECRET_KEY" in data:
-                return data["SECRET_KEY"]
-
-    key = secrets.token_hex(32)
-
-    with open(config_path, "w") as f:
-        json.dump({"SECRET_KEY": key}, f)
-
-    return key
-
 
 SECRET_KEY = os.getenv("SECRET_KEY", "").strip()
 

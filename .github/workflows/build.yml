@@ -75,7 +75,7 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install flask openpyxl reportlab pywebview pythonnet pyinstaller
+          pip install flask openpyxl reportlab pywebview pythonnet pyinstaller python-dotenv
 
       - name: Preparar LICENSE para Inno Setup
         shell: pwsh
@@ -96,6 +96,9 @@ jobs:
           }
           if (-not $env:PUBLIC_KEY) {
             throw "PUBLIC_KEY no está definido en el entorno"
+          }
+          if (-not $env:SECRET_KEY) {
+            throw "SECRET_KEY no está definido en los Secrets de GitHub. La aplicación requiere esta clave para iniciar."
           }
           Set-Content -Path "keys\public_key.asc" -Value $env:PUBLIC_KEY -Encoding UTF8
 
@@ -139,6 +142,11 @@ jobs:
       - name: Usar versión
         id: ver
         run: echo "VERSION=${{ needs.check.outputs.version }}" >> $GITHUB_OUTPUT
+
+      - name: Validar Secret Key
+        run: |
+          if [ -z "$SECRET_KEY" ]; then echo "Error: SECRET_KEY no definida"; exit 1; fi
+        shell: bash
 
       - name: Build Linux
         run: |
