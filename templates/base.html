@@ -192,10 +192,10 @@ input:focus,select:focus,textarea:focus{border-color:#3a7d44 !important;box-shad
       <i class="fas fa-clock me-1"></i>{{ now() }}
     </small>
     {% if is_admin %}
-    <form method="post" action="/apagar" onsubmit="return confirm('¿Apagar el sistema?')" style="margin-top:6px;">
-      <button type="submit" style="background:transparent;border:1px solid #3a3a3a;color:#888;font-size:.72rem;padding:3px 8px;border-radius:4px;cursor:pointer;width:100%;">
-        <i class="fas fa-power-off me-1"></i>Apagar sistema
-      </button>
+    <form id="form-apagar" method="post" action="/apagar" style="margin-top:6px;">
+        <button type="button" onclick="confirmarApagado()" style="background:transparent;border:1px solid #3a3a3a;color:#888;font-size:.72rem;padding:3px 8px;border-radius:4px;cursor:pointer;width:100%;">
+            <i class="fas fa-power-off me-1"></i>Apagar sistema
+        </button>
     </form>
     {% endif %}
   </div>
@@ -250,7 +250,31 @@ input:focus,select:focus,textarea:focus{border-color:#3a7d44 !important;box-shad
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+    function confirmarApagado() {
+        Swal.fire({
+            title: '¿Apagar el sistema?',
+            text: "Se cerrará la conexión con el servidor.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33', // Rojo para acciones de peligro
+            cancelButtonColor: '#3a3a3a',
+            confirmButtonText: 'Apagar ahora',
+            cancelButtonText: 'Cancelar',
+            background: '#212529', // Color oscuro para que combine con tu UI
+            color: '#fff'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Buscamos el formulario por su ID y lo enviamos
+                document.getElementById('form-apagar').submit();
+            }
+        })
+    }
+    </script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
