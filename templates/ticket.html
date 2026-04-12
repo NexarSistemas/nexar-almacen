@@ -3,23 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Ticket #{{ venta.numero_ticket }}</title>
-<style>
-@media print { body { margin: 0; } .no-print { display: none; } }
-body { font-family: 'Courier New', monospace; font-size: 12px; max-width: 380px; margin: 20px auto; color: #000; }
-.header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 8px; }
-.header h2 { font-size: 18px; margin: 0 0 4px; }
-.header p { margin: 1px 0; font-size: 11px; }
-.info-row { display: flex; justify-content: space-between; margin: 2px 0; font-size: 11px; }
-.items { border-top: 1px dashed #000; border-bottom: 1px dashed #000; margin: 8px 0; padding: 4px 0; }
-.item { margin: 3px 0; }
-.item .desc { font-weight: bold; }
-.item .detail { display: flex; justify-content: space-between; font-size: 11px; color: #444; }
-.totals { margin-top: 8px; }
-.total-row { display: flex; justify-content: space-between; margin: 2px 0; }
-.total-final { font-size: 16px; font-weight: bold; border-top: 2px solid #000; padding-top: 4px; margin-top: 4px; }
-.footer { text-align: center; margin-top: 12px; font-size: 10px; color: #666; }
-.btn-print { display: block; margin: 20px auto; padding: 10px 24px; background: #2e7d32; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
 <div class="header">
