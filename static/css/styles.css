@@ -17,10 +17,82 @@
 }
 
 body {
-  background: #f0f2f0;
+  background: linear-gradient(135deg, #1a2e1a 0%, #2d4f2d 40%, #1a3a2a 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-family: 'Segoe UI', sans-serif;
-  font-size: .92rem;
-  margin: 0;
+}
+.login-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.4);
+  overflow: hidden;
+  width: 420px;
+  max-width: 95vw;
+}
+.login-header {
+  background: linear-gradient(135deg, #1a2e1a, #3a7d44);
+  padding: 36px 32px 28px;
+  text-align: center;
+  color: #fff;
+}
+.login-header .store-icon {
+  font-size: 3rem;
+  margin-bottom: 10px;
+  display: block;
+}
+.login-header h3 { margin: 0; font-weight: 700; font-size: 1.3rem; }
+.login-header p { margin: 4px 0 0; color: #a5d6a7; font-size: .88rem; }
+.login-body { padding: 32px; }
+.form-label { font-weight: 600; color: #333; font-size: .9rem; }
+.form-control {
+  border-radius: 8px;
+  border: 1.5px solid #ddd;
+  padding: 10px 14px;
+  font-size: .95rem;
+  transition: border-color .2s;
+}
+.form-control:focus {
+  border-color: #3a7d44;
+  box-shadow: 0 0 0 3px rgba(58,125,68,.12);
+}
+.btn-login {
+  background: linear-gradient(135deg, #2e7d32, #3a7d44);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  width: 100%;
+  transition: all .2s;
+  cursor: pointer;
+}
+.btn-login:hover { background: linear-gradient(135deg, #1b5e20, #2e7d32); transform: translateY(-1px); }
+.input-icon { position: relative; }
+.input-icon i {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: #888; font-size: .9rem; pointer-events: none;
+}
+.input-icon .form-control { padding-left: 38px; }
+.alert-flash { border-radius: 8px; font-size: .9rem; padding: 10px 14px; margin-bottom: 16px; }
+.login-footer {
+  padding: 14px 32px 22px;
+  text-align: center;
+  color: #999;
+  font-size: .78rem;
+  border-top: 1px solid #f0f0f0;
+}
+.demo-hint {
+  background: #f0f8f0;
+  border: 1px solid #c8e6c9;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: .82rem;
+  color: #2e7d32;
+  margin-bottom: 18px;
 }
 
 /* Sidebar */
