@@ -206,16 +206,22 @@ input:focus,select:focus,textarea:focus{border-color:#3a7d44 !important;box-shad
     {% if demo_status.vencido %}
     <div class="demo-banner danger">
       <i class="fas fa-lock" style="color:#c62828;font-size:1.1rem;"></i>
-      <strong>DEMO VENCIDA.</strong>&nbsp;
-      Tu período de prueba de 30 días ha finalizado.&nbsp;
-      <a href="/licencia" class="fw-bold text-danger ms-1">Activá tu licencia →</a>
+      <div class="flex-grow-1">
+        <strong>DEMO VENCIDA.</strong>&nbsp;
+        Tu período de prueba de 30 días ha finalizado.&nbsp;
+        <a href="/licencia" class="fw-bold text-danger ms-1">Activá tu licencia →</a>
+      </div>
+      <button type="button" class="btn-close" onclick="this.parentElement.remove()" aria-label="Cerrar"></button>
     </div>
     {% elif demo_status.aviso_proximo %}
     <div class="demo-banner">
       <i class="fas fa-clock" style="color:#f9a825;font-size:1.1rem;"></i>
-      <strong>Licencia próxima a vencer — {{ demo_status.dias_restantes }} días restantes.</strong>&nbsp;
-      Adquirí el código de activación permanente.&nbsp;
-      <a href="/licencia" class="fw-bold ms-1" style="color:#e65100;">Ver opciones →</a>
+      <div class="flex-grow-1">
+        <strong>Licencia próxima a vencer — {{ demo_status.dias_restantes }} días restantes.</strong>&nbsp;
+        Adquirí el código de activación permanente.&nbsp;
+        <a href="/licencia" class="fw-bold ms-1" style="color:#e65100;">Ver opciones →</a>
+      </div>
+      <button type="button" class="btn-close" onclick="this.parentElement.remove()" aria-label="Cerrar"></button>
     </div>
     {% endif %}
   {% endif %}
@@ -239,7 +245,10 @@ input:focus,select:focus,textarea:focus{border-color:#3a7d44 !important;box-shad
   <div class="px-3 pt-2">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for cat, msg in messages %}
-        <div class="flash-{{ cat }}">{{ msg }}</div>
+        <div class="flash-{{ cat }} d-flex align-items-center">
+          <div class="flex-grow-1">{{ msg }}</div>
+          <button type="button" class="btn-close ms-2" onclick="this.parentElement.remove()" aria-label="Cerrar" style="font-size: 0.7rem;"></button>
+        </div>
       {% endfor %}
     {% endwith %}
   </div>
