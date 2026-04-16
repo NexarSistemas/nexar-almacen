@@ -31,26 +31,20 @@ _PUB_KEY_PEM = (
 # ── Logica principal ──────────────────────────────────────────────────────────
 
 def verificar_licencia_online(db_module) -> dict:
-    """
-    Verifica la licencia contra Supabase.
-
-    Retorna dict con:
-      ok        : bool — True si la licencia es valida
-      modo      : 'online_ok' | 'revocada' | 'demo'
-      mensaje   : str — descripcion del resultado
-    """
     cfg = db_module.get_config()
 
     if cfg.get('demo_mode', '1') == '1':
         return {'ok': True, 'modo': 'demo', 'dias_gracia': 0,
                 'mensaje': 'Modo demo activo'}
 
-    licencia = {
-        "license_key": cfg.get('license_key', ''),
-        "public_signature": cfg.get('license_signature', ''), # Asegurarse que se guarde con este nombre
-    }
+    # Obtenemos la licencia completa guardada (JSON)
+    import json
+    lic_json = cfg.get('license_data_full', '{}')
+    try:
+        licencia = json.loads(lic_json)
+    except:
+        licencia = {"license_key": cfg.get('license_key', ''), "public_signature": cfg.get('license_signature', '')}
 
-    # El SDK maneja la validación RSA local, la consulta a Supabase y el caché offline automáticamente
     ok = validar_licencia(licencia, _PUB_KEY_PEM.decode(), "almacen", debug=True)
 
     if not ok:
