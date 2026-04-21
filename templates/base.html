@@ -156,7 +156,7 @@ input:focus,select:focus,textarea:focus{border-color:#3a7d44 !important;box-shad
   <a href="/blacklist" class="nav-link {% if '/blacklist' in request.path %}active{% endif %}">
     <i class="fas fa-ban"></i> Lista Negra
   </a>
-  {% if is_admin and tier != 'BASICA' %}
+  {% if is_admin and tier == 'MENSUAL_FULL' %}
   <a href="/actualizacion" class="nav-link {% if '/actualizacion' in request.path %}active{% endif %}">
     <i class="fas fa-sync-alt"></i> Actualización
   </a>
@@ -236,7 +236,10 @@ input:focus,select:focus,textarea:focus{border-color:#3a7d44 !important;box-shad
         {% if demo_status and demo_status.demo and not demo_status.vencido %}
           <span style="color:#e65100;font-weight:600;">DEMO {{ demo_status.dias_restantes }}d</span>
         {% elif demo_status and not demo_status.demo %}
-          <span style="color:#2e7d32;font-weight:600;"><i class="fas fa-check-circle"></i> Licenciado</span>
+          <span style="color:#2e7d32;font-weight:600;">
+            <i class="fas fa-check-circle"></i>
+            {% if tier == 'BASICA' %}BASICA{% elif tier == 'MENSUAL_FULL' %}MENSUAL FULL{% else %}{{ tier }}{% endif %}
+          </span>
         {% endif %}
       </span>
     </div>

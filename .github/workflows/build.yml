@@ -60,6 +60,9 @@ jobs:
     env:
       PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      LICENSE_PRODUCT: nexar-almacen
 
     steps:
       - uses: actions/checkout@v4
@@ -75,7 +78,8 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install flask openpyxl reportlab pywebview pythonnet pyinstaller python-dotenv #
+          pip install -r requirements.txt
+          pip install pythonnet
 
       - name: Preparar LICENSE para Inno Setup
         shell: pwsh
@@ -101,12 +105,23 @@ jobs:
           if (-not $env:SECRET_KEY) {
             throw "SECRET_KEY no está definido en los Secrets de GitHub. La aplicación requiere esta clave para iniciar."
           }
+          if (-not $env:SUPABASE_URL) {
+            throw "SUPABASE_URL no esta definido en los Secrets de GitHub."
+          }
+          if (-not $env:SUPABASE_ANON_KEY) {
+            throw "SUPABASE_ANON_KEY no esta definido en los Secrets de GitHub."
+          }
           Set-Content -Path "keys\public_key.asc" -Value $env:PUBLIC_KEY -Encoding UTF8
 
       - name: Generar archivo .env para compilación
         shell: pwsh
         run: | #
-          "SECRET_KEY=$env:SECRET_KEY" | Out-File -FilePath ".env" -Encoding UTF8
+          @(
+            "SECRET_KEY=$env:SECRET_KEY"
+            "SUPABASE_URL=$env:SUPABASE_URL"
+            "SUPABASE_ANON_KEY=$env:SUPABASE_ANON_KEY"
+            "LICENSE_PRODUCT=$env:LICENSE_PRODUCT"
+          ) | Out-File -FilePath ".env" -Encoding UTF8
 
       - name: Build EXE
         run: |
@@ -121,6 +136,9 @@ jobs:
           # Para el caso de que el instalador de Inno Setup no copie el .env directamente,
           # nos aseguramos de que esté en cada subdirectorio de la distribución.
           # Esto es un workaround para asegurar que el .env esté accesible para el .exe.
+          if (!(Test-Path "dist\.env")) {
+            throw "No se pudo copiar .env a dist"
+          }
 
       - name: Instalador Inno Setup
         shell: pwsh
@@ -151,6 +169,9 @@ jobs:
     env:
       PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      LICENSE_PRODUCT: nexar-almacen
 
     steps:
       - uses: actions/checkout@v4
@@ -162,11 +183,20 @@ jobs:
       - name: Validar Secret Key
         run: |
           if [ -z "$SECRET_KEY" ]; then echo "Error: SECRET_KEY no definida"; exit 1; fi
+          if [ -z "$PUBLIC_KEY" ]; then echo "Error: PUBLIC_KEY no definida"; exit 1; fi
+          if [ -z "$SUPABASE_URL" ]; then echo "Error: SUPABASE_URL no definida"; exit 1; fi
+          if [ -z "$SUPABASE_ANON_KEY" ]; then echo "Error: SUPABASE_ANON_KEY no definida"; exit 1; fi
         shell: bash
 
       #
       - name: Crear .env para Linux
-        run: echo "SECRET_KEY=$SECRET_KEY" > .env
+        run: |
+          {
+            echo "SECRET_KEY=$SECRET_KEY"
+            echo "SUPABASE_URL=$SUPABASE_URL"
+            echo "SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY"
+            echo "LICENSE_PRODUCT=$LICENSE_PRODUCT"
+          } > .env
         shell: bash
 
       - name: Build Linux

@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import hashlib
 import hashlib as _hashlib
 import hmac as _hmac
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -105,12 +106,28 @@ TIER_LIMITS = {
         "clientes":      100,    # máx 100 clientes en CC
         "proveedores":   50,     # máx 50 proveedores
     },
-    "PRO": {
+    "MENSUAL_FULL": {
         "productos_off": None,   # ilimitado
         "clientes":      None,
         "proveedores":   None,
     },
 }
+
+TIER_LIMITS["DEMO"].update({"support": False, "updates": False})
+TIER_LIMITS["BASICA"].update({"support": False, "updates": False})
+TIER_LIMITS["MENSUAL_FULL"].update({"support": True, "updates": True})
+
+def normalize_license_plan(plan: str = "") -> str:
+    raw = (plan or "DEMO").strip().upper().replace("-", "_").replace(" ", "_")
+    aliases = {
+        "BASIC": "BASICA",
+        "PRO": "MENSUAL_FULL",
+        "FULL": "MENSUAL_FULL",
+        "TDA_BASICA": "BASICA",
+        "TDA_PRO": "MENSUAL_FULL",
+    }
+    normalized = aliases.get(raw, raw)
+    return normalized if normalized in TIER_LIMITS else "BASICA"
 
 def get_conn():
     conn = sqlite3.connect(DB_PATH)
@@ -191,9 +208,9 @@ def _seed_changelog(c):
          'Fix ticket abría navegador externo pidiendo login',
          'El botón Ver Ticket en Punto de Venta y el link de ticket en Historial tenían target="_blank", abriéndose en el navegador del sistema sin sesión activa. Ahora abren dentro de la misma ventana de la app.'),
         ('1.6.0','2026-03-19','Nueva función',
-         'Sistema de tiers: Plan Básico y Plan Pro',
+         'Sistema de tiers: Plan Básico y Mensual Full',
          'Plan Básico pago único U$D 30 con límites (200 productos OFF, 100 clientes, 50 proveedores). '
-         'Plan Pro mensual U$D 6 ilimitado con estadísticas históricas, análisis, actualizaciones y soporte. '
+         'Plan Mensual Full U$D 6 mensual ilimitado con estadísticas históricas, análisis, actualizaciones y soporte. '
          'Anti-reinstall con telemetry.bin codificado. Pantalla de licencia renovada con comparativa de planes.'),
         ('1.7.0','2026-03-28','Mejoras y correcciones',
          'Pipeline CI/CD inteligente y corrección de enlaces',
@@ -227,6 +244,8 @@ def init_db():
             password_hash TEXT NOT NULL,
             rol TEXT DEFAULT 'usuario',
             nombre_completo TEXT DEFAULT '',
+            security_question TEXT,
+            security_answer_hash TEXT,
             activo INTEGER DEFAULT 1,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
@@ -427,6 +446,11 @@ def init_db():
         ('backup_keep', '10'),         # cuántos respaldos conservar
         ('backup_dir', ''),            # vacío = carpeta respaldo/ del sistema
         ('backup_ultimo', ''),
+        ('basica_activada', '0'),
+        ('license_plan', 'DEMO'),
+        ('license_last_check', ''),
+        ('license_support', '0'),
+        ('license_updates', '0'),
     ]
     for k, v in defaults:
         c.execute("INSERT OR IGNORE INTO config VALUES (?,?)", (k, v))
@@ -478,11 +502,22 @@ def init_db():
         ('license_max_machines', '1'),
         ('license_key',          ''),
         ('license_activated_at', ''),
-        ('license_tier',         'DEMO'),    # DEMO / BASICA / PRO
+        ('license_tier',         'DEMO'),    # DEMO / BASICA / MENSUAL_FULL
         ('license_expires_at',   ''),        # fecha ISO vencimiento Pro, vacío = no vence
+        ('license_plan',         'DEMO'),
+        ('license_last_check',   ''),
+        ('license_support',      '0'),
+        ('license_updates',      '0'),
+        ('basica_activada',      '0'),
 
     ]:
         c.execute("INSERT OR IGNORE INTO config VALUES (?,?)", (_k, _v))
+
+    columnas_u = [r['name'] for r in c.execute("PRAGMA table_info(usuarios)").fetchall()]
+    if 'security_question' not in columnas_u:
+        c.execute("ALTER TABLE usuarios ADD COLUMN security_question TEXT")
+    if 'security_answer_hash' not in columnas_u:
+        c.execute("ALTER TABLE usuarios ADD COLUMN security_answer_hash TEXT")
 
     # ── DB MIGRATIONS ──────────────────────────────────────────────────────────
     # Add 'marca' column if not present (migration from <1.3.0)
@@ -505,14 +540,7 @@ def init_db():
     # Seed changelog with known versions
     _seed_changelog(c)
 
-    # Default users (admin + vendedor)
-    default_users = [
-        ('admin',    generate_password_hash('admin123'),    'admin',   'Administrador'),
-        ('vendedor', generate_password_hash('vendedor123'), 'usuario', 'Vendedor'),
-    ]
-    for uname, phash, rol, nombre in default_users:
-        c.execute("INSERT OR IGNORE INTO usuarios (username,password_hash,rol,nombre_completo) VALUES (?,?,?,?)",
-                  (uname, phash, rol, nombre))
+    # Los usuarios se crean desde /registro-inicial en el primer arranque.
 
     # Categories
     cats = [
@@ -1255,6 +1283,9 @@ def delete_cc_mov(mid):
 def get_usuario(username: str):
     return q("SELECT * FROM usuarios WHERE username=? AND activo=1", (username,), fetchone=True)
 
+def get_usuario_by_username(username: str):
+    return q("SELECT * FROM usuarios WHERE username=?", ((username or '').strip(),), fetchone=True)
+
 def verificar_password(username: str, password: str):
     u = get_usuario(username)
     if not u: return None
@@ -1262,17 +1293,80 @@ def verificar_password(username: str, password: str):
         return dict(u)
     return None
 
-def get_usuarios():
-    return q("SELECT id,username,rol,nombre_completo,activo FROM usuarios ORDER BY rol,username")
-
-def crear_usuario(username, password, rol, nombre):
+def verify_password(password, password_hash):
+    if not password_hash:
+        return False
     try:
-        q("INSERT INTO usuarios (username,password_hash,rol,nombre_completo) VALUES (?,?,?,?)",
-          (username.strip(), generate_password_hash(password), rol, nombre.strip()),
+        if password_hash.startswith(("pbkdf2:", "scrypt:")):
+            return check_password_hash(password_hash, password)
+    except Exception:
+        pass
+    return hashlib.sha256(password.encode()).hexdigest() == password_hash
+
+def _normalize_security_answer(answer: str) -> str:
+    return (answer or "").strip().lower()
+
+def hash_security_answer(answer: str) -> str:
+    return generate_password_hash(_normalize_security_answer(answer))
+
+def verify_security_answer(answer: str, answer_hash: str) -> bool:
+    if not answer_hash:
+        return False
+    normalized = _normalize_security_answer(answer)
+    try:
+        if answer_hash.startswith(("pbkdf2:", "scrypt:")):
+            return check_password_hash(answer_hash, normalized)
+    except Exception:
+        return False
+    return hashlib.sha256(normalized.encode()).hexdigest() == answer_hash
+
+def set_security_answer_hash(uid, answer):
+    q(
+        "UPDATE usuarios SET security_answer_hash=? WHERE id=?",
+        (hash_security_answer(answer), uid),
+        fetchall=False,
+        commit=True,
+    )
+
+def get_usuarios():
+    return q("SELECT id,username,rol,nombre_completo,activo,security_question,security_answer_hash FROM usuarios ORDER BY rol,username")
+
+def crear_usuario(username, password, rol, nombre, security_question=None, security_answer=None):
+    try:
+        q("""INSERT INTO usuarios (username,password_hash,rol,nombre_completo,security_question,security_answer_hash)
+          VALUES (?,?,?,?,?,?)""",
+          (
+              username.strip(),
+              generate_password_hash(password),
+              rol,
+              nombre.strip(),
+              (security_question or '').strip() or None,
+              hash_security_answer(security_answer) if security_answer else None,
+          ),
           fetchall=False, commit=True)
         return True
     except Exception:
         return False
+
+def count_usuarios():
+    row = q("SELECT COUNT(*) as total FROM usuarios", fetchone=True)
+    return int(row["total"] if row else 0)
+
+def set_password_for_username(username, password):
+    q(
+        "UPDATE usuarios SET password_hash=? WHERE username=?",
+        (generate_password_hash(password), (username or '').strip()),
+        fetchall=False,
+        commit=True,
+    )
+
+def configurar_recuperacion(uid, question, answer):
+    q(
+        "UPDATE usuarios SET security_question=?, security_answer_hash=? WHERE id=?",
+        ((question or '').strip(), hash_security_answer(answer), uid),
+        fetchall=False,
+        commit=True,
+    )
 
 def cambiar_password(uid, nueva):
     q("UPDATE usuarios SET password_hash=? WHERE id=?", (generate_password_hash(nueva), uid), fetchall=False, commit=True)
@@ -1441,14 +1535,49 @@ def get_demo_status() -> dict:
 
 def get_license_info() -> dict:
     cfg = get_config()
+    tier = normalize_license_plan(cfg.get('license_tier', 'DEMO'))
+    if tier == 'MENSUAL_FULL' and is_pro_expired():
+        tier = 'BASICA' if cfg.get('basica_activada', '0') == '1' else 'DEMO'
+    limits = TIER_LIMITS.get(tier, TIER_LIMITS["DEMO"])
     return {
         'type':         cfg.get('license_type', 'DEMO'),
-        'tier':         cfg.get('license_tier', 'DEMO'),
+        'tier':         tier,
+        'plan':         normalize_license_plan(cfg.get('license_plan', tier)),
         'max_machines': int(cfg.get('license_max_machines', '1')),
+        'key':          cfg.get('license_key', ''),
         'license_key':  cfg.get('license_key', ''),
         'activated_at': cfg.get('license_activated_at', ''),
         'expires_at':   cfg.get('license_expires_at', ''),
+        'last_check':   cfg.get('license_last_check', ''),
+        'limits':       limits,
+        'support':      bool(limits.get('support')),
+        'updates':      bool(limits.get('updates')),
+        'pro_vencido':  is_pro_expired(),
     }
+
+def sync_license_from_remote(license_data: dict):
+    if not license_data:
+        return
+    plan = normalize_license_plan(
+        license_data.get('plan') or license_data.get('tier') or license_data.get('license_plan')
+    )
+    expires_at = license_data.get('expira') or license_data.get('expires_at') or ''
+    if plan == 'BASICA':
+        expires_at = ''
+    set_config({
+        'demo_mode': '0' if plan != 'DEMO' else '1',
+        'license_type': license_data.get('type', plan),
+        'license_tier': plan,
+        'license_plan': plan,
+        'license_key': license_data.get('license_key', ''),
+        'license_activated_at': datetime.now().isoformat(),
+        'license_expires_at': expires_at,
+        'license_last_check': datetime.now().date().isoformat(),
+        'license_max_machines': str(license_data.get('max_devices') or license_data.get('max_machines') or 1),
+        'license_support': '1' if TIER_LIMITS[plan].get('support') else '0',
+        'license_updates': '1' if TIER_LIMITS[plan].get('updates') else '0',
+        **({'basica_activada': '1'} if plan == 'BASICA' else {}),
+    })
 
 
 def validar_licencia_rsa(token_b64: str) -> tuple:
@@ -1518,16 +1647,23 @@ def activar_licencia(token_b64: str) -> tuple:
     if not ok:
         return False, msg
     from datetime import datetime as _dt
-    tier       = data.get("tier", "BASICA")
+    tier       = normalize_license_plan(data.get("tier", "BASICA"))
     expires_at = data.get("expires_at") or ""
+    if tier == "MENSUAL_FULL" and get_config().get("basica_activada", "0") != "1":
+        return False, "Para activar Mensual Full primero debés activar una licencia Básica."
     set_config({
         'demo_mode':            '0',
         'license_type':         data.get('type', 'MONO'),
         'license_tier':         tier,
+        'license_plan':         tier,
         'license_max_machines': str(data.get('max_machines', 1)),
         'license_key':          data.get('license_key', ''),
         'license_activated_at': _dt.now().isoformat(),
         'license_expires_at':   expires_at,
+        'license_last_check':   _dt.now().date().isoformat(),
+        'license_support':      '1' if TIER_LIMITS[tier].get('support') else '0',
+        'license_updates':      '1' if TIER_LIMITS[tier].get('updates') else '0',
+        **({'basica_activada': '1'} if tier == 'BASICA' else {}),
     })
     return True, "Licencia activada correctamente."
 
@@ -1692,14 +1828,14 @@ def get_blacklist_set() -> set:
 
 def get_tier() -> str:
     """
-    Devuelve el tier activo: 'DEMO', 'BASICA' o 'PRO'.
-    Si es PRO pero venció, devuelve 'BASICA' (mantiene acceso básico).
+    Devuelve el tier activo: 'DEMO', 'BASICA' o 'MENSUAL_FULL'.
+    Si Mensual Full venció, devuelve 'BASICA' (mantiene acceso básico).
     """
     cfg = get_config()
     if cfg.get('demo_mode', '1') == '1':
         return 'DEMO'
-    tier = cfg.get('license_tier', 'BASICA')
-    if tier == 'PRO':
+    tier = normalize_license_plan(cfg.get('license_tier', 'BASICA'))
+    if tier == 'MENSUAL_FULL':
         expires_at = cfg.get('license_expires_at', '')
         if expires_at:
             try:
@@ -1716,7 +1852,7 @@ def is_pro_expired() -> bool:
     cfg = get_config()
     if cfg.get('demo_mode', '1') == '1':
         return False
-    if cfg.get('license_tier', 'BASICA') != 'PRO':
+    if normalize_license_plan(cfg.get('license_tier', 'BASICA')) != 'MENSUAL_FULL':
         return False
     expires_at = cfg.get('license_expires_at', '')
     if not expires_at:

@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Configurar recuperación{% endblock %}
+{% block page_title %}<i class="fas fa-shield-alt me-2"></i>Configurar recuperación{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="table-card p-4">
+      <div class="alert alert-warning">
+        Para proteger tu cuenta, configurá una pregunta y respuesta de recuperación antes de seguir usando el sistema.
+      </div>
+      <form method="post">
+        <input type="hidden" name="next" value="{{ next or '' }}">
+        <div class="mb-3">
+          <label class="form-label fw-bold">Usuario</label>
+          <input class="form-control bg-light" value="{{ usuario.username }}" readonly>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold">Pregunta de recuperación</label>
+          <input class="form-control" name="security_question" required autofocus placeholder="Ej: ¿Ciudad donde nací?">
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-bold">Respuesta de recuperación</label>
+          <input class="form-control" name="security_answer" required>
+          <small class="text-muted">No se mostrará nuevamente.</small>
+        </div>
+        <button class="btn btn-success w-100" type="submit"><i class="fas fa-save me-2"></i>Guardar y continuar</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

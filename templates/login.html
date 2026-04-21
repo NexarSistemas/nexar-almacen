@@ -104,11 +104,6 @@ body {
       {% endfor %}
     {% endwith %}
 
-    <div class="demo-hint">
-      <i class="fas fa-info-circle me-1"></i>
-      <strong>Acceso inicial:</strong> admin / admin123 &nbsp;·&nbsp; vendedor / vendedor123
-    </div>
-
     <form method="post">
       <input type="hidden" name="next" value="{{ next }}">
       <div class="mb-3">
@@ -130,6 +125,11 @@ body {
       <button type="submit" class="btn-login">
         <i class="fas fa-sign-in-alt me-2"></i>Iniciar Sesión
       </button>
+      <div class="text-center mt-3">
+        <a href="{{ url_for('recuperar_password') }}" class="text-decoration-none" style="color:#3a7d44;font-size:.86rem">
+          <i class="fas fa-key me-1"></i>Recuperar contraseña
+        </a>
+      </div>
     </form>
   </div>
 

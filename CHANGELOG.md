@@ -6,6 +6,21 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 
 ---
 
+## [1.7.4] - 2026-04-21 - Licencias, usuarios y actualizaciones
+
+### Agregado
+- Integracion del flujo de licencias online con solicitud, activacion por clave, cache local y planes `BASICA` / `MENSUAL_FULL`.
+- Creacion obligatoria del primer usuario administrador y configuracion de recuperacion de contrasena.
+- Formulario de soporte online desde Ayuda con envio a Supabase.
+- Pantalla de actualizacion online con descarga de instaladores desde GitHub Releases, respaldo previo, instalacion y estado de reinicio.
+
+### Cambiado
+- El plan anterior `PRO` se normaliza como `MENSUAL_FULL`, igual que en Nexar Tienda.
+- El build de Windows y Linux empaqueta `.env`, `nexar_licencias`, servicios de licencia y dependencias desde `requirements.txt`.
+- El identificador de equipo ahora diferencia producto para permitir varias apps Nexar en la misma maquina.
+
+---
+
 ## [1.7.3] — 2026-04-08 — Corrección de arranque y usuarios
 
 ### Corregido

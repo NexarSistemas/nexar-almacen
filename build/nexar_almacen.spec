@@ -22,10 +22,15 @@ datas = [
     (os.path.join(PROJ, 'templates'),         'templates'),
     (os.path.join(PROJ, 'static'),            'static'),
     (os.path.join(PROJ, 'services'),          'services'),
+    (os.path.join(PROJ, 'nexar_licencias'),   'nexar_licencias'),
     (os.path.join(PROJ, 'VERSION'),           '.'),
     (os.path.join(PROJ, 'CHANGELOG.md'),      '.'),
     (os.path.join(PROJ, 'productos_seed.py'), '.'),
 ]
+
+env_path = os.path.join(PROJ, '.env')
+if os.path.isfile(env_path):
+    datas.append((env_path, '.'))
 
 keys_path = os.path.join(PROJ, 'keys')
 if os.path.isdir(keys_path):
@@ -68,7 +73,21 @@ a = Analysis(
         'productos_seed',
         'services',
         'services.openfood_importer',
+        'services.runtime_config',
+        'services.license_storage',
+        'services.license_sdk',
+        'services.supabase_license_api',
+        'services.update_checker',
+        'nexar_licencias',
+        'nexar_licencias.cache',
+        'nexar_licencias.config',
+        'nexar_licencias.device',
+        'nexar_licencias.plans',
+        'nexar_licencias.validator',
+        'nexar_licencias.verifier_local',
+        'nexar_licencias.verifier_online',
         # Exportaciones
+        'requests',
         'openpyxl',
         'reportlab',
         'reportlab.lib.pagesizes',
@@ -117,7 +136,6 @@ a = Analysis(
         'pandas',
         'PIL',
         'scipy',
-        'cryptography',
         'pytest',
         'docutils',
         'pydoc',

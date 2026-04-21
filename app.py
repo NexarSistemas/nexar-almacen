@@ -9,9 +9,25 @@ import signal
 import shutil
 import glob
 import threading
+import subprocess
+import re
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from services.runtime_config import app_data_dir, load_runtime_env
+
+load_runtime_env()
+
 import database as db
+from services.license_storage import cargar_licencia, guardar_licencia
+from services.license_sdk import get_current_hwid, get_license_product, validate_license_key, validate_saved_license
+from services.supabase_license_api import (
+    create_license_request,
+    create_support_request,
+    generate_activation_id,
+    is_configured as supabase_configured,
+)
+from services.update_checker import download_release_asset, get_cached_update_info
 
 # Versión dinámica: se lee del archivo VERSION (fuente única de verdad)
 def _read_version():
@@ -76,6 +92,7 @@ def favicon():
 
 # ─── BACKUP SCHEDULER ────────────────────────────────────────────────────────
 _backup_timer = None
+UPDATE_DIR = app_data_dir() / "updates"
 
 def get_backup_dir():
     cfg = db.get_config()
@@ -114,6 +131,137 @@ def hacer_backup(manual=False):
         return True, dest
     except Exception as e:
         return False, str(e)
+
+
+def _version_tuple(version: str) -> tuple[int, int, int]:
+    parts = []
+    for chunk in (version or "0.0.0").strip().lstrip("vV").split(".")[:3]:
+        parts.append(int("".join(ch for ch in chunk if ch.isdigit()) or 0))
+    while len(parts) < 3:
+        parts.append(0)
+    return tuple(parts)
+
+
+def _installer_version(filename: str) -> str:
+    patterns = (
+        r"^nexar-almacen_(?P<version>[0-9]+(?:\.[0-9]+){1,2})_amd64\.deb$",
+        r"^NexarAlmacen_(?P<version>[0-9]+(?:\.[0-9]+){1,2})_Setup\.exe$",
+    )
+    for pattern in patterns:
+        match = re.match(pattern, filename or "")
+        if match:
+            return match.group("version")
+    return ""
+
+
+def _update_list() -> list[dict]:
+    UPDATE_DIR.mkdir(parents=True, exist_ok=True)
+    items = []
+    candidates = [*UPDATE_DIR.glob("nexar-almacen_*_amd64.deb"), *UPDATE_DIR.glob("NexarAlmacen_*_Setup.exe")]
+    for path in sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True):
+        installer_version = _installer_version(path.name)
+        if installer_version and _version_tuple(installer_version) <= _version_tuple(APP_VERSION):
+            continue
+        stat = path.stat()
+        is_windows_installer = path.suffix.lower() == ".exe"
+        items.append({
+            "nombre": path.name,
+            "version": installer_version,
+            "fecha": datetime.fromtimestamp(stat.st_mtime).strftime("%d/%m/%Y %H:%M"),
+            "tamanio_mb": round(stat.st_size / 1024 / 1024, 1),
+            "comando": str(path) if is_windows_installer else f"sudo apt install {path}",
+            "tipo": "Windows" if is_windows_installer else "Linux",
+        })
+    return items
+
+
+def _update_file(nombre: str) -> Path:
+    safe_name = Path(nombre or "").name
+    valid_linux = safe_name.startswith("nexar-almacen_") and safe_name.endswith("_amd64.deb")
+    valid_windows = safe_name.startswith("NexarAlmacen_") and safe_name.endswith("_Setup.exe")
+    if safe_name != nombre or not (valid_linux or valid_windows):
+        raise FileNotFoundError("Instalador invalido.")
+    path = (UPDATE_DIR / safe_name).resolve()
+    if path.parent != UPDATE_DIR.resolve() or not path.exists():
+        raise FileNotFoundError("Instalador no encontrado.")
+    return path
+
+
+def _requires_manual_reopen(installer_name: str) -> bool:
+    return sys.platform.startswith("win") and (installer_name or "").lower().endswith(".exe")
+
+
+def _update_install_state(current_version: str | None = None) -> dict:
+    cfg = db.get_config()
+    target_version = cfg.get("update_target_version", "")
+    status = cfg.get("update_install_status", "")
+    if not target_version or not status:
+        return {"status": ""}
+
+    current_version = current_version or APP_VERSION
+    installer_name = cfg.get("update_installer_name", "")
+    manual_reopen = _requires_manual_reopen(installer_name)
+    if _version_tuple(current_version) >= _version_tuple(target_version):
+        if status != "installed":
+            db.set_config({
+                "update_install_status": "installed",
+                "update_installed_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            })
+            status = "installed"
+        return {
+            "status": status,
+            "target_version": target_version,
+            "current_version": current_version,
+            "installer": installer_name,
+            "installed_at": cfg.get("update_installed_at", ""),
+            "manual_reopen": manual_reopen,
+        }
+
+    return {
+        "status": status,
+        "target_version": target_version,
+        "current_version": current_version,
+        "installer": installer_name,
+        "started_at": cfg.get("update_started_at", ""),
+        "finished_at": cfg.get("update_finished_at", ""),
+        "error": cfg.get("update_install_error", ""),
+        "manual_reopen": manual_reopen,
+    }
+
+
+def _mark_update_process_finished(target_version: str, process: subprocess.Popen) -> None:
+    try:
+        return_code = process.wait()
+        data = {
+            "update_install_status": "ready_restart" if return_code == 0 else "install_failed",
+            "update_finished_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        }
+        if return_code != 0:
+            data["update_install_error"] = f"El instalador termino con codigo {return_code}."
+        db.set_config(data)
+    except Exception as exc:
+        db.set_config({
+            "update_install_status": "install_failed",
+            "update_finished_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "update_install_error": str(exc),
+        })
+
+
+def _track_update_process(target_version: str, process: subprocess.Popen) -> None:
+    thread = threading.Thread(target=_mark_update_process_finished, args=(target_version, process), daemon=True)
+    thread.start()
+
+
+def _apt_readable_copy(installer: Path) -> Path:
+    temp_dir = Path("/tmp") / "nexar-almacen-updates"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    if os.name != "nt":
+        temp_dir.chmod(0o755)
+    target = temp_dir / installer.name
+    shutil.copy2(installer, target)
+    if os.name != "nt":
+        target.chmod(0o644)
+    return target
 
 def _schedule_backup():
     global _backup_timer
@@ -185,8 +333,9 @@ def before():
     if not _scheduler_started:
         _scheduler_started = True
         iniciar_backup_scheduler()
-    # Allow public routes without login
-    public = {'/login', '/static'}
+    public = {'/login', '/registro-inicial', '/recuperar-password', '/apagar_rapido', '/static'}
+    if db.count_usuarios() == 0 and not any(request.path.startswith(p) for p in {'/registro-inicial', '/static', '/apagar_rapido'}):
+        return redirect(url_for('registro_inicial'))
     if any(request.path.startswith(p) for p in public):
         return
     # Invalidar sesión si el sistema fue apagado desde otra sesión
@@ -199,8 +348,43 @@ def before():
         except Exception:
             pass
 
-    if 'user' not in session and request.endpoint not in ('login', 'apagar_rapido', 'static', None):
+    if 'user' not in session and request.endpoint not in ('login', 'registro_inicial', 'recuperar_password', 'apagar_rapido', 'static', None):
         return redirect(url_for('login', next=request.path))
+
+    recovery_allowed = {'/configurar-recuperacion', '/logout', '/apagar', '/apagar_rapido', '/static'}
+    if 'user' in session and not any(request.path.startswith(p) for p in recovery_allowed):
+        user = db.q("SELECT security_question, security_answer_hash FROM usuarios WHERE id=?", (session['user']['id'],), fetchone=True)
+        if not user:
+            session.clear()
+            return redirect(url_for('login'))
+        if not user['security_question'] or not user['security_answer_hash']:
+            return redirect(url_for('configurar_recuperacion', next=request.path))
+
+    license_allowed = {'/licencia', '/logout', '/apagar', '/apagar_rapido', '/static', '/ayuda', '/acerca', '/changelog', '/configurar-recuperacion'}
+    if any(request.path.startswith(p) for p in license_allowed):
+        return
+
+    licencia_guardada = cargar_licencia()
+    if not licencia_guardada:
+        status = db.get_demo_status()
+        if status.get('vencido'):
+            return redirect(url_for('licencia'))
+        return
+
+    ok, _msg = validate_saved_license(debug=True)
+    if not ok:
+        cfg = db.get_config()
+        if cfg.get('basica_activada', '0') == '1':
+            db.set_config({
+                'demo_mode': '0',
+                'license_tier': 'BASICA',
+                'license_plan': 'BASICA',
+                'license_expires_at': '',
+                'license_support': '0',
+                'license_updates': '0',
+            })
+            return
+        return redirect(url_for('licencia'))
 
 @app.context_processor
 def inject_globals():
@@ -212,6 +396,7 @@ def inject_globals():
             WHERE fecha_vencimiento <= date('now','+30 days') AND importe > pagado""", fetchone=True)
         cfg = db.get_config()
         demo_status = db.get_demo_status()
+        lic_info = db.get_license_info()
 
         return {
             'alertas_sidebar': {
@@ -224,9 +409,10 @@ def inject_globals():
             'is_admin': session.get('user', {}).get('rol') == 'admin',
             'demo_status': demo_status,
             'app_version': APP_VERSION,
+            'update_info': get_cached_update_info(app, APP_VERSION) if lic_info.get('updates') else {'available': False},
 
             # 🔥 LICENCIAS (correcto)
-            'tier': db.get_tier(),           # 'DEMO' | 'BASICA' | 'PRO'
+            'tier': db.get_tier(),           # 'DEMO' | 'BASICA' | 'MENSUAL_FULL'
             'pro_expired': db.is_pro_expired(),
 
         }
@@ -246,6 +432,90 @@ app.jinja_env.globals['today'] = lambda: date.today().isoformat()
 app.jinja_env.globals['now'] = lambda: datetime.now().strftime('%H:%M')
 
 # ─── LOGIN / LOGOUT ──────────────────────────────────────────────────────────
+def _password_error(password: str) -> str:
+    if len(password or '') < 6 or len(password or '') > 12:
+        return 'La contraseña debe tener entre 6 y 12 caracteres.'
+    if not any(ch.isupper() for ch in password):
+        return 'La contraseña debe incluir al menos una mayúscula.'
+    if not any(ch.islower() for ch in password):
+        return 'La contraseña debe incluir al menos una minúscula.'
+    if not any(ch.isdigit() for ch in password):
+        return 'La contraseña debe incluir al menos un número.'
+    if not any(ch in '@$!%*?&#' for ch in password):
+        return 'La contraseña debe incluir al menos un carácter especial (@$!%*?&#).'
+    return ''
+
+@app.route('/registro-inicial', methods=['GET', 'POST'])
+def registro_inicial():
+    if db.count_usuarios() > 0:
+        return redirect(url_for('login'))
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        nombre = request.form.get('nombre_completo', '').strip()
+        password = request.form.get('password', '')
+        question = request.form.get('security_question', '').strip()
+        answer = request.form.get('security_answer', '').strip()
+        error = _password_error(password)
+        if not username or not nombre or not question or not answer:
+            flash('Completá todos los campos para crear el administrador.', 'danger')
+        elif error:
+            flash(error, 'danger')
+        elif db.crear_usuario(username, password, 'admin', nombre, question, answer):
+            flash('Administrador creado correctamente. Iniciá sesión para continuar.', 'success')
+            return redirect(url_for('login'))
+        else:
+            flash('No se pudo crear el usuario. Probá con otro nombre de usuario.', 'danger')
+    return render_template('registro_inicial.html', app_version=APP_VERSION)
+
+@app.route('/recuperar-password', methods=['GET', 'POST'])
+def recuperar_password():
+    step = int(request.form.get('step', request.args.get('step', 1)) or 1)
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        user = db.get_usuario_by_username(username)
+        if step == 1:
+            if not user or not user['security_question'] or not user['security_answer_hash']:
+                flash('Ese usuario no tiene recuperación configurada.', 'danger')
+                return render_template('recuperar_password.html', step=1, app_version=APP_VERSION)
+            return render_template('recuperar_password.html', step=2, user=user, app_version=APP_VERSION)
+        if step == 2:
+            answer = request.form.get('security_answer', '')
+            if user and db.verify_security_answer(answer, user['security_answer_hash']):
+                session['recover_user'] = username
+                return render_template('recuperar_password.html', step=3, username=username, app_version=APP_VERSION)
+            flash('La respuesta de seguridad no coincide.', 'danger')
+            return render_template('recuperar_password.html', step=1, app_version=APP_VERSION)
+        if step == 3:
+            if session.get('recover_user') != username:
+                flash('La sesión de recuperación venció. Empezá de nuevo.', 'warning')
+                return redirect(url_for('recuperar_password'))
+            password = request.form.get('password', '')
+            error = _password_error(password)
+            if error:
+                flash(error, 'danger')
+                return render_template('recuperar_password.html', step=3, username=username, app_version=APP_VERSION)
+            db.set_password_for_username(username, password)
+            session.pop('recover_user', None)
+            flash('Contraseña restablecida. Ya podés iniciar sesión.', 'success')
+            return redirect(url_for('login'))
+    return render_template('recuperar_password.html', step=1, app_version=APP_VERSION)
+
+@app.route('/configurar-recuperacion', methods=['GET', 'POST'])
+@login_required
+def configurar_recuperacion():
+    user = db.get_usuario_by_username(session['user']['username'])
+    if request.method == 'POST':
+        question = request.form.get('security_question', '').strip()
+        answer = request.form.get('security_answer', '').strip()
+        next_url = request.form.get('next') or url_for('dashboard')
+        if not question or not answer:
+            flash('Completá la pregunta y respuesta de recuperación.', 'danger')
+        else:
+            db.configurar_recuperacion(session['user']['id'], question, answer)
+            flash('Recuperación configurada correctamente.', 'success')
+            return redirect(next_url)
+    return render_template('configurar_recuperacion.html', usuario=user, next=request.args.get('next', ''), app_version=APP_VERSION)
+
 @app.route('/login', methods=['GET','POST'])
 def login():
     if 'user' in session:
@@ -283,7 +553,10 @@ def logout():
 def licencia():
     status     = db.get_demo_status()
     machine_id = db.get_machine_id()
+    activation_id = get_current_hwid() or machine_id
     lic_info   = db.get_license_info() if not status['demo'] else None
+    _request_id, machine_details = generate_activation_id(session.get('user', {}).get('username', ''))
+    local_lic = cargar_licencia() or {}
 
     # Calcular uso actual para mostrar barras de progreso en plan Básico
     tier_limits = {}
@@ -305,15 +578,30 @@ def licencia():
     return render_template('licencia.html',
                            status=status,
                            machine_id=machine_id,
+                           activation_id=activation_id,
+                           machine_details=machine_details,
+                           producto=get_license_product(),
+                           supabase_ok=supabase_configured(),
+                           license_key_local=local_lic.get('license_key', ''),
                            lic_info=lic_info,
                            tier_limits=tier_limits)
 
 @app.route('/licencia/activar', methods=['POST'])
 @admin_required
 def licencia_activar():
+    license_key = request.form.get('license_key', '').strip()
+    if license_key:
+        ok, msg = validate_license_key(license_key, debug=True)
+        if ok:
+            guardar_licencia(license_key)
+            flash('Licencia activada correctamente.', 'success')
+        else:
+            flash(msg, 'danger')
+        return redirect(url_for('licencia'))
+
     token = request.form.get('token', '').strip()
     if not token:
-        flash('❌ No ingresaste ningún token. Pegá el código que recibiste por WhatsApp.', 'danger')
+        flash('Ingresá una clave de licencia válida.', 'danger')
         return redirect(url_for('licencia'))
 
     # Validar el token sin activar todavía para leer el tier
@@ -322,10 +610,10 @@ def licencia_activar():
         flash(f'❌ {msg}', 'danger')
         return redirect(url_for('licencia'))
 
-    tier_token = data.get('tier', 'BASICA')
+    tier_token = db.normalize_license_plan(data.get('tier', 'BASICA'))
 
-    # Si el token es PRO, verificar que ya tenga Básica activa
-    if tier_token == 'PRO':
+    # Si el token es Mensual Full, verificar que ya tenga Básica activa
+    if tier_token == 'MENSUAL_FULL':
         cfg = db.get_config()
         tiene_basica = (
             cfg.get('demo_mode', '1') == '0' and
@@ -333,8 +621,8 @@ def licencia_activar():
         )
         if not tiene_basica:
             flash(
-                '⚠ Para activar el Plan Pro primero debés activar el Plan Básico. '
-                'Contactá al desarrollador para adquirir el bundle Básica + Pro.',
+                '⚠ Para activar Mensual Full primero debés activar el Plan Básico. '
+                'Contactá al desarrollador para adquirir el bundle Básica + Mensual Full.',
                 'warning'
             )
             return redirect(url_for('licencia'))
@@ -343,12 +631,29 @@ def licencia_activar():
     ok, msg = db.activar_licencia(token)
     if ok:
         tier = db.get_tier()
-        if tier == 'PRO':
-            flash('🎉 ¡Plan Pro activado! Acceso ilimitado + actualizaciones habilitadas.', 'success')
+        if tier == 'MENSUAL_FULL':
+            flash('🎉 ¡Mensual Full activado! Acceso ilimitado + actualizaciones habilitadas.', 'success')
         else:
             flash('✅ ¡Plan Básico activado! Sistema habilitado con funciones del plan Básico.', 'success')
     else:
         flash(f'❌ {msg}', 'danger')
+    return redirect(url_for('licencia'))
+
+@app.route('/licencia/solicitar', methods=['POST'])
+@admin_required
+def licencia_solicitar():
+    _request_id, machine_details = generate_activation_id(session.get('user', {}).get('username', ''))
+    activation_id = request.form.get('activation_id') or get_current_hwid()
+    ok, msg, _ = create_license_request(
+        nombre=request.form.get('nombre', ''),
+        email=request.form.get('email', ''),
+        whatsapp=request.form.get('whatsapp', ''),
+        activation_id=activation_id,
+        producto=get_license_product(),
+        plan=request.form.get('plan', 'BASICA'),
+        machine_details=machine_details,
+    )
+    flash(f'Solicitud enviada: {msg}' if ok else f'No se pudo enviar la solicitud: {msg}', 'success' if ok else 'danger')
     return redirect(url_for('licencia'))
 
 # ─── USUARIOS (admin only) ───────────────────────────────────────────────────
@@ -412,10 +717,55 @@ def usuario_eliminar(uid):
     return redirect(url_for('usuarios'))
 
 # ─── AYUDA / ACERCA ──────────────────────────────────────────────────────────
-@app.route('/ayuda')
+@app.route('/ayuda', methods=['GET', 'POST'])
 @login_required
 def ayuda():
-    return render_template('ayuda.html')
+    cfg = db.get_config()
+    licencia = db.get_license_info()
+    user = session.get('user', {})
+    support_defaults = {
+        "nombre": request.form.get("nombre") or user.get("nombre_completo") or user.get("username", ""),
+        "email": request.form.get("email", ""),
+        "whatsapp": request.form.get("whatsapp", ""),
+        "motivo": request.form.get("motivo", request.args.get("motivo", "consulta")),
+        "mensaje": request.form.get("mensaje", ""),
+    }
+
+    if request.method == 'POST':
+        ok, msg, _data = create_support_request(
+            nombre=support_defaults["nombre"],
+            email=support_defaults["email"],
+            whatsapp=support_defaults["whatsapp"],
+            motivo=support_defaults["motivo"],
+            mensaje=support_defaults["mensaje"],
+            producto=get_license_product(),
+            app_version=APP_VERSION,
+            negocio=cfg.get("nombre_negocio", ""),
+            plan=licencia.get("tier", ""),
+            user_name=user.get("username", ""),
+            technical_details={
+                "license": {
+                    "tier": licencia.get("tier", ""),
+                    "expires_at": licencia.get("expires_at", ""),
+                    "support": licencia.get("support", False),
+                    "updates": licencia.get("updates", False),
+                },
+                "platform": sys.platform,
+                "version": APP_VERSION,
+            },
+        )
+        flash("Solicitud de soporte enviada correctamente." if ok else f"No se pudo enviar la solicitud: {msg}", "success" if ok else "danger")
+        if ok:
+            return redirect(url_for("ayuda", soporte="enviado"))
+
+    return render_template(
+        'ayuda.html',
+        app_version=APP_VERSION,
+        negocio=cfg.get("nombre_negocio", "Nexar Almacen"),
+        licencia=licencia,
+        support_defaults=support_defaults,
+        supabase_ok=supabase_configured(),
+    )
 
 @app.route('/acerca')
 @login_required
@@ -868,7 +1218,7 @@ def config():
 @app.route('/config/categoria', methods=['POST'])
 @admin_required
 def config_categoria():
-    if db.get_tier() == 'BASICA':
+    if not db.get_license_info().get('updates'):
         flash(
             '⚠ Crear categorías personalizadas requiere el plan Pro. '
             'Podés usar las 23 categorías incluidas en el plan Básico.',
@@ -1536,13 +1886,211 @@ def apagar_rapido():
 @app.route('/actualizacion')
 @admin_required
 def actualizacion():
-    if db.get_tier() == 'BASICA':
+    license_info = db.get_license_info()
+    can_use_updates = license_info.get("tier") == "MENSUAL_FULL" and license_info.get("updates")
+    if not can_use_updates:
+        flash('Las actualizaciones del sistema estan disponibles solo en el plan Mensual Full.', 'warning')
+        return redirect(url_for('dashboard'))
+    update_state = _update_install_state(APP_VERSION)
+    update_info = (
+        get_cached_update_info(app, APP_VERSION)
+        if update_state.get("status") not in {"in_progress", "ready_restart"}
+        else {"available": False}
+    )
+    return render_template(
+        'actualizacion.html',
+        app_version=APP_VERSION,
+        update_info=update_info,
+        update_state=update_state,
+        actualizaciones=_update_list(),
+        update_dir=UPDATE_DIR,
+    )
+    if not db.get_license_info().get('updates'):
         flash(
             '⚠ Las actualizaciones del sistema están disponibles solo en el plan Pro.',
             'warning'
         )
         return redirect(url_for('dashboard'))
     return render_template('actualizacion.html', app_version=APP_VERSION)
+
+
+@app.route('/actualizacion/descargar', methods=['POST'])
+@admin_required
+def actualizacion_descargar():
+    license_info = db.get_license_info()
+    if license_info.get("tier") != "MENSUAL_FULL" or not license_info.get("updates"):
+        flash("Las actualizaciones estan disponibles solo para el plan Mensual Full.", "warning")
+        return redirect(url_for("actualizacion"))
+
+    update_info = get_cached_update_info(app, APP_VERSION)
+    if not update_info.get("available"):
+        flash("No hay una actualizacion nueva disponible.", "info")
+        return redirect(url_for("actualizacion"))
+    if not update_info.get("asset_url"):
+        flash("La release existe, pero no tiene instalador compatible para este sistema. Abrila en GitHub.", "warning")
+        return redirect(url_for("actualizacion"))
+
+    backup_ok, backup_msg = hacer_backup(manual=True)
+    if not backup_ok:
+        flash(f"No se pudo crear el respaldo previo: {backup_msg}", "danger")
+        return redirect(url_for("actualizacion"))
+
+    try:
+        target = download_release_asset(update_info["asset_url"], UPDATE_DIR)
+    except Exception as exc:
+        flash(f"No se pudo descargar la actualizacion: {exc}", "danger")
+        return redirect(url_for("actualizacion"))
+
+    flash(f"Actualizacion descargada: {target.name}. Respaldo previo: {os.path.basename(backup_msg)}.", "success")
+    return redirect(url_for("actualizacion"))
+
+
+@app.route('/actualizacion/abrir-carpeta', methods=['POST'])
+@admin_required
+def actualizacion_abrir_carpeta():
+    UPDATE_DIR.mkdir(parents=True, exist_ok=True)
+    if sys.platform.startswith("linux"):
+        try:
+            subprocess.Popen(["xdg-open", str(UPDATE_DIR)])
+            flash("Carpeta de actualizaciones abierta.", "success")
+        except Exception as exc:
+            flash(f"No se pudo abrir la carpeta: {exc}", "warning")
+    elif sys.platform.startswith("win"):
+        try:
+            os.startfile(str(UPDATE_DIR))  # type: ignore[attr-defined]
+            flash("Carpeta de actualizaciones abierta.", "success")
+        except Exception as exc:
+            flash(f"No se pudo abrir la carpeta: {exc}", "warning")
+    else:
+        flash(f"Carpeta de actualizaciones: {UPDATE_DIR}", "info")
+    return redirect(url_for("actualizacion"))
+
+
+@app.route('/actualizacion/instalar/<nombre>', methods=['POST'])
+@admin_required
+def actualizacion_instalar(nombre):
+    license_info = db.get_license_info()
+    if license_info.get("tier") != "MENSUAL_FULL" or not license_info.get("updates"):
+        flash("Las actualizaciones estan disponibles solo para el plan Mensual Full.", "warning")
+        return redirect(url_for("actualizacion"))
+
+    try:
+        installer = _update_file(nombre)
+    except FileNotFoundError as exc:
+        flash(str(exc), "danger")
+        return redirect(url_for("actualizacion"))
+
+    target_version = _installer_version(installer.name)
+    if not target_version:
+        flash("No se pudo identificar la version del instalador.", "warning")
+        return redirect(url_for("actualizacion"))
+
+    db.set_config({
+        "update_install_status": "in_progress",
+        "update_target_version": target_version,
+        "update_installer_name": installer.name,
+        "update_started_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "update_finished_at": "",
+        "update_installed_at": "",
+        "update_install_error": "",
+    })
+
+    backup_ok, backup_msg = hacer_backup(manual=True)
+    if not backup_ok:
+        db.set_config({"update_install_status": "install_failed", "update_install_error": backup_msg})
+        flash(f"No se pudo crear el respaldo previo: {backup_msg}", "danger")
+        return redirect(url_for("actualizacion"))
+
+    is_windows_installer = installer.suffix.lower() == ".exe"
+    command = str(installer) if is_windows_installer else f"sudo apt install /tmp/nexar-almacen-updates/{installer.name}"
+
+    if sys.platform.startswith("win") and is_windows_installer:
+        try:
+            process = subprocess.Popen([str(installer)])
+            _track_update_process(target_version, process)
+            flash(
+                f"Instalador de Windows iniciado. Respaldo previo: {os.path.basename(backup_msg)}. "
+                "Cuando termine, Nexar Almacen te va a pedir reiniciar la app.",
+                "success",
+            )
+        except Exception as exc:
+            db.set_config({"update_install_status": "install_failed", "update_install_error": str(exc)})
+            flash(f"No se pudo iniciar el instalador: {exc}. Ejecuta manualmente: {command}", "warning")
+        return redirect(url_for("actualizacion"))
+
+    if not sys.platform.startswith("linux"):
+        db.set_config({
+            "update_install_status": "ready_restart",
+            "update_finished_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        })
+        flash(f"Respaldo creado ({os.path.basename(backup_msg)}). Instala manualmente: {command}", "info")
+        return redirect(url_for("actualizacion"))
+
+    try:
+        apt_installer = _apt_readable_copy(installer)
+        process = subprocess.Popen(["pkexec", "apt", "install", "-y", str(apt_installer)])
+        _track_update_process(target_version, process)
+        flash(
+            f"Instalador iniciado con permisos de administrador. Respaldo previo: {os.path.basename(backup_msg)}. "
+            "Cuando termine, Nexar Almacen te va a pedir reiniciar la app.",
+            "success",
+        )
+    except FileNotFoundError:
+        db.set_config({
+            "update_install_status": "ready_restart",
+            "update_finished_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        })
+        flash(f"Respaldo creado ({os.path.basename(backup_msg)}). pkexec no esta disponible; ejecuta: {command}", "warning")
+    except Exception as exc:
+        db.set_config({"update_install_status": "install_failed", "update_install_error": str(exc)})
+        flash(f"No se pudo iniciar el instalador: {exc}. Ejecuta: {command}", "warning")
+    return redirect(url_for("actualizacion"))
+
+
+@app.route('/actualizacion/estado')
+@admin_required
+def actualizacion_estado():
+    return jsonify(_update_install_state(APP_VERSION))
+
+
+@app.route('/actualizacion/reiniciar', methods=['POST'])
+@admin_required
+def actualizacion_reiniciar():
+    session.clear()
+    installer_name = db.get_config().get("update_installer_name", "")
+    manual_reopen = _requires_manual_reopen(installer_name)
+
+    def _shutdown():
+        import time as _t
+        _t.sleep(1.2)
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    threading.Thread(target=_shutdown, daemon=True).start()
+    return render_template(
+        'apagado.html',
+        titulo="Cerrando Nexar Almacen" if manual_reopen else "Reiniciando Nexar Almacen",
+        mensaje=(
+            "La actualizacion ya se instalo. Volve a abrir Nexar Almacen desde el acceso directo."
+            if manual_reopen
+            else "La app se cerrara para que puedas volver a abrirla con la version nueva."
+        ),
+        estado="Podes cerrar esta ventana cuando el sistema termine de apagarse.",
+    )
+
+
+@app.route('/actualizacion/limpiar-estado', methods=['POST'])
+@admin_required
+def actualizacion_limpiar_estado():
+    db.set_config({
+        "update_install_status": "",
+        "update_target_version": "",
+        "update_installer_name": "",
+        "update_started_at": "",
+        "update_finished_at": "",
+        "update_installed_at": "",
+        "update_install_error": "",
+    })
+    return redirect(url_for("actualizacion"))
 
 
 @app.route('/actualizacion/aplicar', methods=['POST'])
