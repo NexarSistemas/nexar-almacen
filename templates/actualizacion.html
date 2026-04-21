@@ -1,148 +1,193 @@
 {% extends 'base.html' %}
-{% block title %}Actualización del Sistema{% endblock %}
+{% block title %}Actualizacion del Sistema{% endblock %}
 {% block page_title %}
-  <i class="fas fa-sync-alt me-2" style="color:#1565c0"></i>Actualización del Sistema
+  <i class="fas fa-sync-alt me-2" style="color:#1565c0"></i>Actualizacion del Sistema
 {% endblock %}
 
 {% block content %}
 <style>
-.upd-card { background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.07); padding:24px; margin-bottom:18px; }
-.step-num { width:28px;height:28px;background:#3a7d44;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0; }
-.version-badge { background:#1a2e1a;color:#fff;border-radius:20px;padding:4px 16px;font-size:.9rem;font-weight:700;letter-spacing:.05em; }
+.upd-card { background:#fff; border-radius:10px; box-shadow:0 1px 6px rgba(0,0,0,.07); padding:22px 24px; margin-bottom:18px; }
+.version-badge { background:#1a2e1a; color:#fff; border-radius:20px; padding:4px 16px; font-size:.9rem; font-weight:700; letter-spacing:.04em; }
+.update-row { border-bottom:1px solid #eef1ee; padding:12px 0; }
+.update-row:last-child { border-bottom:0; }
+.state-box { border-radius:8px; padding:12px 14px; font-size:.9rem; }
 </style>
 
 <div class="row g-3">
-<div class="col-lg-7">
-
-  <!-- Versión actual -->
-  <div class="upd-card">
-    <div class="d-flex align-items-center gap-3 mb-3">
-      <i class="fas fa-box" style="font-size:1.5rem;color:#3a7d44"></i>
-      <div>
-        <div class="fw-bold" style="color:#1a2e1a">Versión instalada actualmente</div>
-        <span class="version-badge">v{{ app_version }}</span>
-      </div>
-    </div>
-    <div style="background:#e8f5e9;border-radius:8px;padding:12px 16px;font-size:.85rem;color:#2e7d32">
-      <i class="fas fa-check-circle me-1"></i>
-      La base de datos nunca se sobrescribe durante una actualización. Tus ventas, productos y configuración están siempre seguros.
-    </div>
-  </div>
-
-  <!-- Formulario de actualización -->
-  <div class="upd-card">
-    <h6 class="fw-bold mb-3" style="color:#1a2e1a">
-      <i class="fas fa-upload me-2 text-primary"></i>Aplicar actualización
-    </h6>
-
-    <form method="post" action="/actualizacion/aplicar"
-          enctype="multipart/form-data"
-          onsubmit="show_progress()">
-      <div class="mb-3">
-        <label class="form-label fw-bold" style="font-size:.9rem">
-          Archivo ZIP de la nueva versión <span class="text-danger">*</span>
-        </label>
-        <input type="file" name="archivo_zip" accept=".zip"
-               class="form-control" required
-               onchange="show_filename(this)">
-        <div id="fname" class="mt-1" style="font-size:.83rem;color:#3a7d44;display:none">
-          <i class="fas fa-file-archive me-1"></i><span id="fnametxt"></span>
+  <div class="col-lg-7">
+    <div class="upd-card">
+      <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-3">
+        <div>
+          <div class="fw-bold" style="color:#1a2e1a">Version instalada</div>
+          <span class="version-badge">v{{ app_version }}</span>
         </div>
-        <small class="text-muted">
-          El ZIP debe ser el portable oficial del sistema (nexaralmacen_vX.X.X_Portable.zip)
-        </small>
+        <form method="post" action="{{ url_for('actualizacion_abrir_carpeta') }}">
+          <button class="btn btn-outline-secondary btn-sm" type="submit">
+            <i class="fas fa-folder-open me-1"></i>Carpeta
+          </button>
+        </form>
       </div>
-
-      <div class="alert alert-warning py-2 mb-3" style="font-size:.83rem">
-        <i class="fas fa-exclamation-triangle me-1"></i>
-        <strong>Importante:</strong> Después de aplicar la actualización, cerrar y volver a iniciar el sistema para que los cambios tomen efecto.
-      </div>
-
-      <button type="submit" class="btn btn-primary px-4" id="btnUpdate">
-        <i class="fas fa-upload me-2"></i>Aplicar actualización
-      </button>
-      <span id="prog" style="display:none;margin-left:12px;font-size:.9rem;color:#888">
-        <i class="fas fa-spinner fa-spin me-1"></i>Aplicando... no cierres esta ventana.
-      </span>
-    </form>
-  </div>
-
-</div><!-- col-lg-7 -->
-
-<div class="col-lg-5">
-
-  <!-- Pasos -->
-  <div class="upd-card">
-    <h6 class="fw-bold mb-3" style="color:#1a2e1a">
-      <i class="fas fa-list-ol me-2 text-success"></i>Cómo actualizar
-    </h6>
-    {% set steps = [
-      (1, 'Obtené el ZIP', 'Descargá el nuevo nexaralmacen_vX.X.X_Portable.zip del desarrollador.'),
-      (2, 'Subí el archivo', 'Seleccioná el ZIP en el formulario de la izquierda y hacé clic en Aplicar.'),
-      (3, 'Esperá', 'El sistema extrae solo los archivos de código (.py y .html). La base de datos no se toca.'),
-      (4, 'Reiniciá', 'Cerrá el sistema con Ctrl+C o el botón Apagar y volvé a abrirlo con python iniciar.py.'),
-    ] %}
-    {% for n, titulo, desc in steps %}
-    <div class="d-flex gap-3 mb-3">
-      <div class="step-num">{{ n }}</div>
-      <div>
-        <div class="fw-bold" style="font-size:.88rem;color:#1a2e1a">{{ titulo }}</div>
-        <div style="font-size:.82rem;color:#666">{{ desc }}</div>
+      <div style="background:#e8f5e9;border-radius:8px;padding:12px 16px;font-size:.85rem;color:#2e7d32">
+        <i class="fas fa-shield-alt me-1"></i>
+        Antes de instalar se crea un respaldo. La base de datos, la licencia y la configuracion del usuario quedan fuera del instalador.
       </div>
     </div>
-    {% endfor %}
-  </div>
 
-  <!-- Qué actualiza / no actualiza -->
-  <div class="upd-card">
-    <h6 class="fw-bold mb-3" style="color:#1a2e1a">
-      <i class="fas fa-shield-alt me-2 text-success"></i>Qué se actualiza
-    </h6>
-    <table class="table table-sm" style="font-size:.82rem">
-      <tr><td><i class="fas fa-check text-success me-1"></i>Archivos .py (lógica)</td><td class="text-success">✅ Se actualiza</td></tr>
-      <tr><td><i class="fas fa-check text-success me-1"></i>Templates .html (interfaz)</td><td class="text-success">✅ Se actualiza</td></tr>
-      <tr><td><i class="fas fa-check text-success me-1"></i>Módulos y servicios</td><td class="text-success">✅ Se actualiza</td></tr>
-      <tr><td><i class="fas fa-times text-danger me-1"></i>almacen.db (tus datos)</td><td class="text-danger">🔒 NUNCA se toca</td></tr>
-      <tr><td><i class="fas fa-times text-danger me-1"></i>Ventas y productos</td><td class="text-danger">🔒 NUNCA se toca</td></tr>
-      <tr><td><i class="fas fa-times text-danger me-1"></i>Usuarios y licencia</td><td class="text-danger">🔒 NUNCA se toca</td></tr>
-    </table>
-  </div>
+    <div class="upd-card">
+      <h6 class="fw-bold mb-3" style="color:#1a2e1a">
+        <i class="fas fa-cloud-download-alt me-2 text-primary"></i>Buscar y descargar actualizacion
+      </h6>
 
-  <!-- Contacto -->
-  <div class="upd-card" style="background:#1a2e1a;color:#fff">
-    <h6 class="fw-bold mb-2" style="color:#a5d6a7">
-      <i class="fas fa-download me-2"></i>Obtener actualizaciones
-    </h6>
-    <p style="font-size:.83rem;color:#bbb;margin-bottom:12px">
-      Contactá al desarrollador para recibir el ZIP de la nueva versión.
-    </p>
-    <div class="d-flex align-items-center gap-2 mb-2">
-      <i class="fab fa-whatsapp" style="color:#25d366;font-size:1.2rem"></i>
-      <a href="https://wa.me/5492645858874" target="_blank"
-         style="color:#a5d6a7;font-size:.88rem">+549 264 585-8874</a>
+      {% if update_state and update_state.status == 'installed' %}
+        <div class="state-box bg-success-subtle text-success mb-3">
+          <strong>Actualizacion instalada.</strong><br>
+          Nexar Almacen ya esta en la version v{{ update_state.current_version }}.
+        </div>
+        <form method="post" action="{{ url_for('actualizacion_limpiar_estado') }}">
+          <button class="btn btn-outline-success btn-sm"><i class="fas fa-check me-1"></i>Entendido</button>
+        </form>
+      {% elif update_state and update_state.status == 'ready_restart' %}
+        <div class="state-box bg-warning-subtle text-warning-emphasis mb-3">
+          <strong>Actualizacion v{{ update_state.target_version }} lista.</strong><br>
+          {% if update_state.manual_reopen %}
+            Cerra Nexar Almacen y volvelo a abrir desde el acceso directo para terminar.
+          {% else %}
+            Reinicia Nexar Almacen para terminar de aplicar la version nueva.
+          {% endif %}
+        </div>
+        <form method="post" action="{{ url_for('actualizacion_reiniciar') }}">
+          <button class="btn btn-warning">
+            <i class="fas fa-power-off me-1"></i>
+            {% if update_state.manual_reopen %}Cerrar app{% else %}Reiniciar app{% endif %}
+          </button>
+        </form>
+      {% elif update_state and update_state.status == 'in_progress' %}
+        <div class="state-box bg-info-subtle text-info-emphasis" id="update-progress-alert">
+          <strong>Instalando v{{ update_state.target_version }}...</strong><br>
+          Cuando el instalador termine, esta pantalla se actualizara sola.
+        </div>
+      {% elif update_state and update_state.status == 'install_failed' %}
+        <div class="state-box bg-danger-subtle text-danger mb-3">
+          <strong>No se pudo completar la instalacion.</strong><br>
+          {{ update_state.error or 'Revisa el instalador y volve a intentar.' }}
+        </div>
+        <form method="post" action="{{ url_for('actualizacion_limpiar_estado') }}">
+          <button class="btn btn-outline-danger btn-sm"><i class="fas fa-times me-1"></i>Descartar aviso</button>
+        </form>
+      {% elif update_info and update_info.available %}
+        <p class="mb-2"><strong>Disponible v{{ update_info.latest }}</strong></p>
+        <p class="text-muted small mb-3">Se descargara el instalador compatible con este sistema y se creara un respaldo antes de hacerlo.</p>
+        <div class="d-flex gap-2 flex-wrap">
+          <form method="post" action="{{ url_for('actualizacion_descargar') }}">
+            <button class="btn btn-success"><i class="fas fa-download me-1"></i>Descargar actualizacion</button>
+          </form>
+          <a class="btn btn-outline-secondary" href="{{ update_info.url }}" target="_blank" rel="noopener">
+            <i class="fas fa-external-link-alt me-1"></i>Ver release
+          </a>
+        </div>
+      {% else %}
+        <div class="state-box bg-light text-muted">
+          <strong>No hay actualizaciones nuevas.</strong><br>
+          Tenes instalada la ultima version disponible para este equipo.
+        </div>
+      {% endif %}
     </div>
-    <div class="d-flex align-items-center gap-2">
-      <i class="fas fa-envelope" style="color:#e65100;font-size:1rem"></i>
-      <a href="mailto:nexarsistemas@outlook.com.ar"
-         style="color:#a5d6a7;font-size:.88rem">nexarsistemas@outlook.com.ar</a>
+
+    <div class="upd-card">
+      <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-2">
+        <h6 class="fw-bold mb-0" style="color:#1a2e1a">
+          <i class="fas fa-box-open me-2 text-success"></i>Instaladores descargados
+        </h6>
+        <small class="text-muted">{{ update_dir }}</small>
+      </div>
+
+      {% for u in actualizaciones %}
+        <div class="update-row">
+          <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+            <div>
+              <code>{{ u.nombre }}</code>
+              <div class="small text-muted">{{ u.tipo }} · {{ u.fecha }} · {{ u.tamanio_mb }} MB</div>
+              {% if u.version %}<span class="badge bg-light text-dark border">v{{ u.version }}</span>{% endif %}
+            </div>
+            <form method="post" action="{{ url_for('actualizacion_instalar', nombre=u.nombre) }}"
+                  onsubmit="return confirm('Se creara un respaldo y se abrira el instalador del sistema. Al terminar, Nexar Almacen te va a pedir reiniciar la app.')">
+              <button class="btn btn-sm btn-success" {% if update_state and update_state.status in ['in_progress', 'ready_restart'] %}disabled{% endif %}>
+                <i class="fas fa-play me-1"></i>Instalar
+              </button>
+            </form>
+          </div>
+          <div class="mt-1"><code class="small">{{ u.comando }}</code></div>
+        </div>
+      {% else %}
+        <div class="text-muted small py-3">Todavia no hay instaladores descargados.</div>
+      {% endfor %}
     </div>
   </div>
 
+  <div class="col-lg-5">
+    <div class="upd-card">
+      <h6 class="fw-bold mb-3" style="color:#1a2e1a">
+        <i class="fas fa-list-ol me-2 text-success"></i>Flujo recomendado
+      </h6>
+      {% set steps = [
+        ('Buscar', 'La app consulta la ultima release publicada en GitHub.'),
+        ('Descargar', 'Antes de guardar el instalador crea un respaldo local.'),
+        ('Instalar', 'Windows abre el setup; Linux intenta usar pkexec apt install.'),
+        ('Reiniciar', 'Al finalizar, cerra o reinicia la app para cargar la version nueva.')
+      ] %}
+      {% for title, desc in steps %}
+        <div class="d-flex gap-3 mb-3">
+          <div style="width:28px;height:28px;background:#3a7d44;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem">{{ loop.index }}</div>
+          <div>
+            <div class="fw-bold" style="font-size:.88rem;color:#1a2e1a">{{ title }}</div>
+            <div style="font-size:.82rem;color:#666">{{ desc }}</div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="upd-card">
+      <h6 class="fw-bold mb-3" style="color:#1a2e1a">
+        <i class="fas fa-shield-alt me-2 text-success"></i>Que queda protegido
+      </h6>
+      <ul class="small mb-0" style="line-height:1.8;color:#444">
+        <li>Base de datos y respaldos.</li>
+        <li>Licencia activa y cache local.</li>
+        <li>Usuarios, recuperacion y configuracion del negocio.</li>
+        <li>Datos comerciales: ventas, productos, caja, clientes y proveedores.</li>
+      </ul>
+    </div>
+
+    <div class="upd-card" style="background:#1a2e1a;color:#fff">
+      <h6 class="fw-bold mb-2" style="color:#a5d6a7">
+        <i class="fas fa-headset me-2"></i>Soporte
+      </h6>
+      <p style="font-size:.83rem;color:#d7e8d7;margin-bottom:12px">
+        Si la descarga no aparece o el instalador falla, envia una solicitud desde Ayuda.
+      </p>
+      <a href="{{ url_for('ayuda') }}#soporte" class="btn btn-sm btn-outline-light">
+        <i class="fas fa-paper-plane me-1"></i>Solicitar soporte
+      </a>
+    </div>
+  </div>
 </div>
-</div><!-- row -->
+{% endblock %}
 
-<script>
-function show_progress() {
-  document.getElementById('prog').style.display = 'inline';
-  document.getElementById('btnUpdate').disabled = true;
-  document.getElementById('btnUpdate').innerHTML =
-    '<i class="fas fa-spinner fa-spin me-2"></i>Aplicando...';
-}
-function show_filename(input) {
-  if (input.files.length > 0) {
-    document.getElementById('fnametxt').textContent = input.files[0].name;
-    document.getElementById('fname').style.display = 'block';
-  }
-}
-</script>
+{% block scripts %}
+  {% if update_state and update_state.status == 'in_progress' %}
+    <script>
+      (function pollUpdateStatus() {
+        fetch("{{ url_for('actualizacion_estado') }}")
+          .then(response => response.ok ? response.json() : null)
+          .then(data => {
+            if (!data) return;
+            if (data.status && data.status !== 'in_progress') {
+              window.location.reload();
+            }
+          })
+          .catch(() => {});
+        setTimeout(pollUpdateStatus, 5000);
+      })();
+    </script>
+  {% endif %}
 {% endblock %}

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Configuración Inicial - Nexar Almacen</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<style>
+body{background:linear-gradient(135deg,#1a2e1a 0%,#2d4f2d 40%,#1a3a2a 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:'Segoe UI',sans-serif;padding:20px}
+.setup-card{background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.4);overflow:hidden;width:520px;max-width:96vw}
+.setup-header{background:linear-gradient(135deg,#1a2e1a,#3a7d44);padding:30px 32px 24px;text-align:center;color:#fff}
+.setup-header .store-icon{font-size:2.8rem;margin-bottom:8px;display:block}
+.setup-header h3{margin:0;font-weight:700;font-size:1.35rem}
+.setup-header p{margin:5px 0 0;color:#c8e6c9;font-size:.9rem}
+.setup-body{padding:28px 32px}
+.form-label{font-weight:700;color:#333;font-size:.86rem}
+.form-control{border-radius:8px;border:1.5px solid #ddd;padding:10px 14px;font-size:.94rem}
+.form-control:focus{border-color:#3a7d44;box-shadow:0 0 0 3px rgba(58,125,68,.12)}
+.input-icon{position:relative}
+.input-icon i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#888;font-size:.9rem;pointer-events:none}
+.input-icon .form-control{padding-left:38px}
+.btn-setup{background:linear-gradient(135deg,#2e7d32,#3a7d44);color:#fff;border:0;border-radius:8px;padding:12px;font-weight:700;width:100%}
+.setup-footer{padding:14px 32px 20px;text-align:center;color:#999;font-size:.78rem;border-top:1px solid #f0f0f0}
+</style>
+</head>
+<body>
+<div class="setup-card">
+  <div class="setup-header">
+    <span class="store-icon"><i class="fas fa-store"></i></span>
+    <h3>Configuración Inicial</h3>
+    <p>Creá el usuario administrador del sistema</p>
+  </div>
+  <div class="setup-body">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="alert alert-{{ 'success' if cat=='success' else 'danger' if cat=='danger' else 'warning' if cat=='warning' else 'info' }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+    <form method="post">
+      <div class="mb-3">
+        <label class="form-label">Nombre completo</label>
+        <div class="input-icon"><i class="fas fa-id-card"></i><input class="form-control" name="nombre_completo" required autofocus></div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Usuario</label>
+        <div class="input-icon"><i class="fas fa-user"></i><input class="form-control" name="username" autocomplete="username" required></div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Contraseña</label>
+        <div class="input-icon"><i class="fas fa-lock"></i><input class="form-control" type="password" name="password" autocomplete="new-password" required></div>
+        <small class="text-muted">6 a 12 caracteres, con mayúscula, minúscula, número y símbolo.</small>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Pregunta de recuperación</label>
+        <div class="input-icon"><i class="fas fa-question-circle"></i><input class="form-control" name="security_question" required placeholder="Ej: ¿Ciudad donde nací?"></div>
+      </div>
+      <div class="mb-4">
+        <label class="form-label">Respuesta de recuperación</label>
+        <div class="input-icon"><i class="fas fa-key"></i><input class="form-control" name="security_answer" required></div>
+      </div>
+      <button class="btn-setup" type="submit"><i class="fas fa-check me-2"></i>Crear administrador</button>
+    </form>
+  </div>
+  <div class="setup-footer">Nexar Almacen · v{{ app_version }}</div>
+</div>
+</body>
+</html>

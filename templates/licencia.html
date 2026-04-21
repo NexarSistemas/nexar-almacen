@@ -3,24 +3,27 @@
 {% block page_title %}<i class="fas fa-key me-2" style="color:#f9a825"></i>Licencia del Sistema{% endblock %}
 
 {% block content %}
+{% set plan_label = 'Demo' %}
+{% if lic_info and lic_info.tier == 'BASICA' %}
+  {% set plan_label = 'Basica' %}
+{% elif lic_info and lic_info.tier == 'MENSUAL_FULL' %}
+  {% set plan_label = 'Mensual Full' %}
+{% endif %}
+
 <div class="row g-3">
   <div class="col-lg-7">
-
-    <!-- ── CARD DE ESTADO ──────────────────────────────────────────────────── -->
     <div class="table-card p-4 mb-3">
-
-      {# ── Sistema Pro activo ── #}
-      {% if not status.demo and lic_info and lic_info.tier == 'PRO' %}
+      {% if not status.demo and lic_info and lic_info.tier == 'MENSUAL_FULL' %}
       <div class="text-center mb-4">
-        <div style="font-size:3.5rem">⭐</div>
-        <h4 style="color:#1565c0;font-weight:700">PLAN PRO ACTIVO</h4>
-        <p class="text-muted mb-0">Acceso ilimitado + actualizaciones incluidas.</p>
+        <i class="fas fa-star" style="font-size:3rem;color:#1565c0"></i>
+        <h4 style="color:#1565c0;font-weight:700;margin-top:10px">MENSUAL FULL ACTIVO</h4>
+        <p class="text-muted mb-0">Acceso ilimitado, soporte y actualizaciones incluidas.</p>
       </div>
       <div style="background:#e3f2fd;border-radius:8px;padding:14px 16px;margin-bottom:20px">
         <div class="row g-2 text-center">
           <div class="col-3">
-            <div style="font-size:.75rem;color:#888;text-transform:uppercase">Tipo</div>
-            <div style="font-weight:700;color:#1565c0">Pro Mensual</div>
+            <div style="font-size:.75rem;color:#888;text-transform:uppercase">Plan</div>
+            <div style="font-weight:700;color:#1565c0">Mensual Full</div>
           </div>
           <div class="col-3">
             <div style="font-size:.75rem;color:#888;text-transform:uppercase">PCs</div>
@@ -28,29 +31,26 @@
           </div>
           <div class="col-3">
             <div style="font-size:.75rem;color:#888;text-transform:uppercase">Activada</div>
-            <div style="font-weight:700;color:#1565c0;font-size:.85rem">{{ lic_info.activated_at[:10] if lic_info.activated_at else '—' }}</div>
+            <div style="font-weight:700;color:#1565c0;font-size:.85rem">{{ lic_info.activated_at[:10] if lic_info.activated_at else '-' }}</div>
           </div>
           <div class="col-3">
             <div style="font-size:.75rem;color:#888;text-transform:uppercase">Vence</div>
-            <div style="font-weight:700;color:{% if lic_info.expires_at %}#e65100{% else %}#2e7d32{% endif %};font-size:.85rem">
-              {{ lic_info.expires_at if lic_info.expires_at else '—' }}
-            </div>
+            <div style="font-weight:700;color:#e65100;font-size:.85rem">{{ lic_info.expires_at if lic_info.expires_at else '-' }}</div>
           </div>
         </div>
       </div>
 
-      {# ── Sistema Básico activo ── #}
       {% elif not status.demo and lic_info and lic_info.tier == 'BASICA' %}
       <div class="text-center mb-4">
-        <div style="font-size:3.5rem">✅</div>
-        <h4 style="color:#2e7d32;font-weight:700">PLAN BÁSICO ACTIVO</h4>
-        <p class="text-muted mb-0">Sistema habilitado con funciones del plan Básico.</p>
+        <i class="fas fa-check-circle" style="font-size:3rem;color:#2e7d32"></i>
+        <h4 style="color:#2e7d32;font-weight:700;margin-top:10px">PLAN BASICO ACTIVO</h4>
+        <p class="text-muted mb-0">Sistema habilitado con funciones del plan Basico.</p>
       </div>
       <div style="background:#e8f5e9;border-radius:8px;padding:14px 16px;margin-bottom:20px">
         <div class="row g-2 text-center">
           <div class="col-4">
-            <div style="font-size:.75rem;color:#888;text-transform:uppercase">Tipo</div>
-            <div style="font-weight:700;color:#2e7d32">Básica — Pago único</div>
+            <div style="font-size:.75rem;color:#888;text-transform:uppercase">Plan</div>
+            <div style="font-weight:700;color:#2e7d32">Basica permanente</div>
           </div>
           <div class="col-4">
             <div style="font-size:.75rem;color:#888;text-transform:uppercase">PCs autorizadas</div>
@@ -58,7 +58,7 @@
           </div>
           <div class="col-4">
             <div style="font-size:.75rem;color:#888;text-transform:uppercase">Activada</div>
-            <div style="font-weight:700;color:#2e7d32;font-size:.85rem">{{ lic_info.activated_at[:10] if lic_info.activated_at else '—' }}</div>
+            <div style="font-weight:700;color:#2e7d32;font-size:.85rem">{{ lic_info.activated_at[:10] if lic_info.activated_at else '-' }}</div>
           </div>
         </div>
         {% if lic_info.license_key %}
@@ -68,83 +68,34 @@
         {% endif %}
       </div>
 
-      {# ── Límites actuales del plan Básico ── #}
-      {% set lim = tier_limits %}
-      <div style="background:#f5f5f5;border-radius:8px;padding:14px 16px;margin-bottom:20px">
-        <div class="fw-bold mb-2" style="font-size:.85rem;color:#1a2e1a">
-          <i class="fas fa-tachometer-alt me-1"></i>Uso actual del plan
-        </div>
-        <div class="row g-2 text-center">
-          <div class="col-4">
-            <div style="font-size:.75rem;color:#888">Productos OFF</div>
-            <div style="font-weight:700;font-size:1.1rem;color:{% if lim.productos_off_actual >= 180 %}#c62828{% else %}#1a2e1a{% endif %}">
-              {{ lim.productos_off_actual }} / 200
-            </div>
-            <div class="progress mt-1" style="height:4px">
-              <div class="progress-bar {% if lim.productos_off_actual >= 180 %}bg-danger{% else %}bg-success{% endif %}"
-                   style="width:{{ [lim.productos_off_actual / 2, 100]|min }}%"></div>
-            </div>
-          </div>
-          <div class="col-4">
-            <div style="font-size:.75rem;color:#888">Clientes CC</div>
-            <div style="font-weight:700;font-size:1.1rem;color:{% if lim.clientes_actual >= 90 %}#c62828{% else %}#1a2e1a{% endif %}">
-              {{ lim.clientes_actual }} / 100
-            </div>
-            <div class="progress mt-1" style="height:4px">
-              <div class="progress-bar {% if lim.clientes_actual >= 90 %}bg-danger{% else %}bg-success{% endif %}"
-                   style="width:{{ [lim.clientes_actual, 100]|min }}%"></div>
-            </div>
-          </div>
-          <div class="col-4">
-            <div style="font-size:.75rem;color:#888">Proveedores</div>
-            <div style="font-weight:700;font-size:1.1rem;color:{% if lim.proveedores_actual >= 45 %}#c62828{% else %}#1a2e1a{% endif %}">
-              {{ lim.proveedores_actual }} / 50
-            </div>
-            <div class="progress mt-1" style="height:4px">
-              <div class="progress-bar {% if lim.proveedores_actual >= 45 %}bg-danger{% else %}bg-success{% endif %}"
-                   style="width:{{ [lim.proveedores_actual * 2, 100]|min }}%"></div>
-            </div>
-          </div>
-        </div>
-        <div class="text-center mt-3">
-          <a href="/licencia#upgrade" class="btn btn-warning btn-sm">
-            <i class="fas fa-arrow-up me-1"></i>Pasate a Pro — U$D 6/mes sin límites
-          </a>
-        </div>
-      </div>
-
-      {# ── Demo vencida ── #}
       {% elif status.vencido %}
       <div class="text-center mb-4">
-        <div style="font-size:3.5rem">🔴</div>
-        <h4 style="color:#c62828;font-weight:700">DEMO VENCIDA</h4>
-        <p class="text-muted mb-0">Tu período de prueba de 30 días ha finalizado.</p>
+        <i class="fas fa-lock" style="font-size:3rem;color:#c62828"></i>
+        <h4 style="color:#c62828;font-weight:700;margin-top:10px">DEMO VENCIDA</h4>
+        <p class="text-muted mb-0">Tu periodo de prueba de 30 dias ha finalizado.</p>
       </div>
 
-      {# ── Demo próxima a vencer ── #}
       {% elif status.aviso_proximo %}
       <div class="text-center mb-4">
-        <div style="font-size:3.5rem">⚠️</div>
-        <h4 style="color:#e65100;font-weight:700">DEMO — {{ status.dias_restantes }} días restantes</h4>
-        <p class="text-muted mb-0">Adquirí una licencia antes de que venza.</p>
+        <i class="fas fa-exclamation-triangle" style="font-size:3rem;color:#e65100"></i>
+        <h4 style="color:#e65100;font-weight:700;margin-top:10px">DEMO - {{ status.dias_restantes }} dias restantes</h4>
+        <p class="text-muted mb-0">Adquiri una licencia antes de que venza.</p>
       </div>
 
-      {# ── Demo activa normal ── #}
       {% else %}
       <div class="text-center mb-4">
-        <div style="font-size:3.5rem">⏱️</div>
-        <h4 style="color:#1565c0;font-weight:700">MODO DEMO — {{ status.dias_restantes }} días restantes</h4>
-        <p class="text-muted mb-0">Todas las funciones disponibles durante el período de prueba.</p>
+        <i class="fas fa-clock" style="font-size:3rem;color:#1565c0"></i>
+        <h4 style="color:#1565c0;font-weight:700;margin-top:10px">MODO DEMO - {{ status.dias_restantes }} dias restantes</h4>
+        <p class="text-muted mb-0">Todas las funciones disponibles durante el periodo de prueba.</p>
       </div>
       {% endif %}
 
-      {# ── Barra de progreso (solo en demo) ── #}
       {% if status.demo %}
       <div style="background:#f5f5f5;border-radius:8px;padding:16px;margin-bottom:20px">
         <div class="d-flex justify-content-between mb-2">
-          <span class="fw-bold" style="font-size:.88rem"><i class="fas fa-clock me-1"></i>Período de demo</span>
+          <span class="fw-bold" style="font-size:.88rem"><i class="fas fa-clock me-1"></i>Periodo de demo</span>
           <span class="fw-bold {% if status.vencido %}text-danger{% elif status.aviso_proximo %}text-warning{% else %}text-success{% endif %}">
-            {{ status.dias_usados }} / {{ status.dias_demo }} días
+            {{ status.dias_usados }} / {{ status.dias_demo }} dias
           </span>
         </div>
         <div class="progress" style="height:12px;border-radius:6px">
@@ -154,143 +105,167 @@
         <div class="d-flex justify-content-between mt-1">
           <small class="text-muted">Instalado: {{ status.install_date }}</small>
           <small class="{% if status.vencido %}text-danger{% elif status.aviso_proximo %}text-warning{% else %}text-muted{% endif %}">
-            {% if status.vencido %}Vencida{% else %}{{ status.dias_restantes }} días restantes{% endif %}
+            {% if status.vencido %}Vencida{% else %}{{ status.dias_restantes }} dias restantes{% endif %}
           </small>
         </div>
       </div>
       {% endif %}
 
-      {# ── ID de instalación (siempre visible) ── #}
+      {% if tier_limits %}
+      <div style="background:#f5f5f5;border-radius:8px;padding:14px 16px;margin-bottom:20px">
+        <div class="fw-bold mb-2" style="font-size:.85rem;color:#1a2e1a">
+          <i class="fas fa-tachometer-alt me-1"></i>Uso actual del plan Basico
+        </div>
+        <div class="row g-2 text-center">
+          <div class="col-4">
+            <div style="font-size:.75rem;color:#888">Productos OFF</div>
+            <div style="font-weight:700;font-size:1.05rem">{{ tier_limits.productos_off_actual }} / 200</div>
+          </div>
+          <div class="col-4">
+            <div style="font-size:.75rem;color:#888">Clientes CC</div>
+            <div style="font-weight:700;font-size:1.05rem">{{ tier_limits.clientes_actual }} / 100</div>
+          </div>
+          <div class="col-4">
+            <div style="font-size:.75rem;color:#888">Proveedores</div>
+            <div style="font-weight:700;font-size:1.05rem">{{ tier_limits.proveedores_actual }} / 50</div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
       <div style="background:#1a2e1a;border-radius:8px;padding:14px 16px;color:#fff">
-        <div class="d-flex align-items-center justify-content-between">
-          <div>
+        <div class="d-flex align-items-center justify-content-between gap-3">
+          <div class="flex-grow-1">
             <small style="color:#81c784;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em">
-              ID de Instalación
+              ID de activacion online
             </small>
-            <div style="font-family:monospace;font-size:1.15rem;letter-spacing:.2em;font-weight:700;color:#a5d6a7">
-              {{ machine_id[:4] }}-{{ machine_id[4:8] }}-{{ machine_id[8:12] }}-{{ machine_id[12:16] }}
+            <div id="activation-id" style="font-family:monospace;font-size:.9rem;letter-spacing:.04em;font-weight:700;color:#a5d6a7;word-break:break-all">
+              {{ activation_id }}
             </div>
           </div>
-          <button class="btn btn-sm" style="background:#3a7d44;color:#fff;border:none"
-            onclick="navigator.clipboard.writeText('{{ machine_id }}').then(()=>this.innerHTML='<i class=\'fas fa-check\'></i> Copiado')">
+          <button class="btn btn-sm" style="background:#3a7d44;color:#fff;border:none" onclick="copiarActivationId()" type="button">
             <i class="fas fa-copy"></i> Copiar
           </button>
         </div>
-        <small style="color:#888;font-size:.75rem;margin-top:6px;display:block">
-          Enviá este ID al desarrollador para obtener tu licencia única.
+        <small style="color:#b7cbb8;font-size:.75rem;margin-top:6px;display:block">
+          Este ID es especifico para Nexar Almacen, aunque sea la misma PC donde usas otros productos Nexar.
         </small>
       </div>
     </div>
+  </div>
 
-    <!-- ── FORMULARIO DE ACTIVACIÓN ──────────────────────────────────────── -->
+  <div class="col-lg-5">
     {% if is_admin %}
-    <div class="table-card p-4" id="upgrade">
-      <div class="section-title"><i class="fas fa-unlock me-2"></i>Activar / Renovar Licencia</div>
+    <div class="table-card p-4 mb-3">
+      <div class="section-title"><i class="fas fa-paper-plane me-2"></i>Solicitar licencia</div>
+      {% if supabase_ok %}
+      <div class="alert alert-info py-2" style="font-size:.85rem">
+        Envia tu solicitud a Nexar Admin. El desarrollador la aprueba y emite la clave.
+      </div>
+      {% else %}
+      <div class="alert alert-warning py-2" style="font-size:.85rem">
+        Falta configurar SUPABASE_URL y SUPABASE_ANON_KEY. Podes copiar el ID y enviarlo manualmente.
+      </div>
+      {% endif %}
+      <form method="post" action="{{ url_for('licencia_solicitar') }}" class="row g-2">
+        <input type="hidden" name="activation_id" value="{{ activation_id }}">
+        <div class="col-12">
+          <label class="form-label fw-bold">Producto</label>
+          <input class="form-control bg-light" value="{{ producto }}" readonly>
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-bold">Nombre del titular</label>
+          <input name="nombre" class="form-control" required placeholder="Nombre y apellido o comercio">
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-bold">Email</label>
+          <input name="email" type="email" class="form-control" required placeholder="cliente@email.com">
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-bold">WhatsApp <span class="text-muted small">(opcional)</span></label>
+          <input name="whatsapp" class="form-control" placeholder="Ej: 5492645858874">
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-bold">Plan solicitado</label>
+          <select name="plan" class="form-select">
+            <option value="BASICA" selected>Basica permanente</option>
+            <option value="MENSUAL_FULL">Mensual Full</option>
+            <option value="DEMO">Demo 30 dias</option>
+          </select>
+        </div>
+        <div class="col-12">
+          <button class="btn btn-primary w-100" type="submit" {% if not supabase_ok %}disabled{% endif %}>
+            <i class="fas fa-paper-plane me-1"></i>Enviar solicitud al administrador
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="table-card p-4 mb-3" id="upgrade">
+      <div class="section-title"><i class="fas fa-unlock me-2"></i>Activar / Renovar licencia</div>
       <p class="text-muted" style="font-size:.88rem">
-        Pegá el token que recibiste por WhatsApp para activar o renovar tu plan.
+        Pega la clave aprobada desde Nexar Admin para activar o renovar tu plan.
       </p>
-      <form method="post" action="/licencia/activar">
+      <form method="post" action="{{ url_for('licencia_activar') }}">
         <div class="mb-3">
-          <label class="form-label fw-bold">Token de activación</label>
-          <textarea name="token" class="form-control" rows="4"
-            placeholder="Pegá aquí el token completo..."
-            style="font-family:monospace;font-size:.82rem;resize:vertical" required></textarea>
+          <label class="form-label fw-bold">Clave de licencia</label>
+          <input name="license_key" class="form-control" placeholder="Ej: NXR-ALM-..." style="font-family:monospace;font-size:.9rem" required>
           <small class="text-muted">
-            <i class="fas fa-info-circle me-1"></i>Copiá el token completo tal como lo recibiste.
+            <i class="fas fa-info-circle me-1"></i>Se valida con Supabase/SDK y queda guardada para validacion offline.
           </small>
         </div>
-        <button type="submit" class="btn btn-success px-5">
-          <i class="fas fa-key me-2"></i>Activar / Renovar
+        <button type="submit" class="btn btn-success w-100">
+          <i class="fas fa-key me-2"></i>Activar en este equipo
         </button>
       </form>
+      <hr>
+      <label class="form-label small">Licencia guardada localmente</label>
+      <input class="form-control form-control-sm" style="font-family:monospace" value="{{ license_key_local or '(ninguna)' }}" readonly>
     </div>
     {% endif %}
 
-  </div>
-
-  <!-- ── COLUMNA DERECHA: comparativa de planes ─────────────────────────── -->
-  <div class="col-lg-5">
-
-    <!-- Plan Básico -->
     <div class="table-card p-4 mb-3">
       <div class="d-flex align-items-center gap-2 mb-3">
-        <span style="font-size:1.4rem">✅</span>
+        <i class="fas fa-check-circle" style="font-size:1.4rem;color:#2e7d32"></i>
         <div>
-          <div class="fw-bold" style="color:#1a2e1a">Plan Básico</div>
-          <div style="color:#3a7d44;font-weight:700;font-size:1.1rem">U$D 30 — Pago único</div>
+          <div class="fw-bold" style="color:#1a2e1a">Plan Basico</div>
+          <div style="color:#3a7d44;font-weight:700;font-size:1.1rem">U$D 30 - Pago unico</div>
         </div>
       </div>
       <ul style="list-style:none;padding:0;margin:0;font-size:.88rem">
-        <li class="mb-1">✅ Sin límite de tiempo</li>
-        <li class="mb-1">✅ Ventas, caja, compras, gastos ilimitados</li>
-        <li class="mb-1">✅ Exportar catálogo Excel / PDF</li>
-        <li class="mb-1">✅ Respaldos automáticos</li>
-        <li class="mb-1">✅ Estadísticas del día</li>
-        <li class="mb-1">⚠️ Hasta 200 productos desde OpenFoodFacts</li>
-        <li class="mb-1">⚠️ Hasta 100 clientes en CC</li>
-        <li class="mb-1">⚠️ Hasta 50 proveedores</li>
-        <li class="mb-1">❌ Sin categorías personalizadas</li>
-        <li class="mb-1">❌ Sin estadísticas históricas</li>
-        <li class="mb-1">❌ Sin análisis de rentabilidad</li>
-        <li class="mb-1">❌ Sin actualizaciones automáticas</li>
+        <li class="mb-1"><i class="fas fa-check text-success me-1"></i>Sin limite de tiempo</li>
+        <li class="mb-1"><i class="fas fa-check text-success me-1"></i>Ventas, caja, compras y gastos ilimitados</li>
+        <li class="mb-1"><i class="fas fa-check text-success me-1"></i>Respaldos automaticos</li>
+        <li class="mb-1"><i class="fas fa-exclamation-triangle text-warning me-1"></i>Limites en productos OFF, clientes y proveedores</li>
       </ul>
     </div>
 
-    <!-- Plan Pro -->
     <div class="table-card p-4 mb-3" style="border:2px solid #1565c0">
       <div class="d-flex align-items-center gap-2 mb-3">
-        <span style="font-size:1.4rem">⭐</span>
+        <i class="fas fa-star" style="font-size:1.4rem;color:#1565c0"></i>
         <div>
-          <div class="fw-bold" style="color:#1a2e1a">Plan Pro</div>
+          <div class="fw-bold" style="color:#1a2e1a">Mensual Full</div>
           <div style="color:#1565c0;font-weight:700;font-size:1.1rem">U$D 6 / mes</div>
-          <small class="text-muted">Todo del Básico más:</small>
+          <small class="text-muted">Todo del Basico mas:</small>
         </div>
       </div>
       <ul style="list-style:none;padding:0;margin:0;font-size:.88rem">
-        <li class="mb-1">✅ Productos OFF ilimitados</li>
-        <li class="mb-1">✅ Clientes ilimitados</li>
-        <li class="mb-1">✅ Proveedores ilimitados</li>
-        <li class="mb-1">✅ Categorías personalizadas</li>
-        <li class="mb-1">✅ Estadísticas históricas completas</li>
-        <li class="mb-1">✅ Análisis de rentabilidad</li>
-        <li class="mb-1">✅ Actualizaciones siempre incluidas</li>
-        <li class="mb-1">✅ Soporte prioritario por WhatsApp</li>
-        <li class="mb-1" style="color:#888;font-size:.82rem">
-          Al cancelar → conservás el plan Básico sin perder datos
-        </li>
+        <li class="mb-1"><i class="fas fa-check text-success me-1"></i>Productos OFF, clientes y proveedores ilimitados</li>
+        <li class="mb-1"><i class="fas fa-check text-success me-1"></i>Estadisticas historicas completas</li>
+        <li class="mb-1"><i class="fas fa-check text-success me-1"></i>Analisis de rentabilidad</li>
+        <li class="mb-1"><i class="fas fa-check text-success me-1"></i>Actualizaciones y soporte</li>
       </ul>
-      <a href="https://wa.me/5492645858874" target="_blank" class="btn btn-primary w-100 mt-3">
-        <i class="fab fa-whatsapp me-2"></i>Consultar Plan Pro
-      </a>
     </div>
-
-    <!-- Contacto -->
-    <div class="table-card p-4">
-      <div class="section-title">
-        <i class="fas fa-phone me-2" style="color:#3a7d44"></i>Contacto
-      </div>
-      <div class="d-flex align-items-center gap-2 mb-3">
-        <i class="fab fa-whatsapp" style="color:#25d366;font-size:1.4rem"></i>
-        <div>
-          <div class="fw-bold" style="font-size:.85rem;color:#888">WhatsApp</div>
-          <a href="https://wa.me/5492645858874" target="_blank"
-             style="color:#1a2e1a;text-decoration:none;font-weight:600">
-            +549 264 585-8874
-          </a>
-        </div>
-      </div>
-      <div class="d-flex align-items-center gap-2">
-        <i class="fas fa-envelope" style="color:#e65100;font-size:1.2rem"></i>
-        <div>
-          <div class="fw-bold" style="font-size:.85rem;color:#888">Email</div>
-          <a href="mailto:nexarsistemas@outlook.com.ar"
-             style="color:#1a2e1a;text-decoration:none;font-weight:600">
-            nexarsistemas@outlook.com.ar
-          </a>
-        </div>
-      </div>
-    </div>
-
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copiarActivationId() {
+  const el = document.getElementById('activation-id');
+  const value = (el?.innerText || '').trim();
+  navigator.clipboard?.writeText(value);
+}
+</script>
 {% endblock %}

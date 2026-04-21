@@ -28,6 +28,8 @@ respaldo/
 *.tmp
 *.log
 *.port
+license.json
+license_cache.json
 clean_history.sh
 
 # build y distribución

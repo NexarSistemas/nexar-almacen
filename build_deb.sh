@@ -7,14 +7,13 @@
 
 set -e
 
-VERSION="1.7.1"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+VERSION="$(tr -d '[:space:]' < "${SCRIPT_DIR}/VERSION")"
 PACKAGE="nexar-almacen"
-ARCH="all"
+ARCH="amd64"
 MAINTAINER="Nexar Sistemas <nexarsistemas@outlook.com.ar>"
 DESCRIPTION="Nexar Almacen — v${VERSION}"
 
-# Directorio de trabajo
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="${SCRIPT_DIR}/build_deb"
 PKG_DIR="${BUILD_DIR}/${PACKAGE}_${VERSION}"
 INSTALL_DIR="${PKG_DIR}/opt/nexar-almacen"
@@ -45,11 +44,17 @@ cp "${SCRIPT_DIR}/VERSION"             "${INSTALL_DIR}/"
 cp "${SCRIPT_DIR}/CHANGELOG.md"        "${INSTALL_DIR}/"
 cp "${SCRIPT_DIR}/README.md"           "${INSTALL_DIR}/"
 cp "${SCRIPT_DIR}/LICENSE"             "${INSTALL_DIR}/"
+cp "${SCRIPT_DIR}/requirements.txt"    "${INSTALL_DIR}/"
+
+if [ -f "${SCRIPT_DIR}/.env" ]; then
+    cp "${SCRIPT_DIR}/.env" "${INSTALL_DIR}/"
+fi
 
 # Carpetas
 cp -r "${SCRIPT_DIR}/templates"   "${INSTALL_DIR}/"
 cp -r "${SCRIPT_DIR}/static"      "${INSTALL_DIR}/"
 cp -r "${SCRIPT_DIR}/services"    "${INSTALL_DIR}/"
+cp -r "${SCRIPT_DIR}/nexar_licencias" "${INSTALL_DIR}/"
 
 # Clave pública
 if [ -d "${SCRIPT_DIR}/keys" ]; then
@@ -125,11 +130,11 @@ set -e
 
 echo "Instalando dependencias de Nexar Almacen..."
 
-python3 -m pip install --quiet --break-system-packages --ignore-installed \
-    flask openpyxl reportlab pywebview python-dotenv
-pip3 install --quiet \
-    flask openpyxl reportlab pywebview python-dotenv 2>/dev/null || \
-echo "Nota: algunas dependencias pueden instalarse al primer inicio."
+if ! python3 -m pip install --quiet --break-system-packages --ignore-installed \
+    -r /opt/nexar-almacen/requirements.txt; then
+    pip3 install --quiet -r /opt/nexar-almacen/requirements.txt 2>/dev/null || \
+    echo "Nota: algunas dependencias pueden instalarse al primer inicio."
+fi
 
 chmod +x /usr/local/bin/almacen
 chmod -R a+rX /opt/nexar-almacen
