@@ -62,6 +62,11 @@ if not SECRET_KEY:
 
 app.config["SECRET_KEY"] = SECRET_KEY
 
+DESKTOP_STATE = {
+    "user_logged_in": False,
+    "close_warning_requested": False,
+}
+
 def get_public_key():
     import os
 
@@ -533,6 +538,7 @@ def login():
                 'rol':      user['rol'],
             }
             session['login_date'] = _dt.now().isoformat()
+            DESKTOP_STATE["user_logged_in"] = True
             next_url = request.form.get('next') or url_for('dashboard')
             flash(f'✅ Bienvenido, {user["nombre_completo"] or username}!', 'success')
             return redirect(next_url)
@@ -544,8 +550,17 @@ def login():
 def logout():
     nombre = session.get('user', {}).get('nombre', '')
     session.clear()
+    DESKTOP_STATE["user_logged_in"] = False
     flash(f'👋 Sesión cerrada. ¡Hasta pronto, {nombre}!', 'info')
     return redirect(url_for('login'))
+
+
+@app.route('/api/desktop/close-warning')
+@login_required
+def desktop_close_warning():
+    requested = bool(DESKTOP_STATE.get("close_warning_requested"))
+    DESKTOP_STATE["close_warning_requested"] = False
+    return jsonify({"requested": requested})
 
 # ─── LICENCIA / ACTIVACIÓN ───────────────────────────────────────────────────
 @app.route('/licencia')
@@ -1856,6 +1871,7 @@ def apagar_sistema():
     except Exception:
         pass
     session.clear()
+    DESKTOP_STATE["user_logged_in"] = False
 
     def _shutdown():
         import time as _t
@@ -1873,6 +1889,7 @@ def apagar_rapido():
     except Exception:
         pass
     session.clear()
+    DESKTOP_STATE["user_logged_in"] = False
 
     def _shutdown():
         import time as _t

@@ -6,6 +6,17 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 
 ---
 
+## [1.7.5] - 2026-04-21 - Ventana completa y cierre seguro
+
+### Cambiado
+- Nexar Almacen ahora abre maximizado en ventana nativa, con la misma presentacion inicial que Nexar Tienda.
+
+### Corregido
+- Al cerrar la ventana nativa con la X, el sistema bloquea el cierre si hay una sesion activa y muestra un aviso para cerrar sesion primero.
+- El cierre de sesion y el apagado limpian el estado desktop para evitar avisos incorrectos despues de salir.
+
+---
+
 ## [1.7.4] - 2026-04-21 - Licencias, usuarios y actualizaciones
 
 ### Agregado

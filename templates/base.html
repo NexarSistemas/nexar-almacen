@@ -286,6 +286,35 @@ input:focus,select:focus,textarea:focus{border-color:#3a7d44 !important;box-shad
           }
         })
     }
+
+  async function revisarCierreDesktop() {
+      try {
+          const response = await fetch('/api/desktop/close-warning', {credentials: 'same-origin'});
+          if (!response.ok) return;
+          const data = await response.json();
+          if (!data.requested) return;
+          Swal.fire({
+              title: 'Primero cerrá sesión',
+              text: 'Para cerrar la ventana de Nexar Almacén, antes tenés que cerrar sesión desde el sistema.',
+              icon: 'warning',
+              showCancelButton: true,
+              confirmButtonColor: '#2e7d32',
+              cancelButtonColor: '#3a3a3a',
+              confirmButtonText: 'Cerrar sesión',
+              cancelButtonText: 'Seguir trabajando',
+              background: '#212529',
+              color: '#fff'
+          }).then((result) => {
+              if (result.isConfirmed) {
+                  window.location.href = '/logout';
+              }
+          });
+      } catch (error) {
+          // La ventana puede estar cerrandose o el servidor puede estar apagandose.
+      }
+  }
+
+  setInterval(revisarCierreDesktop, 800);
 </script>
 {% block scripts %}{% endblock %}
 </body>

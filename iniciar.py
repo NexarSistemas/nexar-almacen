@@ -273,17 +273,35 @@ def main():
 
         import webview
 
+        class DesktopController:
+            def __init__(self):
+                self.allow_close = False
+
+            def handle_closing(self):
+                try:
+                    from app import DESKTOP_STATE
+
+                    if not self.allow_close and DESKTOP_STATE.get("user_logged_in"):
+                        DESKTOP_STATE["close_warning_requested"] = True
+                        return False
+                except Exception:
+                    pass
+                self.allow_close = True
+                return True
+
         print(cyan('  > Ventana independiente abierta (modo app nativa)'))
 
-        webview.create_window(
+        controller = DesktopController()
+        window = webview.create_window(
             "Nexar Almacen",
             URL,
             width=1280,
             height=800,
+            maximized=True,
             min_size=(900,600),
             resizable=True,
-            confirm_close=True
         )
+        window.events.closing += controller.handle_closing
 
         webview.start()
 
