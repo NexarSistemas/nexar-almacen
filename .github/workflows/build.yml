@@ -199,9 +199,44 @@ jobs:
           } > .env
         shell: bash
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias Linux
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            fakeroot \
+            dpkg \
+            libegl1 \
+            libgl1 \
+            libxcb-cursor0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-xinerama0 \
+            libxkbcommon-x11-0
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build Linux con PyInstaller
+        run: |
+          pyinstaller build/nexar_almacen.spec --distpath dist --workpath build/work --noconfirm
+
+      - name: Verificar binario generado
+        run: |
+          if [ ! -f "dist/NexarAlmacen" ]; then
+            echo "No se encontro dist/NexarAlmacen"
+            ls dist/ || true
+            exit 1
+          fi
+          echo "Binario encontrado: $(du -sh dist/NexarAlmacen)"
+
       - name: Build Linux
         run: |
-          mkdir dist
           chmod +x build_deb.sh
           bash build_deb.sh
           cp build_deb/*.deb dist/ || true

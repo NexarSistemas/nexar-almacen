@@ -13,10 +13,40 @@
 # ════════════════════════════════════════════════════════════
 
 import os
+import sys
 
 PROJ = os.path.abspath(os.path.join(SPECPATH, '..'))
 
 block_cipher = None
+
+if sys.platform.startswith('linux'):
+    platform_hiddenimports = [
+        'webview.platforms.qt',
+        'webview.platforms.gtk',
+        'qtpy',
+        'PySide6',
+        'PySide6.QtCore',
+        'PySide6.QtGui',
+        'PySide6.QtWidgets',
+        'PySide6.QtNetwork',
+        'PySide6.QtWebChannel',
+        'PySide6.QtWebEngineCore',
+        'PySide6.QtWebEngineWidgets',
+    ]
+    platform_excludes = [
+        'clr',
+        'pythonnet',
+        'webview.platforms.winforms',
+        'webview.platforms.edgechromium',
+    ]
+else:
+    platform_hiddenimports = [
+        'webview.platforms.winforms',
+        'webview.platforms.edgechromium',
+        'clr',
+        'clr._extra_clr_loader',
+    ]
+    platform_excludes = []
 
 datas = [
     (os.path.join(PROJ, 'templates'),         'templates'),
@@ -103,10 +133,7 @@ a = Analysis(
         'webview.screen',
         'webview.guilib',
         'webview.platforms',
-        'webview.platforms.winforms',
-        'webview.platforms.edgechromium',
-        'clr',
-        'clr._extra_clr_loader',
+        *platform_hiddenimports,
         # ─────────────────────────────────────────────────────────────────
         # Estándar Python
         'sqlite3',
@@ -139,6 +166,7 @@ a = Analysis(
         'pytest',
         'docutils',
         'pydoc',
+        *platform_excludes,
     ],
 
     win_no_prefer_redirects=False,
@@ -181,5 +209,5 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
 
-    icon=os.path.join(PROJ, 'static', 'icons', 'nexar_almacen_ico.ico'),
+    icon=os.path.join(PROJ, 'static', 'icons', 'nexar_almacen_ico.ico') if os.name == 'nt' else None,
 )

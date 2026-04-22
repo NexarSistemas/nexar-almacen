@@ -6,6 +6,17 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 
 ---
 
+## [1.7.6] - 2026-04-22 - Icono y nombre en Ubuntu Dock
+
+### Cambiado
+- El paquete Linux ahora instala y ejecuta el binario PyInstaller `NexarAlmacen`, igual que Nexar Tienda, en lugar de lanzar `python3 iniciar.py`.
+- El build Linux compila `dist/NexarAlmacen` antes de generar el `.deb` y empaqueta las dependencias Qt/PySide6 necesarias para la ventana nativa.
+
+### Corregido
+- La entrada de escritorio de Ubuntu ahora usa `Name=Nexar Almacen`, `Icon=nexar_almacen` y `StartupWMClass=NexarAlmacen` para que el dock muestre el icono y nombre correctos.
+
+---
+
 ## [1.7.5] - 2026-04-21 - Ventana completa y cierre seguro
 
 ### Cambiado

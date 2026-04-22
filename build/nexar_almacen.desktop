@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Nexar Almacen
+Comment=Control completo de ventas, stock, caja y más
+Exec=/usr/local/bin/almacen
+Path=/opt/nexar-almacen
+Icon=nexar_almacen
+Terminal=false
+Categories=Office;Finance;
+StartupNotify=true
+StartupWMClass=NexarAlmacen

@@ -2,7 +2,9 @@
 # ============================================================
 # build_deb.sh — Genera el paquete .deb para Nexar Almacen
 # Uso: bash build_deb.sh
-# Requiere: dpkg-deb, python3
+# Requiere:
+#   - dist/NexarAlmacen    (binario compilado por PyInstaller)
+#   - dpkg-deb, fakeroot
 # ============================================================
 
 set -e
@@ -18,10 +20,19 @@ BUILD_DIR="${SCRIPT_DIR}/build_deb"
 PKG_DIR="${BUILD_DIR}/${PACKAGE}_${VERSION}"
 INSTALL_DIR="${PKG_DIR}/opt/nexar-almacen"
 DEBIAN_DIR="${PKG_DIR}/DEBIAN"
+APP_BIN="${SCRIPT_DIR}/dist/NexarAlmacen"
 
 echo "=================================================="
 echo "  Nexar Almacen — Builder .deb v${VERSION}"
 echo "=================================================="
+
+# Verificar que el binario exista
+if [ ! -f "${APP_BIN}" ]; then
+  echo "No se encontro ${APP_BIN}"
+  echo "Compila primero con PyInstaller:"
+  echo "  pyinstaller build/nexar_almacen.spec --distpath dist --workpath build/work --noconfirm"
+  exit 1
+fi
 
 # Limpiar build anterior
 rm -rf "${BUILD_DIR}"
@@ -31,30 +42,22 @@ mkdir -p "${PKG_DIR}/usr/local/bin"
 mkdir -p "${PKG_DIR}/usr/share/applications"
 mkdir -p "${PKG_DIR}/usr/share/pixmaps"
 
-echo "→ Copiando archivos del sistema..."
+echo "→ Copiando binario y recursos..."
 
-# Archivos principales
-cp "${SCRIPT_DIR}/iniciar.py"          "${INSTALL_DIR}/"
-cp "${SCRIPT_DIR}/app.py"              "${INSTALL_DIR}/"
-cp "${SCRIPT_DIR}/database.py"         "${INSTALL_DIR}/"
-cp "${SCRIPT_DIR}/openfoodfacts.py"    "${INSTALL_DIR}/"
-cp "${SCRIPT_DIR}/productos_seed.py"   "${INSTALL_DIR}/"
-cp "${SCRIPT_DIR}/license_verifier.py" "${INSTALL_DIR}/"
-cp "${SCRIPT_DIR}/VERSION"             "${INSTALL_DIR}/"
-cp "${SCRIPT_DIR}/CHANGELOG.md"        "${INSTALL_DIR}/"
-cp "${SCRIPT_DIR}/README.md"           "${INSTALL_DIR}/"
-cp "${SCRIPT_DIR}/LICENSE"             "${INSTALL_DIR}/"
-cp "${SCRIPT_DIR}/requirements.txt"    "${INSTALL_DIR}/"
+# Binario compilado (OneFile)
+cp "${APP_BIN}" "${INSTALL_DIR}/NexarAlmacen"
+chmod +x "${INSTALL_DIR}/NexarAlmacen"
 
-if [ -f "${SCRIPT_DIR}/.env" ]; then
-    cp "${SCRIPT_DIR}/.env" "${INSTALL_DIR}/"
-fi
-
-# Carpetas
+# Recursos del proyecto
 cp -r "${SCRIPT_DIR}/templates"   "${INSTALL_DIR}/"
 cp -r "${SCRIPT_DIR}/static"      "${INSTALL_DIR}/"
-cp -r "${SCRIPT_DIR}/services"    "${INSTALL_DIR}/"
-cp -r "${SCRIPT_DIR}/nexar_licencias" "${INSTALL_DIR}/"
+cp    "${SCRIPT_DIR}/VERSION"     "${INSTALL_DIR}/"
+cp    "${SCRIPT_DIR}/CHANGELOG.md" "${INSTALL_DIR}/"
+
+# Archivos opcionales de referencia
+[ -f "${SCRIPT_DIR}/README.md" ] && cp "${SCRIPT_DIR}/README.md" "${INSTALL_DIR}/"
+[ -f "${SCRIPT_DIR}/LICENSE"   ] && cp "${SCRIPT_DIR}/LICENSE"   "${INSTALL_DIR}/"
+[ -f "${SCRIPT_DIR}/.env"      ] && cp "${SCRIPT_DIR}/.env"      "${INSTALL_DIR}/"
 
 # Clave pública
 if [ -d "${SCRIPT_DIR}/keys" ]; then
@@ -73,33 +76,49 @@ find "${INSTALL_DIR}" -name ".port" -delete 2>/dev/null || true
 # Icono
 if [ -f "${SCRIPT_DIR}/static/icons/nexar_almacen_ico.png" ]; then
     cp "${SCRIPT_DIR}/static/icons/nexar_almacen_ico.png" \
-       "${PKG_DIR}/usr/share/pixmaps/nexar-almacen.png"
+       "${PKG_DIR}/usr/share/pixmaps/nexar_almacen.png"
 fi
 
 echo "→ Creando lanzador..."
 
 cat > "${PKG_DIR}/usr/local/bin/almacen" << 'EOF'
 #!/bin/bash
+unset GSETTINGS_SCHEMA_DIR
+
+if [ -n "${XDG_DATA_DIRS:-}" ]; then
+  export XDG_DATA_DIRS="/usr/local/share:/usr/share:${XDG_DATA_DIRS}"
+else
+  export XDG_DATA_DIRS="/usr/local/share:/usr/share"
+fi
+
 export ALMACEN_DB_PATH="${HOME}/.local/share/nexaralmacen/almacen.db"
 mkdir -p "${HOME}/.local/share/nexaralmacen"
 cd /opt/nexar-almacen
-exec python3 iniciar.py "$@" || xdg-open http://127.0.0.1:5601
+exec ./NexarAlmacen "$@"
 EOF
 chmod +x "${PKG_DIR}/usr/local/bin/almacen"
 
 echo "→ Creando entrada de menú..."
 
-cat > "${PKG_DIR}/usr/share/applications/nexar-almacen.desktop" << EOF
+if [ -f "${SCRIPT_DIR}/build/nexar_almacen.desktop" ]; then
+    cp "${SCRIPT_DIR}/build/nexar_almacen.desktop" \
+       "${PKG_DIR}/usr/share/applications/nexar-almacen.desktop"
+else
+    cat > "${PKG_DIR}/usr/share/applications/nexar-almacen.desktop" << EOF
 [Desktop Entry]
 Version=1.0
 Type=Application
 Name=Nexar Almacen
 Comment=Control completo de ventas, stock, caja y más
 Exec=/usr/local/bin/almacen
-Icon=nexar-almacen
+Path=/opt/nexar-almacen
+Icon=nexar_almacen
 Terminal=false
 Categories=Office;Finance;
+StartupNotify=true
+StartupWMClass=NexarAlmacen
 EOF
+fi
 
 echo "→ Calculando tamaño..."
 INSTALLED_SIZE=$(du -sk "${INSTALL_DIR}" | cut -f1)
@@ -112,8 +131,8 @@ Version: ${VERSION}
 Architecture: ${ARCH}
 Maintainer: ${MAINTAINER}
 Installed-Size: ${INSTALLED_SIZE}
-Depends: python3 (>= 3.8), python3-pip, python3-gi, gir1.2-gtk-3.0
-Recommends: libwebkit2gtk-4.0-37
+Depends: libegl1, libgl1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libxkbcommon-x11-0
+Recommends: fonts-liberation
 Section: misc
 Priority: optional
 Homepage: https://wa.me/5492645858874
@@ -128,22 +147,19 @@ cat > "${DEBIAN_DIR}/postinst" << 'EOF'
 #!/bin/bash
 set -e
 
-echo "Instalando dependencias de Nexar Almacen..."
-
-if ! python3 -m pip install --quiet --break-system-packages --ignore-installed \
-    -r /opt/nexar-almacen/requirements.txt; then
-    pip3 install --quiet -r /opt/nexar-almacen/requirements.txt 2>/dev/null || \
-    echo "Nota: algunas dependencias pueden instalarse al primer inicio."
-fi
-
 chmod +x /usr/local/bin/almacen
+chmod +x /opt/nexar-almacen/NexarAlmacen
 chmod -R a+rX /opt/nexar-almacen
+
+update-desktop-database /usr/share/applications 2>/dev/null || true
+gtk-update-icon-cache /usr/share/pixmaps 2>/dev/null || true
 
 echo ""
 echo "============================================"
 echo " Nexar Almacen instalado correctamente"
 echo "============================================"
 echo " Ejecutar: almacen"
+echo " O buscar Nexar Almacen en el menu de apps"
 echo "============================================"
 
 exit 0
@@ -176,3 +192,4 @@ dpkg-deb --build --root-owner-group "${PKG_DIR}" "${DEB_FILE}"
 echo ""
 echo "✅ Paquete generado:"
 echo "${DEB_FILE}"
+cp "${DEB_FILE}" "${SCRIPT_DIR}/"
