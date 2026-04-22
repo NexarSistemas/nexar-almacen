@@ -41,6 +41,7 @@ mkdir -p "${DEBIAN_DIR}"
 mkdir -p "${PKG_DIR}/usr/local/bin"
 mkdir -p "${PKG_DIR}/usr/share/applications"
 mkdir -p "${PKG_DIR}/usr/share/pixmaps"
+mkdir -p "${PKG_DIR}/usr/share/icons/hicolor/256x256/apps"
 
 echo "→ Copiando binario y recursos..."
 
@@ -73,10 +74,17 @@ find "${INSTALL_DIR}" -name "*.pyc" -delete 2>/dev/null || true
 find "${INSTALL_DIR}" -name "*.db"  -delete 2>/dev/null || true
 find "${INSTALL_DIR}" -name ".port" -delete 2>/dev/null || true
 
-# Icono
+# Icono: se instalan los dos nombres para conservar compatibilidad con
+# versiones anteriores y con el cache del menu de aplicaciones de GNOME.
 if [ -f "${SCRIPT_DIR}/static/icons/nexar_almacen_ico.png" ]; then
     cp "${SCRIPT_DIR}/static/icons/nexar_almacen_ico.png" \
+       "${PKG_DIR}/usr/share/pixmaps/nexar-almacen.png"
+    cp "${SCRIPT_DIR}/static/icons/nexar_almacen_ico.png" \
        "${PKG_DIR}/usr/share/pixmaps/nexar_almacen.png"
+    cp "${SCRIPT_DIR}/static/icons/nexar_almacen_ico.png" \
+       "${PKG_DIR}/usr/share/icons/hicolor/256x256/apps/nexar-almacen.png"
+    cp "${SCRIPT_DIR}/static/icons/nexar_almacen_ico.png" \
+       "${PKG_DIR}/usr/share/icons/hicolor/256x256/apps/nexar_almacen.png"
 fi
 
 echo "→ Creando lanzador..."
@@ -112,7 +120,7 @@ Name=Nexar Almacen
 Comment=Control completo de ventas, stock, caja y más
 Exec=/usr/local/bin/almacen
 Path=/opt/nexar-almacen
-Icon=nexar_almacen
+Icon=nexar-almacen
 Terminal=false
 Categories=Office;Finance;
 StartupNotify=true
@@ -152,7 +160,7 @@ chmod +x /opt/nexar-almacen/NexarAlmacen
 chmod -R a+rX /opt/nexar-almacen
 
 update-desktop-database /usr/share/applications 2>/dev/null || true
-gtk-update-icon-cache /usr/share/pixmaps 2>/dev/null || true
+gtk-update-icon-cache -f -t /usr/share/icons/hicolor 2>/dev/null || true
 
 echo ""
 echo "============================================"
@@ -180,6 +188,7 @@ cat > "${DEBIAN_DIR}/postrm" << 'EOF'
 #!/bin/bash
 set -e
 update-desktop-database /usr/share/applications 2>/dev/null || true
+gtk-update-icon-cache -f -t /usr/share/icons/hicolor 2>/dev/null || true
 exit 0
 EOF
 chmod +x "${DEBIAN_DIR}/postrm"

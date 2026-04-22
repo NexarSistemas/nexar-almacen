@@ -6,6 +6,14 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 
 ---
 
+## [1.7.7] - 2026-04-22 - Icono en menu de aplicaciones
+
+### Corregido
+- El paquete Linux vuelve a usar `Icon=nexar-almacen` en la entrada de aplicaciones e instala el PNG tambien en el tema `hicolor`, evitando que GNOME muestre la rueda generica en el menu.
+- Se conserva el alias `nexar_almacen` para que el dock y caches previos sigan resolviendo el icono.
+
+---
+
 ## [1.7.6] - 2026-04-22 - Icono y nombre en Ubuntu Dock
 
 ### Cambiado
