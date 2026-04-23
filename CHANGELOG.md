@@ -6,6 +6,14 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 
 ---
 
+## [1.7.9] - 2026-04-23 - Correccion de URLs Supabase
+
+### Corregido
+- Las solicitudes y activaciones de licencia ahora normalizan `SUPABASE_URL` antes de armar los endpoints REST, evitando errores `PGRST125 Invalid path specified in request URL` cuando la configuracion incluye `/rest/v1` o una ruta de tabla.
+- La misma normalizacion se aplica al SDK vendorizado `nexar_licencias`, para que la validacion online use siempre la URL base correcta del proyecto Supabase.
+
+---
+
 ## [1.7.8] - 2026-04-23 - Seguridad uniforme de usuarios
 
 ### Cambiado

@@ -5,6 +5,7 @@ import hashlib
 import os
 import platform
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 import requests
 
@@ -20,7 +21,20 @@ def normalize_plan(plan: str = "") -> str:
 
 
 def _clean_base_url(url: str) -> str:
-    return url.rstrip("/")
+    raw = (url or "").strip()
+    if not raw:
+        return ""
+
+    parsed = urlsplit(raw if "://" in raw else f"https://{raw}")
+    path = parsed.path.rstrip("/")
+    lower_path = path.lower()
+    for marker in ("/rest/v1", "/rest/v1/"):
+        index = lower_path.find(marker.rstrip("/"))
+        if index >= 0:
+            path = path[:index]
+            break
+
+    return urlunsplit((parsed.scheme, parsed.netloc, path.rstrip("/"), "", "")).rstrip("/")
 
 
 def _table_url() -> str:
