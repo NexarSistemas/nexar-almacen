@@ -21,8 +21,8 @@
         </div>
         <div class="mb-4">
           <label class="form-label fw-bold">Respuesta de recuperación</label>
-          <input class="form-control" name="security_answer" required>
-          <small class="text-muted">No se mostrará nuevamente.</small>
+          <input class="form-control" name="security_answer" required minlength="2">
+          <small class="text-muted">Se guarda protegida, no se mostrará nuevamente y no distingue mayúsculas/minúsculas.</small>
         </div>
         <button class="btn btn-success w-100" type="submit"><i class="fas fa-save me-2"></i>Guardar y continuar</button>
       </form>

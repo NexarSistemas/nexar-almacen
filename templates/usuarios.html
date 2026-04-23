@@ -119,7 +119,10 @@
             <div class="col-md-6"><label class="form-label fw-bold">Usuario *</label>
               <input type="text" name="username" class="form-control" placeholder="usuario123" required></div>
             <div class="col-md-6"><label class="form-label fw-bold">Contraseña *</label>
-              <input type="password" name="password" class="form-control" placeholder="••••••••" required minlength="4"></div>
+              <input type="password" name="password" class="form-control" placeholder="••••••••" required minlength="6" maxlength="12">
+              <small class="text-muted">6 a 12, con mayúscula, minúscula, número y símbolo.</small></div>
+            <div class="col-md-6"><label class="form-label fw-bold">Repetir contraseña *</label>
+              <input type="password" name="password_confirm" class="form-control" placeholder="••••••••" required minlength="6" maxlength="12"></div>
             <div class="col-12"><label class="form-label fw-bold">Nombre completo</label>
               <input type="text" name="nombre_completo" class="form-control" placeholder="Juan García"></div>
             <div class="col-12"><label class="form-label fw-bold">Rol</label>
@@ -178,7 +181,10 @@
       <form method="post" id="pwForm">
         <div class="modal-body">
           <label class="form-label fw-bold">Nueva contraseña</label>
-          <input type="password" name="password" class="form-control" placeholder="Mínimo 4 caracteres" required minlength="4">
+          <input type="password" name="password" class="form-control" placeholder="6 a 12 caracteres" required minlength="6" maxlength="12">
+          <small class="text-muted">Debe incluir mayúscula, minúscula, número y símbolo.</small>
+          <label class="form-label fw-bold mt-3">Repetir contraseña</label>
+          <input type="password" name="password_confirm" class="form-control" placeholder="Repetí la contraseña" required minlength="6" maxlength="12">
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>

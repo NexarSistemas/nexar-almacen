@@ -6,6 +6,15 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 
 ---
 
+## [1.7.8] - 2026-04-23 - Seguridad uniforme de usuarios
+
+### Cambiado
+- La creacion inicial, alta de usuarios, cambio y recuperacion de contrasena ahora exigen doble ingreso de clave.
+- La politica de clave queda unificada en 6 a 12 caracteres, con mayuscula, minuscula, numero y simbolo.
+- La pregunta y respuesta de recuperacion validan respuesta minima y muestran el mismo criterio de proteccion que las demas apps Nexar.
+
+---
+
 ## [1.7.7] - 2026-04-22 - Icono en menu de aplicaciones
 
 ### Corregido

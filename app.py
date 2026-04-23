@@ -450,6 +450,18 @@ def _password_error(password: str) -> str:
         return 'La contraseña debe incluir al menos un carácter especial (@$!%*?&#).'
     return ''
 
+def _password_confirmation_error(password: str, confirmation: str) -> str:
+    if password != confirmation:
+        return 'Las contraseñas no coinciden.'
+    return _password_error(password)
+
+def _recovery_error(question: str, answer: str) -> str:
+    if not question or not answer:
+        return 'Completá la pregunta y respuesta de recuperación.'
+    if len(answer.strip()) < 2:
+        return 'La respuesta de seguridad debe tener al menos 2 caracteres.'
+    return ''
+
 @app.route('/registro-inicial', methods=['GET', 'POST'])
 def registro_inicial():
     if db.count_usuarios() > 0:
@@ -458,13 +470,17 @@ def registro_inicial():
         username = request.form.get('username', '').strip()
         nombre = request.form.get('nombre_completo', '').strip()
         password = request.form.get('password', '')
+        password_confirm = request.form.get('password_confirm', '')
         question = request.form.get('security_question', '').strip()
         answer = request.form.get('security_answer', '').strip()
-        error = _password_error(password)
-        if not username or not nombre or not question or not answer:
+        error = _password_confirmation_error(password, password_confirm)
+        recovery_error = _recovery_error(question, answer)
+        if not username or not nombre or not password or not password_confirm or not question or not answer:
             flash('Completá todos los campos para crear el administrador.', 'danger')
         elif error:
             flash(error, 'danger')
+        elif recovery_error:
+            flash(recovery_error, 'danger')
         elif db.crear_usuario(username, password, 'admin', nombre, question, answer):
             flash('Administrador creado correctamente. Iniciá sesión para continuar.', 'success')
             return redirect(url_for('login'))
@@ -495,7 +511,8 @@ def recuperar_password():
                 flash('La sesión de recuperación venció. Empezá de nuevo.', 'warning')
                 return redirect(url_for('recuperar_password'))
             password = request.form.get('password', '')
-            error = _password_error(password)
+            password_confirm = request.form.get('password_confirm', '')
+            error = _password_confirmation_error(password, password_confirm)
             if error:
                 flash(error, 'danger')
                 return render_template('recuperar_password.html', step=3, username=username, app_version=APP_VERSION)
@@ -513,8 +530,9 @@ def configurar_recuperacion():
         question = request.form.get('security_question', '').strip()
         answer = request.form.get('security_answer', '').strip()
         next_url = request.form.get('next') or url_for('dashboard')
-        if not question or not answer:
-            flash('Completá la pregunta y respuesta de recuperación.', 'danger')
+        recovery_error = _recovery_error(question, answer)
+        if recovery_error:
+            flash(recovery_error, 'danger')
         else:
             db.configurar_recuperacion(session['user']['id'], question, answer)
             flash('Recuperación configurada correctamente.', 'success')
@@ -681,9 +699,15 @@ def usuarios():
 @app.route('/usuarios/nuevo', methods=['POST'])
 @admin_required
 def usuario_nuevo():
+    password = request.form.get('password','')
+    password_confirm = request.form.get('password_confirm','')
+    error = _password_confirmation_error(password, password_confirm)
+    if error:
+        flash(error, 'danger')
+        return redirect(url_for('usuarios'))
     ok = db.crear_usuario(
         request.form.get('username',''),
-        request.form.get('password',''),
+        password,
         request.form.get('rol','usuario'),
         request.form.get('nombre_completo','')
     )
@@ -704,8 +728,10 @@ def usuario_editar(uid):
 @admin_required
 def usuario_password(uid):
     nueva = request.form.get('password','')
-    if len(nueva) < 4:
-        flash('❌ La contraseña debe tener al menos 4 caracteres.', 'danger')
+    confirmacion = request.form.get('password_confirm','')
+    error = _password_confirmation_error(nueva, confirmacion)
+    if error:
+        flash(f'❌ {error}', 'danger')
     else:
         db.cambiar_password(uid, nueva)
         flash('✅ Contraseña cambiada.', 'success')

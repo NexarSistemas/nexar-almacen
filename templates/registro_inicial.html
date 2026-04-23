@@ -48,8 +48,12 @@ body{background:linear-gradient(135deg,#1a2e1a 0%,#2d4f2d 40%,#1a3a2a 100%);min-
       </div>
       <div class="mb-3">
         <label class="form-label">Contraseña</label>
-        <div class="input-icon"><i class="fas fa-lock"></i><input class="form-control" type="password" name="password" autocomplete="new-password" required></div>
+        <div class="input-icon"><i class="fas fa-lock"></i><input class="form-control" type="password" name="password" autocomplete="new-password" required minlength="6" maxlength="12"></div>
         <small class="text-muted">6 a 12 caracteres, con mayúscula, minúscula, número y símbolo.</small>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Repetir contraseña</label>
+        <div class="input-icon"><i class="fas fa-lock"></i><input class="form-control" type="password" name="password_confirm" autocomplete="new-password" required minlength="6" maxlength="12"></div>
       </div>
       <div class="mb-3">
         <label class="form-label">Pregunta de recuperación</label>
@@ -57,7 +61,8 @@ body{background:linear-gradient(135deg,#1a2e1a 0%,#2d4f2d 40%,#1a3a2a 100%);min-
       </div>
       <div class="mb-4">
         <label class="form-label">Respuesta de recuperación</label>
-        <div class="input-icon"><i class="fas fa-key"></i><input class="form-control" name="security_answer" required></div>
+        <div class="input-icon"><i class="fas fa-key"></i><input class="form-control" name="security_answer" required minlength="2"></div>
+        <small class="text-muted">Se guarda protegida y no distingue mayúsculas/minúsculas.</small>
       </div>
       <button class="btn-setup" type="submit"><i class="fas fa-check me-2"></i>Crear administrador</button>
     </form>
