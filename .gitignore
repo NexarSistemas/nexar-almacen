@@ -48,3 +48,6 @@ build_deb/
 secret/
 *.asc
 keys/
+
+## --- Scripts de despliegue y archivos de configuración local --- ###
+scripts/*
