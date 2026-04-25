@@ -316,6 +316,34 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
+def _is_admin_role(role):
+    return role == 'admin'
+
+def _validate_sale_delete_authorization(form):
+    if not form.get('confirmo_responsabilidad'):
+        return False, 'Debés confirmar la advertencia de responsabilidad antes de borrar la venta.'
+
+    current_user = db.get_usuario_by_id(session.get('user', {}).get('id'))
+    if not current_user:
+        return False, 'No se pudo validar el usuario logueado. Iniciá sesión nuevamente.'
+
+    if _is_admin_role(current_user['rol']):
+        if not db.verify_password(form.get('current_password', ''), current_user['password_hash']):
+            return False, 'La contraseña del administrador logueado es incorrecta.'
+        return True, ''
+
+    admin_username = (form.get('admin_username') or '').strip()
+    admin_password = form.get('admin_password', '')
+    admin_user = db.get_usuario_by_username(admin_username)
+    if (
+        not admin_user
+        or not int(admin_user['activo'] or 0)
+        or not _is_admin_role(admin_user['rol'])
+        or not db.verify_password(admin_password, admin_user['password_hash'])
+    ):
+        return False, 'Las credenciales del administrador no son válidas.'
+    return True, ''
+
 def demo_venta_check(f):
     """Block new sales when demo has expired (30-day time limit)."""
     @wraps(f)
@@ -1002,6 +1030,23 @@ def historial_detalle(vid):
     v = db.q("SELECT * FROM ventas WHERE id=?", (vid,), fetchone=True)
     detalle = db.get_venta_detalle(vid)
     return render_template('ticket.html', venta=v, detalle=detalle, cfg=db.get_config())
+
+@app.route('/historial/<int:vid>/eliminar', methods=['POST'])
+@login_required
+def historial_eliminar(vid):
+    ok, msg = _validate_sale_delete_authorization(request.form)
+    if not ok:
+        flash(f'❌ {msg}', 'danger')
+        return redirect(url_for('historial'))
+
+    venta = db.q("SELECT id, numero_ticket FROM ventas WHERE id=?", (vid,), fetchone=True)
+    if not venta:
+        flash('❌ La venta indicada no existe.', 'danger')
+        return redirect(url_for('historial'))
+
+    db.delete_venta(vid)
+    flash(f"✅ Venta #{venta['numero_ticket']} eliminada junto con sus historiales asociados.", 'success')
+    return redirect(url_for('historial'))
 
 # ─── COMPRAS ─────────────────────────────────────────────────────────────────
 @app.route('/compras')
