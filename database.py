@@ -821,6 +821,62 @@ def get_ventas(search='', fecha_desde='', fecha_hasta='', limit=200):
 def get_venta_detalle(vid):
     return q("SELECT * FROM ventas_detalle WHERE venta_id=? ORDER BY id", (vid,))
 
+def delete_venta(venta_id):
+    """Elimina una venta restaurando stock y revirtiendo caja/cuenta corriente."""
+    field_map = {
+        'Efectivo': 'ventas_efectivo',
+        'Débito': 'ventas_debito',
+        'Crédito': 'ventas_credito',
+        'QR / Billetera Virtual': 'ventas_qr',
+        'Cuenta Corriente': 'ventas_cta_cte',
+        'Transferencia': 'ventas_transferencia',
+    }
+    conn = get_conn()
+    try:
+        c = conn.cursor()
+        venta = c.execute("SELECT * FROM ventas WHERE id=?", (venta_id,)).fetchone()
+        if not venta:
+            return False
+
+        detalle = c.execute("SELECT * FROM ventas_detalle WHERE venta_id=?", (venta_id,)).fetchall()
+        for item in detalle:
+            producto_id = int(item["producto_id"] or 0)
+            cantidad = float(item["cantidad"] or 0)
+            if producto_id > 0 and cantidad > 0:
+                c.execute(
+                    "UPDATE stock SET stock_actual=stock_actual+? WHERE producto_id=?",
+                    (cantidad, producto_id),
+                )
+
+        medio_pago = venta["medio_pago"] or "Efectivo"
+        field = field_map.get(medio_pago, "ventas_efectivo")
+        total = float(venta["total"] or 0)
+        fecha = venta["fecha"]
+        c.execute(
+            f"""UPDATE caja_historial
+            SET {field}=MAX(COALESCE({field},0)-?, 0),
+                total_ventas=MAX(COALESCE(total_ventas,0)-?, 0)
+            WHERE fecha=?""",
+            (total, total, fecha),
+        )
+
+        if medio_pago == "Cuenta Corriente" and int(venta["cliente_id"] or 0) > 0:
+            c.execute(
+                """DELETE FROM cc_clientes_mov
+                WHERE cliente_id=? AND tipo='Venta' AND numero_comprobante=? AND debe=?""",
+                (venta["cliente_id"], str(venta["numero_ticket"]), total),
+            )
+
+        c.execute("DELETE FROM ventas_detalle WHERE venta_id=?", (venta_id,))
+        c.execute("DELETE FROM ventas WHERE id=?", (venta_id,))
+        conn.commit()
+        return True
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
 def crear_venta(items, cliente_nombre, medio_pago, descuento_adicional, vendedor, cliente_id=0):
     """
     items: list of dicts with producto_id, codigo_interno, descripcion, categoria,
@@ -1285,6 +1341,9 @@ def get_usuario(username: str):
 
 def get_usuario_by_username(username: str):
     return q("SELECT * FROM usuarios WHERE username=?", ((username or '').strip(),), fetchone=True)
+
+def get_usuario_by_id(uid):
+    return q("SELECT * FROM usuarios WHERE id=?", (uid,), fetchone=True)
 
 def verificar_password(username: str, password: str):
     u = get_usuario(username)

@@ -6,6 +6,18 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 
 ---
 
+## [1.7.10] - 2026-04-25 - Borrado seguro y rentabilidad en productos
+
+### Agregado
+- El historial de ventas permite eliminar una venta con advertencia formal, confirmacion de responsabilidad y validacion de credenciales administrativas.
+- Al eliminar una venta se restauran stock, caja y movimientos de cuenta corriente asociados cuando corresponde.
+- La carga y edicion de productos muestra ganancia bruta, margen bruto, markup y precio sugerido desde un margen bruto deseado.
+
+### Corregido
+- El indicador de margen en productos ahora diferencia margen bruto sobre precio de venta y markup sobre costo.
+
+---
+
 ## [1.7.9] - 2026-04-23 - Correccion de URLs Supabase
 
 ### Corregido

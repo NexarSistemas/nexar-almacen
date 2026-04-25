@@ -6,7 +6,7 @@
 <div class="row justify-content-center">
 <div class="col-lg-8">
 <div class="form-card">
-  <form method="post">
+  <form method="post" id="productForm" novalidate>
     <div class="row g-3">
       {% if producto %}
       <div class="col-12">
@@ -70,7 +70,7 @@
           <span class="input-group-text">$</span>
           <input type="number" name="costo" class="form-control" id="costoInput"
             value="{{ producto.costo if producto else '' }}" min="0" step="0.01" required
-            oninput="calcMargen()">
+            oninput="recalcularRentabilidad()">
         </div>
       </div>
       <div class="col-md-4">
@@ -79,7 +79,7 @@
           <span class="input-group-text">$</span>
           <input type="number" name="precio_venta" class="form-control" id="pvInput"
             value="{{ producto.precio_venta if producto else '' }}" min="0" step="0.01" required
-            oninput="calcMargen()">
+            oninput="calcRentabilidad()">
         </div>
       </div>
       <div class="col-md-2">
@@ -91,8 +91,57 @@
         </select>
       </div>
       <div class="col-md-2">
-        <label class="form-label">Margen</label>
+        <label class="form-label">Margen bruto</label>
         <div id="margenDisplay" class="form-control text-center fw-bold" style="background:#f8f8f8">—</div>
+      </div>
+
+      <div class="col-12">
+        <div class="p-3 rounded border" style="background:#f8fbf8;border-color:#c8e6c9 !important;">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+              <label class="form-label fw-bold">Margen bruto deseado (%)</label>
+              <div class="input-group">
+                <input type="number" class="form-control" id="margenObjetivoInput" min="0" max="95" step="0.1" value="30">
+                <span class="input-group-text">%</span>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="text-muted small">Precio sugerido</div>
+              <div class="h5 mb-0" id="precioSugeridoDisplay">$ 0,00</div>
+            </div>
+            <div class="col-md-4">
+              <button type="button" class="btn btn-outline-success w-100" id="usarPrecioSugerido">
+                <i class="fas fa-arrow-right me-1"></i>Usar sugerido
+              </button>
+            </div>
+          </div>
+          <div class="small text-muted mt-2">
+            El precio sugerido usa margen bruto: costo dividido por el porcentaje restante después del margen deseado.
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12">
+        <div class="alert alert-info mb-0" id="rentabilidadInfo" style="display:none;">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <strong>Rentabilidad bruta por unidad</strong>
+            <span class="badge" id="margenBadge">0%</span>
+          </div>
+          <div class="row g-2 mt-2 small">
+            <div class="col-md-4">
+              <div class="text-muted">Ganancia bruta</div>
+              <div class="fw-bold" id="gananciaBrutaDisplay">$ 0,00</div>
+            </div>
+            <div class="col-md-4">
+              <div class="text-muted">Margen bruto</div>
+              <div class="fw-bold" id="margenBrutoDisplay">0%</div>
+            </div>
+            <div class="col-md-4">
+              <div class="text-muted">Markup</div>
+              <div class="fw-bold" id="markupDisplay">0%</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="col-12"><hr><div class="section-title">Stock Inicial</div></div>
@@ -137,22 +186,95 @@
 
 {% block scripts %}
 <script>
-function calcMargen(){
+function formatearARSLocal(valor) {
+  return '$ ' + valor.toLocaleString('es-AR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function calcRentabilidad(){
   const c = parseFloat(document.getElementById('costoInput').value) || 0;
   const p = parseFloat(document.getElementById('pvInput').value) || 0;
-  const el = document.getElementById('margenDisplay');
-  if(c>0 && p>0){
-    const m = ((p-c)/c*100);
-    el.textContent = m.toFixed(1)+'%';
-    el.style.color = m<20?'#c62828':m>=35?'#2e7d32':'#f57f17';
+  const margenDisplay = document.getElementById('margenDisplay');
+  const info = document.getElementById('rentabilidadInfo');
+  const badge = document.getElementById('margenBadge');
+  const gananciaDisplay = document.getElementById('gananciaBrutaDisplay');
+  const margenBrutoDisplay = document.getElementById('margenBrutoDisplay');
+  const markupDisplay = document.getElementById('markupDisplay');
+
+  if(p>0){
+    const ganancia = p - c;
+    const margen = (ganancia / p * 100);
+    const markup = c > 0 ? (ganancia / c * 100) : 0;
+
+    let badgeClass = 'bg-success';
+    if (margen < 20) badgeClass = 'bg-danger';
+    else if (margen < 30) badgeClass = 'bg-warning text-dark';
+
+    margenDisplay.textContent = margen.toFixed(1) + '%';
+    margenDisplay.style.color = margen < 20 ? '#c62828' : margen >= 30 ? '#2e7d32' : '#f57f17';
+    badge.className = 'badge ' + badgeClass;
+    badge.textContent = margen.toFixed(1) + '%';
+    gananciaDisplay.textContent = formatearARSLocal(ganancia);
+    gananciaDisplay.classList.toggle('text-danger', ganancia < 0);
+    margenBrutoDisplay.textContent = margen.toFixed(1) + '%';
+    markupDisplay.textContent = c > 0 ? markup.toFixed(1) + '%' : '—';
+    info.style.display = 'block';
   } else {
-    el.textContent = '—';
-    el.style.color = '#666';
+    margenDisplay.textContent = '—';
+    margenDisplay.style.color = '#666';
+    info.style.display = 'none';
   }
 }
+
+function calcPrecioSugerido(){
+  const c = parseFloat(document.getElementById('costoInput').value) || 0;
+  const margenObjetivo = parseFloat(document.getElementById('margenObjetivoInput').value) || 0;
+  const precioDisplay = document.getElementById('precioSugeridoDisplay');
+  const btn = document.getElementById('usarPrecioSugerido');
+
+  if(c <= 0 || margenObjetivo <= 0 || margenObjetivo >= 95){
+    precioDisplay.textContent = '$ 0,00';
+    btn.disabled = true;
+    return 0;
+  }
+
+  const precioSugerido = c / (1 - (margenObjetivo / 100));
+  precioDisplay.textContent = formatearARSLocal(precioSugerido);
+  btn.disabled = false;
+  return precioSugerido;
+}
+
+function recalcularRentabilidad(){
+  calcPrecioSugerido();
+  calcRentabilidad();
+}
+
 // Barcode scanner
 document.getElementById('barcodeInput').addEventListener('keypress',e=>{ if(e.key==='Enter')e.preventDefault(); });
-calcMargen();
+document.getElementById('margenObjetivoInput').addEventListener('input', calcPrecioSugerido);
+document.getElementById('usarPrecioSugerido').addEventListener('click', () => {
+  const precioSugerido = calcPrecioSugerido();
+  if(precioSugerido > 0){
+    document.getElementById('pvInput').value = precioSugerido.toFixed(2);
+    calcRentabilidad();
+  }
+});
+document.getElementById('productForm').addEventListener('submit', (e) => {
+  const descripcion = document.querySelector('[name=descripcion]').value.trim();
+  const precio = parseFloat(document.getElementById('pvInput').value) || 0;
+  if(!descripcion){
+    e.preventDefault();
+    alert('La descripción es requerida.');
+    return;
+  }
+  if(precio <= 0){
+    e.preventDefault();
+    alert('El precio de venta debe ser mayor a 0.');
+  }
+});
+recalcularRentabilidad();
 
 // OpenFoodFacts lookup by barcode
 document.getElementById('btnLookupOFF').addEventListener('click', function(){

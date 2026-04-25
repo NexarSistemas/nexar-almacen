@@ -1,9 +1,9 @@
-# 🛒 Nexar Almacen — v1.7.7
+# 🛒 Nexar Almacen — v1.7.10
 
 Sistema completo de gestión para almacenes desarrollado en Python + Flask + SQLite.
 Funciona sin servidor, sin instalación compleja. Solo Python y un ZIP.
 
-**Versión actual:** `1.7.7`
+**Versión actual:** `1.7.10`
 **Desarrollado por:** Nexar Sistemas · con Claude.ai · 2026
 
 ---
@@ -123,6 +123,9 @@ Ver historial completo en [CHANGELOG.md](CHANGELOG.md) o en la app: **Menú → 
 
 | Versión | Fecha | Tipo | Descripción |
 |---------|-------|------|-------------|
+| **1.7.10** | 2026-04-25 | Seguridad / Mejora | Borrado seguro de ventas y cálculo claro de margen bruto, ganancia bruta, markup y precio sugerido en productos |
+| **1.7.9** | 2026-04-23 | Corrección | Normalización de URLs Supabase en licencias |
+| **1.7.8** | 2026-04-23 | Seguridad | Política uniforme de usuarios y contraseñas |
 | **1.7.1** | 2026-03-29 | Seguridad | Llave pública desde env var, builds mejorados |
 | **1.7.2** | 2026-04-08 | Mejoras | Aplicación del estándar NEXAR_SECRET_KEY_STANDARD para el manejo de `SECRET_KEY`. |
 | **1.7.3** | 2026-04-08 | Corrección | Corrección de la carga de `SECRET_KEY` en el build y del hash de contraseñas de usuarios predeterminados. |
