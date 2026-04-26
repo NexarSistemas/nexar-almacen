@@ -1,66 +1,463 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>Ticket #{{ venta.numero_ticket }}</title>
-<style>
-@media print { body { margin: 0; } .no-print { display: none; } }
-body { font-family: 'Courier New', monospace; font-size: 12px; max-width: 380px; margin: 20px auto; color: #000; }
-.header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 8px; }
-.header h2 { font-size: 18px; margin: 0 0 4px; }
-.header p { margin: 1px 0; font-size: 11px; }
-.info-row { display: flex; justify-content: space-between; margin: 2px 0; font-size: 11px; }
-.items { border-top: 1px dashed #000; border-bottom: 1px dashed #000; margin: 8px 0; padding: 4px 0; }
-.item { margin: 3px 0; }
-.item .desc { font-weight: bold; }
-.item .detail { display: flex; justify-content: space-between; font-size: 11px; color: #444; }
-.totals { margin-top: 8px; }
-.total-row { display: flex; justify-content: space-between; margin: 2px 0; }
-.total-final { font-size: 16px; font-weight: bold; border-top: 2px solid #000; padding-top: 4px; margin-top: 4px; }
-.footer { text-align: center; margin-top: 12px; font-size: 10px; color: #666; }
-.btn-print { display: block; margin: 20px auto; padding: 10px 24px; background: #2e7d32; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
-</style>
-</head>
-<body>
-<div class="header">
-  <h2>{{ cfg.get('nombre_negocio', 'ALMACÉN') }}</h2>
-  {% if cfg.get('direccion') %}<p>{{ cfg.direccion }}</p>{% endif %}
-  {% if cfg.get('telefono') %}<p>Tel: {{ cfg.telefono }}</p>{% endif %}
-  <p>CUIT: {{ cfg.get('cuit', '—') }}</p>
-</div>
+{% extends "base.html" %}
 
-<div class="info-row"><span>Ticket N°:</span><strong>{{ venta.numero_ticket }}</strong></div>
-<div class="info-row"><span>Fecha:</span><span>{{ venta.fecha }} {{ venta.hora }}</span></div>
-<div class="info-row"><span>Cliente:</span><span>{{ venta.cliente_nombre }}</span></div>
-<div class="info-row"><span>Medio pago:</span><span>{{ venta.medio_pago }}</span></div>
-{% if venta.vendedor %}<div class="info-row"><span>Vendedor:</span><span>{{ venta.vendedor }}</span></div>{% endif %}
+{% block title %}Ticket #{{ venta.numero_ticket }}{% endblock %}
+{% block page_title %}<i class="fas fa-receipt me-2" style="color:#3a7d44"></i>Ticket #{{ venta.numero_ticket }}{% endblock %}
 
-<div class="items">
-{% for item in detalle %}
-<div class="item">
-  <div class="desc">{{ item.descripcion }}</div>
-  <div class="detail">
-    <span>{{ item.cantidad }} {{ item.unidad }} x ${{ "%.2f"|format(item.precio_unitario) }}{% if item.descuento > 0 %} (-{{ "%.0f"|format(item.descuento*100) }}%){% endif %}</span>
-    <span>${{ "%.2f"|format(item.subtotal) }}</span>
+{% block content %}
+<div class="ticket-page py-4">
+  <div class="ticket-shell">
+    <div class="ticket-card shadow-sm">
+      <div class="ticket-header text-center">
+        <div class="ticket-eyebrow">Comprobante interno de venta</div>
+        <h1>{{ cfg.get('nombre_negocio') or 'Nexar Almacén' }}</h1>
+        <div class="ticket-meta">
+          {% if cfg.get('direccion') %}<div>{{ cfg.get('direccion') }}</div>{% endif %}
+          <div>
+            {% if cfg.get('telefono') %}<span>Tel: {{ cfg.get('telefono') }}</span>{% endif %}
+            {% if cfg.get('cuit') %}<span class="ms-2">CUIT/DNI: {{ cfg.get('cuit') }}</span>{% endif %}
+          </div>
+          {% if cfg.get('negocio_email') %}<div>{{ cfg.get('negocio_email') }}</div>{% endif %}
+        </div>
+        <div class="ticket-number">Ticket #{{ venta.numero_ticket }}</div>
+      </div>
+
+      <div class="ticket-body">
+        <div class="ticket-grid">
+          <div>
+            <span class="label">Fecha</span>
+            <strong>{{ venta.fecha }} {{ venta.hora[:5] if venta.hora else '' }}</strong>
+          </div>
+          <div class="text-end">
+            <span class="label">Vendedor</span>
+            <strong>{{ venta.vendedor or '—' }}</strong>
+          </div>
+          <div>
+            <span class="label">Cliente</span>
+            <strong>{{ venta.cliente_nombre or 'Mostrador' }}</strong>
+          </div>
+          <div class="text-end">
+            <span class="label">Medio de pago</span>
+            <strong>{{ venta.medio_pago }}</strong>
+          </div>
+        </div>
+
+        <div class="ticket-section-title">Productos vendidos</div>
+        <div class="ticket-items">
+          {% for item in detalle %}
+          <div class="ticket-item">
+            <div class="item-main">
+              <div class="item-name">{{ item.descripcion }}</div>
+              <div class="item-sub">
+                {{ item.categoria }} · {{ item.unidad }}
+                {% if cfg.get('ticket_mostrar_iva') == '1' %} · IVA {{ item.iva_label }}{% endif %}
+                {% if item.descuento > 0 %} · Dto {{ "%.0f"|format(item.descuento * 100) }}%{% endif %}
+              </div>
+            </div>
+            <div class="item-qty">{{ item.cantidad }}</div>
+            <div class="item-price">{{ fmt_ars(item.precio_unitario) }}</div>
+            <div class="item-total">{{ fmt_ars(item.subtotal) }}</div>
+          </div>
+          {% else %}
+          <div class="text-muted text-center py-3">No hay productos cargados en este ticket.</div>
+          {% endfor %}
+        </div>
+
+        <div class="ticket-totals">
+          <div class="total-row">
+            <span>Subtotal</span>
+            <strong>{{ fmt_ars(venta.subtotal) }}</strong>
+          </div>
+          {% if venta.descuento_adicional > 0 %}
+          <div class="total-row text-danger">
+            <span>Descuento</span>
+            <strong>-{{ "%.0f"|format(venta.descuento_adicional * 100) }}%</strong>
+          </div>
+          {% endif %}
+          <div class="total-row total-final">
+            <span>Total</span>
+            <strong>{{ fmt_ars(venta.total) }}</strong>
+          </div>
+          {% if venta.medio_pago == 'Efectivo' and venta.recibido and venta.recibido > 0 %}
+          <div class="total-row cash-row">
+            <span>Recibido</span>
+            <strong>{{ fmt_ars(venta.recibido) }}</strong>
+          </div>
+          <div class="total-row cash-row">
+            <span>Vuelto</span>
+            <strong>{{ fmt_ars(venta.vuelto) }}</strong>
+          </div>
+          {% endif %}
+        </div>
+
+        {% if cfg.get('ticket_mostrar_iva') == '1' and iva_resumen %}
+        <div class="ticket-section-title">IVA informativo</div>
+        <div class="ticket-iva">
+          {% for fila in iva_resumen %}
+          <div class="iva-row">
+            <span>{{ fila.alicuota }}</span>
+            <span>Base {{ fmt_ars(fila.base) }}</span>
+            <strong>IVA {{ fmt_ars(fila.iva) }}</strong>
+          </div>
+          {% endfor %}
+          <div class="iva-note">Detalle orientativo no fiscal. El ticket no reemplaza comprobante ARCA.</div>
+        </div>
+        {% endif %}
+
+        {% if cfg.get('ticket_pie') %}
+        <div class="ticket-footer-note">
+          {{ cfg.get('ticket_pie') }}
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="ticket-actions">
+        <button onclick="window.print()" class="btn btn-primary">
+          <i class="fas fa-print me-2"></i>Imprimir
+        </button>
+        <a href="{{ url_for('punto_venta') }}" class="btn btn-success">
+          <i class="fas fa-plus me-2"></i>Nueva Venta
+        </a>
+        <a href="{{ url_for('historial') }}" class="btn btn-outline-secondary">
+          <i class="fas fa-history me-2"></i>Historial
+        </a>
+      </div>
+    </div>
   </div>
 </div>
-{% endfor %}
-</div>
 
-<div class="totals">
-  <div class="total-row"><span>Subtotal:</span><span>${{ "%.2f"|format(venta.subtotal) }}</span></div>
-  {% if venta.descuento_adicional > 0 %}
-  <div class="total-row"><span>Descuento:</span><span>-{{ "%.0f"|format(venta.descuento_adicional*100) }}%</span></div>
-  {% endif %}
-  <div class="total-row total-final"><span>TOTAL:</span><span>${{ "%.2f"|format(venta.total) }}</span></div>
-</div>
+<style>
+  .ticket-page {
+    background:
+      radial-gradient(circle at top, rgba(58, 125, 68, 0.10), transparent 45%),
+      linear-gradient(180deg, #f4f7f2 0%, #e8efe4 100%);
+    min-height: calc(100vh - 120px);
+  }
 
-<div class="footer">
-  ¡Gracias por su compra!<br>
-  {{ cfg.get('nombre_negocio','') }}
-</div>
+  .ticket-shell {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
 
-<button class="btn-print no-print" onclick="window.print()">🖨️ Imprimir</button>
-<a href="/historial" class="no-print" style="display:block;text-align:center;margin-top:8px;color:#1565c0">← Volver al historial</a>
-</body>
-</html>
+  .ticket-card {
+    background: #fffdf8;
+    border: 1px solid rgba(26, 46, 26, 0.12);
+    border-radius: 18px;
+    overflow: hidden;
+  }
+
+  .ticket-header {
+    background: linear-gradient(135deg, #1a2e1a 0%, #3a7d44 100%);
+    color: #fff;
+    padding: 2rem 1.5rem 1.5rem;
+  }
+
+  .ticket-header h1 {
+    font-size: 1.8rem;
+    margin: 0.35rem 0;
+    font-weight: 800;
+  }
+
+  .ticket-eyebrow {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    opacity: 0.8;
+  }
+
+  .ticket-meta {
+    font-size: 0.95rem;
+    opacity: 0.92;
+  }
+
+  .ticket-number {
+    margin-top: 1rem;
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.12);
+    padding: 0.45rem 1rem;
+    border-radius: 999px;
+    font-weight: 700;
+  }
+
+  .ticket-body {
+    padding: 1.5rem;
+  }
+
+  .ticket-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 1.5rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px dashed rgba(26, 46, 26, 0.25);
+  }
+
+  .ticket-footer-note {
+    margin-top: 1rem;
+    padding: 0.85rem 1rem;
+    background: #eef7ed;
+    border-radius: 10px;
+  }
+
+  .label {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #607060;
+    margin-bottom: 0.2rem;
+  }
+
+  .ticket-section-title {
+    margin: 1.4rem 0 0.8rem;
+    font-weight: 800;
+    color: #1a2e1a;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.82rem;
+  }
+
+  .ticket-items {
+    border: 1px solid rgba(26, 46, 26, 0.1);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .ticket-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 70px 110px 110px;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem;
+    align-items: center;
+    border-bottom: 1px solid rgba(26, 46, 26, 0.08);
+  }
+
+  .ticket-item:last-child {
+    border-bottom: 0;
+  }
+
+  .item-name,
+  .item-total,
+  .item-price,
+  .item-qty {
+    font-weight: 700;
+  }
+
+  .item-sub {
+    color: #607060;
+    font-size: 0.9rem;
+  }
+
+  .item-qty,
+  .item-price,
+  .item-total,
+  .ticket-totals strong,
+  .iva-row strong {
+    font-family: "Consolas", "Courier New", monospace;
+  }
+
+  .item-qty,
+  .item-price,
+  .item-total {
+    text-align: right;
+  }
+
+  .ticket-totals {
+    margin-top: 1.25rem;
+    border-top: 1px dashed rgba(26, 46, 26, 0.25);
+    padding-top: 1rem;
+  }
+
+  .total-row,
+  .iva-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .total-final {
+    margin-top: 0.6rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(26, 46, 26, 0.1);
+    font-size: 1.15rem;
+  }
+
+  .cash-row {
+    color: #2e7d32;
+  }
+
+  .ticket-iva {
+    background: #f3f8f2;
+    border-radius: 12px;
+    padding: 1rem;
+  }
+
+  .iva-note {
+    margin-top: 0.75rem;
+    font-size: 0.86rem;
+    color: #607060;
+  }
+
+  .ticket-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    padding: 0 1.5rem 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 768px) {
+    .ticket-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .ticket-item {
+      grid-template-columns: 1fr;
+    }
+
+    .item-qty,
+    .item-price,
+    .item-total {
+      text-align: left;
+    }
+  }
+
+  @media print {
+    @page {
+      size: A4 portrait;
+      margin: 8mm;
+    }
+
+    body * {
+      visibility: hidden;
+    }
+
+    .ticket-card,
+    .ticket-card * {
+      visibility: visible;
+    }
+
+    .ticket-page {
+      background: #fff !important;
+      padding: 0 !important;
+    }
+
+    .ticket-card {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      transform: translateX(-50%);
+      width: 135mm;
+      border: 0;
+      border-radius: 8px;
+      box-shadow: none !important;
+    }
+
+    .ticket-header {
+      padding: 10mm 7mm 5mm;
+    }
+
+    .ticket-header h1 {
+      font-size: 14pt;
+      margin: 1mm 0;
+    }
+
+    .ticket-eyebrow,
+    .ticket-meta,
+    .label,
+    .item-sub,
+    .iva-note,
+    .ticket-footer-note {
+      font-size: 8pt;
+    }
+
+    .ticket-number {
+      margin-top: 3mm;
+      padding: 1.5mm 4mm;
+      font-size: 9pt;
+    }
+
+    .ticket-body {
+      padding: 5mm 6mm;
+    }
+
+    .ticket-grid {
+      gap: 2mm 4mm;
+      padding-bottom: 3mm;
+    }
+
+    .ticket-footer-note,
+    .ticket-iva {
+      margin-top: 3mm;
+      padding: 2.5mm 3mm;
+      border-radius: 6px;
+    }
+
+    .ticket-section-title {
+      margin: 4mm 0 2mm;
+      font-size: 8pt;
+    }
+
+    .ticket-items {
+      border-radius: 8px;
+    }
+
+    .ticket-item {
+      grid-template-columns: minmax(0, 1fr) 12mm 23mm 24mm;
+      gap: 2mm;
+      padding: 2.2mm 3mm;
+      page-break-inside: avoid;
+    }
+
+    .item-name,
+    .item-qty,
+    .item-price,
+    .item-total,
+    .ticket-totals,
+    .iva-row {
+      font-size: 9pt;
+      line-height: 1.15;
+    }
+
+    .item-sub {
+      line-height: 1.1;
+      margin-top: 0.5mm;
+    }
+
+    .ticket-totals {
+      margin-top: 4mm;
+      padding-top: 3mm;
+    }
+
+    .total-row,
+    .iva-row {
+      margin-bottom: 1.2mm;
+    }
+
+    .total-final {
+      margin-top: 2mm;
+      padding-top: 2mm;
+      font-size: 10pt;
+    }
+
+    .ticket-actions,
+    #sidebar,
+    .topbar,
+    .demo-banner,
+    .flash-success,
+    .flash-danger,
+    .flash-warning,
+    .flash-info {
+      display: none !important;
+    }
+
+    #main {
+      margin-left: 0 !important;
+    }
+
+    .content {
+      padding: 0 !important;
+    }
+  }
+</style>
+{% endblock %}

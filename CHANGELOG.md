@@ -6,6 +6,21 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 
 ---
 
+## [1.7.11] - 2026-04-25 - Tickets con IVA y vuelto
+
+### Agregado
+- El ticket de venta adopta el diseño detallado de Nexar Tienda, adaptado visualmente a Nexar Almacen.
+- Configuracion permite definir email de contacto, texto al pie del ticket y si se muestra IVA desglosado.
+- Las ventas guardan el IVA por item para mostrar un resumen informativo en el ticket cuando corresponde.
+- En pagos en efectivo, el ticket muestra importe recibido y vuelto.
+
+### Cambiado
+- El vendedor del ticket se registra con el nombre real del usuario logueado.
+- Se quito la temporada del ticket para dejar el comprobante mas claro.
+- El numero de ticket evita reutilizar valores si la configuracion queda atrasada respecto del historial.
+
+---
+
 ## [1.7.10] - 2026-04-25 - Borrado seguro y rentabilidad en productos
 
 ### Agregado

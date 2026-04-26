@@ -460,6 +460,38 @@ def fmt_ars(v):
     except:
         return "$0,00"
 
+def preparar_detalle_ticket(detalle):
+    iva_items = []
+    iva_totales = {}
+    for item in detalle:
+        item_dict = dict(item)
+        producto = db.q("SELECT iva FROM productos WHERE id=?", (item["producto_id"],), fetchone=True)
+        iva_label = (item_dict.get("iva") or (producto["iva"] if producto and producto["iva"] else "21%")).strip()
+        try:
+            iva_rate = float(iva_label.replace("%", "").replace(",", "."))
+        except ValueError:
+            iva_rate = 0.0
+        subtotal = float(item["subtotal"] or 0)
+        base = subtotal / (1 + (iva_rate / 100)) if iva_rate > 0 else subtotal
+        iva_importe = subtotal - base
+        item_dict["iva_label"] = iva_label
+        item_dict["iva_importe"] = round(iva_importe, 2)
+        iva_items.append(item_dict)
+        bucket = iva_totales.setdefault(iva_label, {"base": 0.0, "iva": 0.0, "total": 0.0})
+        bucket["base"] += base
+        bucket["iva"] += iva_importe
+        bucket["total"] += subtotal
+    iva_resumen = [
+        {
+            "alicuota": alicuota,
+            "base": round(valores["base"], 2),
+            "iva": round(valores["iva"], 2),
+            "total": round(valores["total"], 2),
+        }
+        for alicuota, valores in sorted(iva_totales.items(), key=lambda item: item[0])
+    ]
+    return iva_items, iva_resumen
+
 app.jinja_env.globals['fmt_ars'] = fmt_ars
 app.jinja_env.globals['today'] = lambda: date.today().isoformat()
 app.jinja_env.globals['now'] = lambda: datetime.now().strftime('%H:%M')
@@ -930,6 +962,7 @@ def api_producto_buscar():
         'categoria': p['categoria'],
         'unidad': p['unidad'],
         'precio_venta': p['precio_venta'],
+        'iva': p['iva'],
         'por_peso': p['por_peso'],
         'stock_actual': s['stock_actual'] if s else 0,
     })
@@ -991,13 +1024,26 @@ def venta_procesar():
     if not items:
         return jsonify({'ok': False, 'msg': 'No hay productos en el ticket'})
     try:
+        medio_pago = data.get('medio_pago', 'Efectivo')
+        descuento_adicional = float(data.get('descuento_adicional', 0))
+        subtotal = sum(
+            float(i.get('cantidad', 0)) * float(i.get('precio_unitario', 0)) * (1 - float(i.get('descuento', 0)))
+            for i in items
+        )
+        total = subtotal * (1 - descuento_adicional)
+        recibido = float(data.get('recibido', 0) or 0) if medio_pago == 'Efectivo' else 0
+        vuelto = max(recibido - total, 0) if medio_pago == 'Efectivo' else 0
+        if medio_pago == 'Efectivo' and recibido < total:
+            return jsonify({'ok': False, 'msg': 'El importe recibido no alcanza para cubrir el total.'})
         vid, ticket = db.crear_venta(
             items=items,
             cliente_nombre=data.get('cliente_nombre', 'Mostrador'),
-            medio_pago=data.get('medio_pago', 'Efectivo'),
-            descuento_adicional=float(data.get('descuento_adicional', 0)),
-            vendedor=data.get('vendedor', ''),
+            medio_pago=medio_pago,
+            descuento_adicional=descuento_adicional,
+            vendedor=session.get('user', {}).get('nombre') or session.get('user', {}).get('username', ''),
             cliente_id=int(data.get('cliente_id', 0)),
+            recibido=recibido,
+            vuelto=vuelto,
         )
         return jsonify({'ok': True, 'vid': vid, 'ticket': ticket})
     except Exception as e:
@@ -1009,7 +1055,8 @@ def venta_ticket(vid):
     v = db.q("SELECT * FROM ventas WHERE id=?", (vid,), fetchone=True)
     detalle = db.get_venta_detalle(vid)
     cfg = db.get_config()
-    return render_template('ticket.html', venta=v, detalle=detalle, cfg=cfg)
+    detalle_iva, iva_resumen = preparar_detalle_ticket(detalle)
+    return render_template('ticket.html', venta=v, detalle=detalle_iva, iva_resumen=iva_resumen, cfg=cfg)
 
 # ─── HISTORIAL VENTAS ─────────────────────────────────────────────────────────
 @app.route('/historial')
@@ -1029,7 +1076,8 @@ def historial():
 def historial_detalle(vid):
     v = db.q("SELECT * FROM ventas WHERE id=?", (vid,), fetchone=True)
     detalle = db.get_venta_detalle(vid)
-    return render_template('ticket.html', venta=v, detalle=detalle, cfg=db.get_config())
+    detalle_iva, iva_resumen = preparar_detalle_ticket(detalle)
+    return render_template('ticket.html', venta=v, detalle=detalle_iva, iva_resumen=iva_resumen, cfg=db.get_config())
 
 @app.route('/historial/<int:vid>/eliminar', methods=['POST'])
 @login_required
@@ -1294,7 +1342,9 @@ def analisis():
 @admin_required
 def config():
     if request.method == 'POST':
-        db.set_config(request.form.to_dict())
+        data = request.form.to_dict()
+        data['ticket_mostrar_iva'] = '1' if request.form.get('ticket_mostrar_iva') else '0'
+        db.set_config(data)
         flash('✅ Configuración guardada', 'success')
         return redirect(url_for('config'))
     cfg = db.get_config()
