@@ -332,6 +332,8 @@ def init_db():
             subtotal REAL DEFAULT 0,
             descuento_adicional REAL DEFAULT 0,
             total REAL DEFAULT 0,
+            recibido REAL DEFAULT 0,
+            vuelto REAL DEFAULT 0,
             vendedor TEXT DEFAULT '',
             temporada TEXT DEFAULT ''
         );
@@ -346,6 +348,7 @@ def init_db():
             unidad TEXT DEFAULT '',
             cantidad REAL DEFAULT 1,
             precio_unitario REAL DEFAULT 0,
+            iva TEXT DEFAULT '',
             descuento REAL DEFAULT 0,
             subtotal REAL DEFAULT 0
         );
@@ -431,8 +434,11 @@ def init_db():
         ('nombre_negocio', 'Mi Almacén'),
         ('direccion', ''),
         ('telefono', ''),
+        ('negocio_email', ''),
         ('cuit', ''),
         ('responsable', ''),
+        ('ticket_pie', '¡Gracias por su compra!'),
+        ('ticket_mostrar_iva', '0'),
         ('margen_minimo', '0.20'),
         ('margen_objetivo', '0.35'),
         ('dias_alerta_proveedor', '30'),
@@ -454,6 +460,23 @@ def init_db():
     ]
     for k, v in defaults:
         c.execute("INSERT OR IGNORE INTO config VALUES (?,?)", (k, v))
+
+    columnas_ventas = [r['name'] for r in c.execute("PRAGMA table_info(ventas)").fetchall()]
+    if 'recibido' not in columnas_ventas:
+        c.execute("ALTER TABLE ventas ADD COLUMN recibido REAL DEFAULT 0")
+    if 'vuelto' not in columnas_ventas:
+        c.execute("ALTER TABLE ventas ADD COLUMN vuelto REAL DEFAULT 0")
+
+    columnas_vd = [r['name'] for r in c.execute("PRAGMA table_info(ventas_detalle)").fetchall()]
+    if 'iva' not in columnas_vd:
+        c.execute("ALTER TABLE ventas_detalle ADD COLUMN iva TEXT DEFAULT ''")
+        c.execute("""
+            UPDATE ventas_detalle
+            SET iva = COALESCE((
+                SELECT p.iva FROM productos p WHERE p.id = ventas_detalle.producto_id
+            ), '')
+            WHERE COALESCE(iva, '') = ''
+        """)
 
     # Generate machine_id if not exists
     mid = c.execute("SELECT valor FROM config WHERE clave='machine_id'").fetchone()
@@ -607,10 +630,17 @@ def next_codigo():
     return new_code
 
 def next_ticket():
-    cfg = get_config()
-    n = int(cfg.get('siguiente_ticket', 1001))
-    set_config({'siguiente_ticket': str(n + 1)})
-    return n
+    """Devuelve el proximo ticket evitando reutilizar numeros ya vendidos."""
+    conn = get_conn()
+    c = conn.cursor()
+    last_sale_ticket = c.execute("SELECT MAX(numero_ticket) as max FROM ventas").fetchone()['max'] or 0
+    cfg_row = c.execute("SELECT valor FROM config WHERE clave='siguiente_ticket'").fetchone()
+    cfg_next_ticket = int((cfg_row['valor'] if cfg_row else 1001) or 1001)
+    next_num = max(last_sale_ticket + 1, cfg_next_ticket)
+    c.execute("INSERT OR REPLACE INTO config VALUES ('siguiente_ticket', ?)", (str(next_num + 1),))
+    conn.commit()
+    conn.close()
+    return next_num
 
 # ─── CATEGORÍAS ──────────────────────────────────────────────────────────────
 def get_categorias():
@@ -877,7 +907,7 @@ def delete_venta(venta_id):
     finally:
         conn.close()
 
-def crear_venta(items, cliente_nombre, medio_pago, descuento_adicional, vendedor, cliente_id=0):
+def crear_venta(items, cliente_nombre, medio_pago, descuento_adicional, vendedor, cliente_id=0, recibido=0, vuelto=0):
     """
     items: list of dicts with producto_id, codigo_interno, descripcion, categoria,
            unidad, cantidad, precio_unitario, descuento
@@ -887,24 +917,26 @@ def crear_venta(items, cliente_nombre, medio_pago, descuento_adicional, vendedor
     ticket = next_ticket()
     subtotal = sum(i['cantidad'] * i['precio_unitario'] * (1 - i['descuento']) for i in items)
     total = subtotal * (1 - descuento_adicional)
+    recibido = float(recibido or 0) if medio_pago == 'Efectivo' else 0
+    vuelto = float(vuelto or 0) if medio_pago == 'Efectivo' else 0
 
     conn = get_conn()
     c = conn.cursor()
     c.execute("""INSERT INTO ventas (numero_ticket,fecha,hora,cliente_id,cliente_nombre,medio_pago,
-                subtotal,descuento_adicional,total,vendedor,temporada)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                subtotal,descuento_adicional,total,recibido,vuelto,vendedor,temporada)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (ticket, today.isoformat(), datetime.now().strftime('%H:%M'),
-         cliente_id, cliente_nombre, medio_pago, subtotal, descuento_adicional, total, vendedor, season))
+         cliente_id, cliente_nombre, medio_pago, subtotal, descuento_adicional, total, recibido, vuelto, vendedor, season))
     vid = c.lastrowid
 
     for item in items:
         item_subtotal = item['cantidad'] * item['precio_unitario'] * (1 - item['descuento'])
         c.execute("""INSERT INTO ventas_detalle
-            (venta_id,producto_id,codigo_interno,descripcion,categoria,unidad,cantidad,precio_unitario,descuento,subtotal)
-            VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (venta_id,producto_id,codigo_interno,descripcion,categoria,unidad,cantidad,precio_unitario,iva,descuento,subtotal)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
             (vid, item['producto_id'], item['codigo_interno'], item['descripcion'],
              item['categoria'], item['unidad'], item['cantidad'], item['precio_unitario'],
-             item['descuento'], item_subtotal))
+             item.get('iva', ''), item['descuento'], item_subtotal))
         # Update stock
         c.execute("UPDATE stock SET stock_actual=stock_actual-? WHERE producto_id=?",
                   (item['cantidad'], item['producto_id']))
@@ -1316,7 +1348,7 @@ def buscar_productos_pos(term, limit=10):
     t = f'%{term.strip()}%'
     return q("""
         SELECT p.id, p.codigo_interno, p.codigo_barras, p.descripcion,
-               p.categoria, p.unidad, p.por_peso, p.precio_venta,
+               p.categoria, p.unidad, p.por_peso, p.precio_venta, p.iva,
                COALESCE(s.stock_actual, 0) as stock_actual
         FROM productos p
         LEFT JOIN stock s ON s.producto_id=p.id

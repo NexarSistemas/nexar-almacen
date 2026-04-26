@@ -128,7 +128,8 @@
         <!-- VENDEDOR -->
         <div class="mb-2">
           <label class="text-white-50" style="font-size:.78rem;font-weight:600">VENDEDOR</label>
-          <input type="text" id="vendedorInput" class="form-control form-control-sm" placeholder="Nombre (opcional)">
+          <input type="text" id="vendedorInput" class="form-control form-control-sm"
+            value="{{ current_user.nombre or current_user.username }}" readonly>
         </div>
 
         <!-- MEDIO DE PAGO -->
@@ -283,7 +284,7 @@ function elegirProductoInstant(b64){
   codInput.value = '';
   currentProduct = {ok:true, id:p.id, codigo_interno:p.codigo_interno,
     descripcion:p.descripcion, categoria:p.categoria, unidad:p.unidad,
-    precio_venta:p.precio_venta, por_peso:p.por_peso, stock_actual:p.stock_actual};
+    precio_venta:p.precio_venta, iva:p.iva, por_peso:p.por_peso, stock_actual:p.stock_actual};
   mostrarSugerencia();
   document.getElementById('cantInput').focus();
 }
@@ -335,6 +336,7 @@ function confirmarItem(){
     unidad: currentProduct.unidad,
     cantidad: cant,
     precio_unitario: currentProduct.precio_venta,
+    iva: currentProduct.iva || '',
     descuento: dto,
     subtotal: subtotal,
   });
@@ -411,7 +413,7 @@ async function procesarVenta(){
     cliente_id: parseInt(clienteSel.value),
     medio_pago: medio,
     descuento_adicional: dtoAdic,
-    vendedor: document.getElementById('vendedorInput').value,
+    recibido: medio === 'Efectivo' ? parseFloat(document.getElementById('recibidoInput').value || 0) : 0,
   };
   document.getElementById('btnCobrar').disabled = true;
   try{
