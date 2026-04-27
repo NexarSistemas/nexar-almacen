@@ -7,6 +7,12 @@
 <div class="col-lg-8">
 <div class="form-card">
   <form method="post" id="productForm" novalidate>
+    {% if from_compra %}
+    <input type="hidden" name="return_to" value="compras">
+    {% for field, value in draft_compra.items() %}
+    <input type="hidden" name="{{ field }}" value="{{ value }}">
+    {% endfor %}
+    {% endif %}
     <div class="row g-3">
       {% if producto %}
       <div class="col-12">
@@ -19,13 +25,13 @@
       <div class="col-md-8">
         <label class="form-label">Descripción <span class="text-danger">*</span></label>
         <input type="text" name="descripcion" class="form-control" required
-          value="{{ producto.descripcion if producto else '' }}" placeholder="Nombre del producto">
+          value="{{ producto.descripcion if producto else (prefill.descripcion if prefill else '') }}" placeholder="Nombre del producto">
       </div>
       <div class="col-md-4">
         <label class="form-label">Código de Barras</label>
         <div class="input-group">
           <input type="text" name="codigo_barras" class="form-control" id="barcodeInput"
-            value="{{ producto.codigo_barras if producto else '' }}"
+            value="{{ producto.codigo_barras if producto else (prefill.codigo_barras if prefill else '') }}"
             placeholder="Escanear o escribir">
           <button type="button" class="btn btn-outline-secondary btn-sm" id="btnLookupOFF" title="Buscar en OpenFoodFacts">
             <i class="fas fa-search"></i>
@@ -69,7 +75,7 @@
         <div class="input-group">
           <span class="input-group-text">$</span>
           <input type="number" name="costo" class="form-control" id="costoInput"
-            value="{{ producto.costo if producto else '' }}" min="0" step="0.01" required
+            value="{{ producto.costo if producto else (prefill.costo if prefill else '') }}" min="0" step="0.01" required
             oninput="recalcularRentabilidad()">
         </div>
       </div>
@@ -144,6 +150,7 @@
         </div>
       </div>
 
+      {% if not from_compra %}
       <div class="col-12"><hr><div class="section-title">Stock Inicial</div></div>
       <div class="col-md-4">
         <label class="form-label">Stock Actual</label>
@@ -160,6 +167,14 @@
         <input type="number" name="stock_maximo" class="form-control"
           value="{{ stock.stock_maximo if stock else '50' }}" min="0" step="0.001">
       </div>
+      {% else %}
+      <div class="col-12">
+        <div class="alert alert-info mb-0">
+          El stock inicial queda en <strong>0</strong> porque este producto se está creando desde una compra.
+          Al volver a compras, la cantidad cargada allí será la que ingrese el stock.
+        </div>
+      </div>
+      {% endif %}
 
       {% if producto %}
       <div class="col-md-4">
@@ -175,7 +190,7 @@
         <button type="submit" class="btn btn-primary px-4">
           <i class="fas fa-save me-1"></i>Guardar
         </button>
-        <a href="/productos" class="btn btn-outline-secondary">Cancelar</a>
+        <a href="{{ cancel_url if cancel_url is defined else '/productos' }}" class="btn btn-outline-secondary">Cancelar</a>
       </div>
     </div>
   </form>

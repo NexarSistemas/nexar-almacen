@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}{{ accion }} compra{% endblock %}
+{% block page_title %}<i class="fas fa-pen me-2" style="color:#e65100"></i>{{ accion }} compra{% endblock %}
+{% block topbar_actions %}
+<a href="{{ url_for('compras') }}" class="btn btn-outline-secondary btn-sm">
+  <i class="fas fa-arrow-left me-1"></i>Volver a compras
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="form-card">
+      <div class="section-title">
+        <i class="fas fa-file-invoice-dollar" style="color:#e65100"></i>
+        Datos de la compra
+      </div>
+      <form method="post" id="compraForm">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label fw-bold">Fecha <span class="text-danger">*</span></label>
+            <input type="date" name="fecha" class="form-control" required value="{{ compra.fecha }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold">N? Remito / Factura</label>
+            <input type="text" name="numero_remito" class="form-control" value="{{ compra.numero_remito }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold">Proveedor</label>
+            <select name="proveedor_id" class="form-select">
+              <option value="0">? Sin proveedor ?</option>
+              {% for p in proveedores %}
+              <option value="{{ p.id }}" {% if compra.proveedor_id == p.id %}selected{% endif %}>{{ p.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-8">
+            <label class="form-label fw-bold">Producto <span class="text-danger">*</span></label>
+            <select name="producto_id" class="form-select" required>
+              <option value="">? Seleccionar producto ?</option>
+              {% for p in productos %}
+              <option value="{{ p.id }}" {% if compra.producto_id == p.id %}selected{% endif %}>{{ p.descripcion }} ({{ p.codigo_interno }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-bold">Cantidad <span class="text-danger">*</span></label>
+            <input type="number" name="cantidad" id="cantidad" class="form-control" min="0.001" step="0.001" value="{{ compra.cantidad }}" required>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-bold">Costo Unitario ($) <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <input type="number" name="costo_unitario" id="costo_unitario" class="form-control" min="0" step="0.01" value="{{ compra.costo_unitario }}" required>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold">Total estimado</label>
+            <input type="text" id="total_preview" class="form-control" value="{{ fmt_ars(compra.total) }}" disabled>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold">Observaciones</label>
+            <textarea name="observaciones" class="form-control" rows="3" placeholder="Nota opcional">{{ compra.observaciones }}</textarea>
+          </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mt-4">
+          <a href="{{ url_for('compra_detalle', cid=compra.id) }}" class="btn btn-outline-secondary">Cancelar</a>
+          <button type="submit" class="btn btn-warning">
+            <i class="fas fa-save me-1"></i>{{ accion }} compra
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const cantidad = document.getElementById('cantidad');
+  const costo = document.getElementById('costo_unitario');
+  const total = document.getElementById('total_preview');
+
+  function updateTotal() {
+    const cantidadValue = parseFloat(cantidad.value || 0);
+    const costoValue = parseFloat(costo.value || 0);
+    total.value = '$ ' + (cantidadValue * costoValue).toFixed(2);
+  }
+
+  cantidad.addEventListener('input', updateTotal);
+  costo.addEventListener('input', updateTotal);
+  updateTotal();
+});
+</script>
+{% endblock %}

@@ -20,7 +20,7 @@
     <table class="table table-sm mb-0">
       <thead>
         <tr><th>Fecha</th><th>Remito/Fact.</th><th>Proveedor</th><th>Producto</th>
-        <th>Cant.</th><th>Costo Unit.</th><th>Total</th><th>Obs.</th></tr>
+        <th>Cant.</th><th>Costo Unit.</th><th>Total</th><th>Obs.</th><th>Acciones</th></tr>
       </thead>
       <tbody>
       {% for c in compras %}
@@ -36,16 +36,24 @@
           <td>{{ fmt_ars(c.costo_unitario) }}</td>
           <td class="fw-bold">{{ fmt_ars(c.total) }}</td>
           <td><small>{{ c.observaciones or '' }}</small></td>
+          <td>
+            <div class="btn-group" role="group">
+              <a href="/compras/{{ c.id }}" class="btn btn-xs btn-outline-primary" style="font-size:.75rem;padding:2px 7px" title="Ver detalle"><i class="fas fa-eye"></i></a>
+              <a href="/compras/{{ c.id }}/editar" class="btn btn-xs btn-outline-secondary" style="font-size:.75rem;padding:2px 7px" title="Editar"><i class="fas fa-edit"></i></a>
+              <form method="post" action="/compras/{{ c.id }}/eliminar" class="d-inline" onsubmit="return confirm('¿Eliminar compra #{{ c.id }}?')">
+                <button type="submit" class="btn btn-xs btn-outline-danger" style="font-size:.75rem;padding:2px 7px" title="Eliminar"><i class="fas fa-trash"></i></button>
+              </form>
+            </div>
+          </td>
         </tr>
       {% else %}
-        <tr><td colspan="8" class="empty-state"><i class="fas fa-shopping-cart"></i><br>Sin compras registradas</td></tr>
+        <tr><td colspan="9" class="empty-state"><i class="fas fa-shopping-cart"></i><br>Sin compras registradas</td></tr>
       {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
 
-<!-- NUEVA COMPRA MODAL -->
 <div class="modal fade" id="compraModal" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
@@ -53,49 +61,68 @@
         <h6 class="modal-title"><i class="fas fa-shopping-cart me-2"></i>Registrar Compra / Ingreso de Mercadería</h6>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
-      <form method="post" action="/compras/nueva">
+      <form method="post" action="/compras/nueva" id="compraForm">
         <div class="modal-body">
           <div class="row g-3">
             <div class="col-md-4">
               <label class="form-label fw-bold">Fecha <span class="text-danger">*</span></label>
-              <input type="date" name="fecha" class="form-control" required value="{{ today() }}">
+              <input type="date" name="fecha" class="form-control" required value="{{ draft.fecha or today() }}">
             </div>
             <div class="col-md-4">
               <label class="form-label fw-bold">N° Remito / Factura</label>
-              <input type="text" name="numero_remito" class="form-control" placeholder="FAC-0001">
+              <input type="text" name="numero_remito" class="form-control" placeholder="FAC-0001" value="{{ draft.numero_remito }}">
             </div>
             <div class="col-md-4">
-              <label class="form-label fw-bold">Proveedor</label>
-              <select name="proveedor_id" class="form-select">
+              <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                <label class="form-label fw-bold mb-0">Proveedor</label>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnCrearProveedor">
+                  <i class="fas fa-industry me-1"></i>Crear proveedor
+                </button>
+              </div>
+              <select name="proveedor_id" class="form-select" id="proveedor_id">
                 <option value="0">— Sin proveedor —</option>
                 {% for p in proveedores %}
-                <option value="{{ p.id }}">{{ p.nombre }}</option>
+                <option value="{{ p.id }}" {% if draft.proveedor_id == (p.id|string) %}selected{% endif %}>{{ p.nombre }}</option>
                 {% endfor %}
               </select>
             </div>
-            <div class="col-md-6">
-              <label class="form-label fw-bold">Producto <span class="text-danger">*</span></label>
-              <select name="producto_id" class="form-select" required>
+            <div class="col-md-8">
+              <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                <label class="form-label fw-bold mb-0">Producto <span class="text-danger">*</span></label>
+                <button type="button" class="btn btn-outline-warning btn-sm" id="btnCrearProducto">
+                  <i class="fas fa-plus me-1"></i>Crear producto
+                </button>
+              </div>
+              <select name="producto_id" class="form-select" id="producto_id" required>
                 <option value="">— Seleccionar producto —</option>
                 {% for p in productos %}
-                <option value="{{ p.id }}">{{ p.descripcion }} ({{ p.codigo_interno }})</option>
+                <option value="{{ p.id }}" {% if draft.producto_id == (p.id|string) %}selected{% endif %}>{{ p.descripcion }} ({{ p.codigo_interno }})</option>
                 {% endfor %}
               </select>
+              <small class="text-muted">Si el producto no existe, crealo y volvé a esta compra con todo prellenado.</small>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
+              <label class="form-label fw-bold">Código de barras</label>
+              <input type="text" name="codigo_barras" id="codigo_barras" class="form-control" value="{{ draft.codigo_barras }}" placeholder="Opcional">
+            </div>
+            <div class="col-md-8">
+              <label class="form-label fw-bold">Descripción para producto nuevo</label>
+              <input type="text" name="producto_descripcion" id="producto_descripcion" class="form-control" value="{{ draft.producto_descripcion }}" placeholder="Ej: Arroz largo fino 1kg">
+            </div>
+            <div class="col-md-2">
               <label class="form-label fw-bold">Cantidad <span class="text-danger">*</span></label>
-              <input type="number" name="cantidad" class="form-control" min="0.001" step="0.001" value="1" required>
+              <input type="number" name="cantidad" id="cantidad" class="form-control" min="0.001" step="0.001" value="{{ draft.cantidad or '1' }}" required>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
               <label class="form-label fw-bold">Costo Unitario ($) <span class="text-danger">*</span></label>
               <div class="input-group">
                 <span class="input-group-text">$</span>
-                <input type="number" name="costo_unitario" class="form-control" min="0" step="0.01" required>
+                <input type="number" name="costo_unitario" id="costo_unitario" class="form-control" min="0" step="0.01" value="{{ draft.costo_unitario }}" required>
               </div>
             </div>
             <div class="col-12">
               <label class="form-label">Observaciones</label>
-              <input type="text" name="observaciones" class="form-control" placeholder="Nota opcional">
+              <input type="text" name="observaciones" id="observaciones" class="form-control" placeholder="Nota opcional" value="{{ draft.observaciones }}">
             </div>
           </div>
         </div>
@@ -109,4 +136,123 @@
     </div>
   </div>
 </div>
+<div class="modal fade" id="proveedorModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#1a2e1a;color:#fff">
+        <h6 class="modal-title"><i class="fas fa-industry me-2"></i>Nuevo Proveedor</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="/proveedores/nuevo" id="proveedorForm">
+        <input type="hidden" name="return_to" value="compras">
+        <div id="proveedorDraftFields"></div>
+        <div class="modal-body">
+          <div class="row g-2">
+            <div class="col-12"><label class="form-label fw-bold">Nombre *</label>
+              <input type="text" name="nombre" class="form-control" required></div>
+            <div class="col-md-6"><label class="form-label">CUIT</label>
+              <input type="text" name="cuit" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">Dias Credito</label>
+              <input type="number" name="dias_credito" class="form-control" value="30" min="0"></div>
+            <div class="col-md-6"><label class="form-label">Telefono</label>
+              <input type="text" name="telefono" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">Email</label>
+              <input type="email" name="email" class="form-control"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Crear proveedor</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const form = document.getElementById('compraForm');
+  const modalEl = document.getElementById('compraModal');
+  const crearProductoBtn = document.getElementById('btnCrearProducto');
+  const crearProveedorBtn = document.getElementById('btnCrearProveedor');
+  const proveedorForm = document.getElementById('proveedorForm');
+  const proveedorDraftFields = document.getElementById('proveedorDraftFields');
+
+  function buildDraft() {
+    const draft = {};
+    ['fecha', 'numero_remito', 'proveedor_id', 'producto_id', 'cantidad', 'costo_unitario', 'observaciones', 'producto_descripcion', 'codigo_barras'].forEach((field) => {
+      const input = form.elements.namedItem(field);
+      if (input && input.value) {
+        draft[field] = input.value;
+      }
+    });
+    return draft;
+  }
+
+  function syncProviderDraftFields() {
+    const draft = buildDraft();
+    proveedorDraftFields.innerHTML = '';
+    Object.entries(draft).forEach(([key, value]) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      input.value = value;
+      proveedorDraftFields.appendChild(input);
+    });
+  }
+
+  function buildProductoUrl() {
+    const params = new URLSearchParams(buildDraft());
+    params.set('return_to', 'compras');
+    params.set('prefill_descripcion', form.elements.namedItem('producto_descripcion').value || '');
+    params.set('prefill_codigo_barras', form.elements.namedItem('codigo_barras').value || '');
+    params.set('prefill_costo', form.elements.namedItem('costo_unitario').value || '');
+    return `/productos/nuevo?${params.toString()}`;
+  }
+
+  crearProductoBtn.addEventListener('click', function () {
+    const descripcion = (form.elements.namedItem('producto_descripcion').value || '').trim();
+    if (!descripcion) {
+      Swal.fire({
+        title: 'Falta la descripción',
+        text: 'Completá la descripción del producto nuevo antes de crearlo desde compra.',
+        icon: 'info',
+        confirmButtonColor: '#e65100'
+      });
+      return;
+    }
+    window.location.href = buildProductoUrl();
+  });
+
+  crearProveedorBtn.addEventListener('click', function () {
+    syncProviderDraftFields();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('proveedorModal')).show();
+  });
+
+  proveedorForm.addEventListener('submit', syncProviderDraftFields);
+
+  {% if open_compra %}
+  const compraModal = new bootstrap.Modal(modalEl);
+  compraModal.show();
+  {% elif created_provider %}
+  Swal.fire({
+    title: 'Proveedor listo',
+    text: 'El proveedor se creó y quedó seleccionado para continuar la compra.',
+    icon: 'success',
+    confirmButtonColor: '#e65100'
+  });
+  {% endif %}
+
+  {% if created_product %}
+  Swal.fire({
+    title: 'Producto listo',
+    text: 'El producto se creó y quedó seleccionado para terminar la compra.',
+    icon: 'success',
+    confirmButtonColor: '#e65100'
+  });
+  {% endif %}
+});
+</script>
 {% endblock %}

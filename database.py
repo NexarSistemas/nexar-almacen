@@ -822,8 +822,10 @@ def add_proveedor(data):
         VALUES (?,?,?,?,?,?)""",
         (codigo, data['nombre'], data.get('cuit',''), data.get('telefono',''),
          data.get('email',''), int(data.get('dias_credito',30))))
+    proveedor_id = c.lastrowid
     conn.commit()
     conn.close()
+    return proveedor_id
 
 def update_proveedor(pid, data):
     q("""UPDATE proveedores SET nombre=?,cuit=?,telefono=?,email=?,dias_credito=?,activo=? WHERE id=?""",
@@ -986,6 +988,61 @@ def get_compras(search='', limit=200):
     sql += " ORDER BY c.fecha DESC, c.id DESC LIMIT ?"
     params.append(limit)
     return q(sql, params)
+
+def get_compra(cid):
+    return q("SELECT * FROM compras WHERE id=?", (cid,), fetchone=True)
+
+def update_compra(cid, data):
+    compra_actual = get_compra(cid)
+    if not compra_actual:
+        return
+
+    conn = get_conn()
+    c = conn.cursor()
+    producto_anterior = int(compra_actual['producto_id'] or 0)
+    cantidad_anterior = float(compra_actual['cantidad'] or 0)
+    proveedor_nuevo = int(data.get('proveedor_id', 0) or 0)
+    producto_nuevo = int(data.get('producto_id', 0) or 0)
+    cantidad_nueva = float(data.get('cantidad', 1) or 0)
+    costo_nuevo = float(data.get('costo_unitario', 0) or 0)
+    total_nuevo = cantidad_nueva * costo_nuevo
+    fecha_nueva = data.get('fecha', date.today().isoformat())
+
+    if producto_anterior > 0 and cantidad_anterior > 0:
+        stock = c.execute("SELECT stock_actual FROM stock WHERE producto_id=?", (producto_anterior,)).fetchone()
+        if stock:
+            c.execute("UPDATE stock SET stock_actual=? WHERE producto_id=?", (float(stock['stock_actual'] or 0) - cantidad_anterior, producto_anterior))
+
+    if producto_nuevo > 0 and cantidad_nueva > 0:
+        stock = c.execute("SELECT stock_actual FROM stock WHERE producto_id=?", (producto_nuevo,)).fetchone()
+        if stock:
+            c.execute("UPDATE stock SET stock_actual=?, ultimo_ingreso=? WHERE producto_id=?", (float(stock['stock_actual'] or 0) + cantidad_nueva, fecha_nueva, producto_nuevo))
+        if costo_nuevo > 0:
+            c.execute("UPDATE productos SET costo=? WHERE id=?", (costo_nuevo, producto_nuevo))
+
+    c.execute("""UPDATE compras SET fecha=?,numero_remito=?,proveedor_id=?,proveedor_nombre=?,producto_id=?,codigo_interno=?,descripcion=?,
+        cantidad=?,costo_unitario=?,total=?,observaciones=? WHERE id=?""",
+        (fecha_nueva, data.get('numero_remito',''), proveedor_nuevo, data.get('proveedor_nombre',''),
+         producto_nuevo, data.get('codigo_interno',''), data.get('descripcion',''), cantidad_nueva,
+         costo_nuevo, total_nuevo, data.get('observaciones',''), cid))
+    conn.commit()
+    conn.close()
+
+def delete_compra(cid):
+    compra_actual = get_compra(cid)
+    if not compra_actual:
+        return
+    conn = get_conn()
+    c = conn.cursor()
+    producto_id = int(compra_actual['producto_id'] or 0)
+    cantidad = float(compra_actual['cantidad'] or 0)
+    if producto_id > 0 and cantidad > 0:
+        stock = c.execute("SELECT stock_actual FROM stock WHERE producto_id=?", (producto_id,)).fetchone()
+        if stock:
+            c.execute("UPDATE stock SET stock_actual=? WHERE producto_id=?", (float(stock['stock_actual'] or 0) - cantidad, producto_id))
+    c.execute("DELETE FROM compras WHERE id=?", (cid,))
+    conn.commit()
+    conn.close()
 
 def registrar_compra(data):
     conn = get_conn()
