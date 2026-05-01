@@ -67,6 +67,31 @@ DESKTOP_STATE = {
     "close_warning_requested": False,
 }
 
+PURCHASE_DRAFT_FIELDS = (
+    'fecha',
+    'numero_remito',
+    'proveedor_id',
+    'producto_id',
+    'cantidad',
+    'costo_unitario',
+    'observaciones',
+    'producto_descripcion',
+    'codigo_barras',
+)
+
+def purchase_draft_from_source(source):
+    draft = {}
+    for field in PURCHASE_DRAFT_FIELDS:
+        draft[field] = str(source.get(field, '') or '').strip()
+    return draft
+
+def purchase_draft_query(draft, **extra):
+    query = {k: v for k, v in draft.items() if str(v or '').strip()}
+    for key, value in extra.items():
+        if str(value or '').strip():
+            query[key] = str(value).strip()
+    return query
+
 def get_public_key():
     import os
 
@@ -906,6 +931,13 @@ def productos():
 @login_required
 def producto_nuevo():
     cats = db.get_categorias()
+    draft_compra = purchase_draft_from_source(request.form if request.method == 'POST' else request.args)
+    desde_compra = request.values.get('return_to') == 'compras'
+    prefill = {
+        'descripcion': (request.values.get('prefill_descripcion', '') or '').strip(),
+        'codigo_barras': (request.values.get('prefill_codigo_barras', '') or '').strip(),
+        'costo': (request.values.get('prefill_costo', '') or '').strip(),
+    }
     # Demo check (v1.3: time-based)
     if request.method == 'POST':
         if db.is_demo_mode():
@@ -914,10 +946,22 @@ def producto_nuevo():
                 flash('⚠ Tu período de prueba de 30 días ha vencido. Activá tu licencia para continuar.', 'warning')
                 return redirect(url_for('licencia'))
         data = request.form.to_dict()
-        db.add_producto(data)
+        if desde_compra:
+            data['stock_actual'] = '0'
+        nuevo_id = db.add_producto(data)
         flash('✅ Producto creado correctamente', 'success')
+        if desde_compra:
+            draft_compra['producto_id'] = str(nuevo_id)
+            if not draft_compra.get('producto_descripcion'):
+                draft_compra['producto_descripcion'] = request.form.get('descripcion', '')
+            if not draft_compra.get('codigo_barras'):
+                draft_compra['codigo_barras'] = request.form.get('codigo_barras', '')
+            if not draft_compra.get('costo_unitario'):
+                draft_compra['costo_unitario'] = request.form.get('costo', '')
+            return redirect(url_for('compras', **purchase_draft_query(draft_compra, open_compra='1', created_product='1')))
         return redirect(url_for('productos'))
-    return render_template('producto_form.html', producto=None, categorias=cats, accion='Nuevo')
+    cancel_url = url_for('compras', **purchase_draft_query(draft_compra, open_compra='1')) if desde_compra else url_for('productos')
+    return render_template('producto_form.html', producto=None, categorias=cats, accion='Nuevo', prefill=prefill, from_compra=desde_compra, draft_compra=draft_compra, cancel_url=cancel_url)
 
 @app.route('/productos/<int:pid>/editar', methods=['GET','POST'])
 @login_required
@@ -1104,7 +1148,8 @@ def compras():
     rows = db.get_compras(search=search)
     provs = db.get_proveedores()
     prods = db.get_productos()
-    return render_template('compras.html', compras=rows, proveedores=provs, productos=prods, search=search)
+    draft = purchase_draft_from_source(request.args)
+    return render_template('compras.html', compras=rows, proveedores=provs, productos=prods, search=search, draft=draft, open_compra=request.args.get('open_compra') == '1', created_product=request.args.get('created_product') == '1', created_provider=request.args.get('created_provider') == '1')
 
 @app.route('/compras/nueva', methods=['POST'])
 @login_required
@@ -1124,6 +1169,47 @@ def compra_nueva():
             data['proveedor_nombre'] = prov['nombre']
     db.registrar_compra(data)
     flash('✅ Compra registrada y stock actualizado', 'success')
+    return redirect(url_for('compras'))
+
+@app.route('/compras/<int:cid>')
+@login_required
+def compra_detalle(cid):
+    compra = db.get_compra(cid)
+    if not compra:
+        flash('❌ Compra inexistente', 'danger')
+        return redirect(url_for('compras'))
+    return render_template('compra_detalle.html', compra=compra)
+
+@app.route('/compras/<int:cid>/editar', methods=['GET', 'POST'])
+@login_required
+def compra_editar(cid):
+    compra = db.get_compra(cid)
+    if not compra:
+        flash('❌ Compra inexistente', 'danger')
+        return redirect(url_for('compras'))
+    if request.method == 'POST':
+        data = request.form.to_dict()
+        pid = int(data.get('producto_id', 0) or 0)
+        if pid:
+            p = db.get_producto(pid)
+            if p:
+                data['codigo_interno'] = p['codigo_interno']
+                data['descripcion'] = p['descripcion']
+        prov_id = int(data.get('proveedor_id', 0) or 0)
+        if prov_id:
+            prov = db.get_proveedor(prov_id)
+            if prov:
+                data['proveedor_nombre'] = prov['nombre']
+        db.update_compra(cid, data)
+        flash('✅ Compra actualizada', 'success')
+        return redirect(url_for('compra_detalle', cid=cid))
+    return render_template('compra_form.html', compra=compra, proveedores=db.get_proveedores(), productos=db.get_productos(), accion='Editar', draft={}, created_product=False)
+
+@app.route('/compras/<int:cid>/eliminar', methods=['POST'])
+@login_required
+def compra_eliminar(cid):
+    db.delete_compra(cid)
+    flash('✅ Compra eliminada', 'success')
     return redirect(url_for('compras'))
 
 # ─── CAJA ────────────────────────────────────────────────────────────────────
@@ -1262,7 +1348,7 @@ def cc_proveedores():
 @login_required
 def factura_nueva():
     db.add_factura_proveedor(request.form.to_dict())
-    flash('✅ Factura registrada', 'success')
+    flash('Factura registrada', 'success')
     return redirect(url_for('cc_proveedores'))
 
 @app.route('/cc_proveedores/factura/<int:fid>/pagar', methods=['POST'])
@@ -1279,13 +1365,19 @@ def proveedor_nuevo():
     check = db.check_tier_limit('proveedores')
     if not check['ok']:
         flash(
-            f'⚠ Límite del plan Básico: máximo {check["limite"]} proveedores. '
-            f'Tenés {check["actual"]}. Actualizá a Pro para agregar más.',
+            f'Limite del plan Basico: maximo {check["limite"]} proveedores. '
+            f'Tenes {check["actual"]}. Actualiza a Pro para agregar mas.',
             'warning'
         )
+        if request.form.get('return_to') == 'compras':
+            return redirect(url_for('compras', **purchase_draft_query(purchase_draft_from_source(request.form), open_compra='1')))
         return redirect(url_for('cc_proveedores'))
-    db.add_proveedor(request.form.to_dict())
-    flash('✅ Proveedor creado', 'success')
+    nuevo_id = db.add_proveedor(request.form.to_dict())
+    flash('Proveedor creado', 'success')
+    if request.form.get('return_to') == 'compras':
+        draft = purchase_draft_from_source(request.form)
+        draft['proveedor_id'] = str(nuevo_id)
+        return redirect(url_for('compras', **purchase_draft_query(draft, open_compra='1', created_provider='1')))
     return redirect(url_for('cc_proveedores'))
 
 # ─── ESTADÍSTICAS ────────────────────────────────────────────────────────────
