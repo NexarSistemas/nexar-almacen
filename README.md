@@ -1,9 +1,9 @@
-# 🛒 Nexar Almacen — v1.7.11
+# 🛒 Nexar Almacen — v1.7.12
 
 Sistema completo de gestión para almacenes desarrollado en Python + Flask + SQLite.
 Funciona sin servidor, sin instalación compleja. Solo Python y un ZIP.
 
-**Versión actual:** `1.7.11`
+**Versión actual:** `1.7.12`
 **Desarrollado por:** Nexar Sistemas · con Claude.ai · 2026
 
 ---
@@ -123,6 +123,7 @@ Ver historial completo en [CHANGELOG.md](CHANGELOG.md) o en la app: **Menú → 
 
 | Versión | Fecha | Tipo | Descripción |
 |---------|-------|------|-------------|
+| **1.7.12** | 2026-05-01 | Mejora | Búsqueda e importación individual desde OpenFoodFacts Argentina por código de barras o nombre |
 | **1.7.11** | 2026-04-25 | Mejora | Tickets con diseño detallado, IVA opcional, vendedor real y recibido/vuelto para pagos en efectivo |
 | **1.7.10** | 2026-04-25 | Seguridad / Mejora | Borrado seguro de ventas y cálculo claro de margen bruto, ganancia bruta, markup y precio sugerido en productos |
 | **1.7.9** | 2026-04-23 | Corrección | Normalización de URLs Supabase en licencias |

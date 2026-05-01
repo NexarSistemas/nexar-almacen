@@ -6,6 +6,16 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 
 ---
 
+## [1.7.12] - 2026-05-01 - Busqueda OpenFoodFacts Argentina
+
+### Agregado
+- La pantalla Importar Productos permite buscar en OpenFoodFacts Argentina por codigo de barras o por nombre.
+- Los resultados encontrados se pueden importar individualmente al catalogo desde la misma pantalla.
+
+### Corregido
+- La busqueda por nombre usa endpoints alternativos de OpenFoodFacts Argentina cuando la API responde temporalmente con 503.
+- La importacion manual valida que el producto pertenezca a Argentina antes de guardarlo.
+
 ## [1.7.11] - 2026-04-25 - Tickets con IVA y vuelto
 
 ### Agregado
