@@ -1971,31 +1971,243 @@ def productos_importar_update():
     return redirect(url_for('productos_importar'))
 
 
+def _openfood_fetch_json(url, timeout=8):
+    import urllib.request, json
+    from services.openfood_importer import USER_AGENT, _ssl_context
+
+    req = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
+    with urllib.request.urlopen(req, timeout=timeout, context=_ssl_context()) as r:
+        return json.loads(r.read())
+
+
+def _openfood_product_payload(raw, fallback_barcode=''):
+    from services.openfood_importer import _map_category
+
+    barcode = str(raw.get('code') or fallback_barcode or '').strip()
+    name = (
+        raw.get('product_name_es')
+        or raw.get('product_name')
+        or raw.get('abbreviated_product_name')
+        or ''
+    ).strip()
+    brand = (raw.get('brands') or '').split(',')[0].strip()
+    if not barcode or not name:
+        return None
+    return {
+        'barcode': barcode,
+        'name': name,
+        'brand': brand,
+        'category': _map_category(raw.get('categories_tags', []) or []),
+        'unit': 'Unidad',
+        'por_peso': 0,
+        'exists': bool(db.q(
+            "SELECT id FROM productos WHERE codigo_barras=? AND activo=1",
+            (barcode,),
+            fetchone=True
+        )),
+    }
+
+
+def _openfood_products_from_search(term, limit=12):
+    import urllib.parse
+    import urllib.error
+    from services.openfood_importer import API_BASE
+
+    fields = 'code,product_name,product_name_es,abbreviated_product_name,brands,categories_tags'
+    urls = []
+    for base_params in (
+        {
+            'search_terms': term,
+            'search_simple': '1',
+            'action': 'process',
+            'json': '1',
+            'country': 'argentina',
+            'page_size': str(limit),
+            'page': '1',
+            'fields': fields,
+        },
+        {
+            'search_terms': term,
+            'search_simple': '1',
+            'action': 'process',
+            'json': '1',
+            'tagtype_0': 'countries',
+            'tag_contains_0': 'contains',
+            'tag_0': 'argentina',
+            'page_size': str(limit),
+            'page': '1',
+            'fields': fields,
+        },
+        {
+            'search_terms': term,
+            'search_simple': '1',
+            'action': 'process',
+            'json': '1',
+            'page_size': str(limit),
+            'page': '1',
+            'fields': fields,
+        },
+    ):
+        urls.append(f'{API_BASE}?{urllib.parse.urlencode(base_params)}')
+
+    api_v2_params = urllib.parse.urlencode({
+        'search_terms': term,
+        'countries_tags': 'argentina',
+        'page_size': str(limit),
+        'page': '1',
+        'fields': fields,
+    })
+    urls.append(f'https://world.openfoodfacts.org/api/v2/search?{api_v2_params}')
+
+    last_error = ''
+    for url in urls:
+        try:
+            data = _openfood_fetch_json(url, timeout=12)
+        except urllib.error.HTTPError as exc:
+            last_error = f'OpenFoodFacts respondió {exc.code}'
+            continue
+        except Exception as exc:
+            last_error = str(exc)
+            continue
+
+        products = []
+        seen = set()
+        for raw in data.get('products', []):
+            product = _openfood_product_payload(raw)
+            if product and product['barcode'] not in seen:
+                seen.add(product['barcode'])
+                products.append(product)
+        if products:
+            return products, ''
+
+    return [], last_error
+
+
 @app.route('/api/barcode/<barcode>')
 @login_required
 def api_barcode_lookup(barcode):
     """Busca un producto en OpenFoodFacts por código de barras."""
     try:
         from services.openfood_importer import check_connectivity
-        import urllib.request, json
         if not check_connectivity(timeout=4):
             return jsonify({'ok': False, 'msg': 'Sin conexión a internet'})
         url = f'https://world.openfoodfacts.org/api/v2/product/{barcode}.json'
-        req = urllib.request.Request(url, headers={'User-Agent': 'nexaralmacen/1.3.0'})
-        with urllib.request.urlopen(req, timeout=8) as r:
-            data = json.loads(r.read())
+        data = _openfood_fetch_json(url)
         if data.get('status') != 1:
             return jsonify({'ok': False, 'msg': 'Producto no encontrado en OpenFoodFacts'})
-        p = data['product']
-        name  = (p.get('product_name_es') or p.get('product_name') or '').strip()
-        brand = (p.get('brands') or '').split(',')[0].strip()
-        from services.openfood_importer import _map_category
-        cat = _map_category(p.get('categories_tags', []))
-        if name:
-            return jsonify({'ok': True, 'producto': {
-                'barcode': barcode, 'name': name, 'brand': brand, 'category': cat
-            }})
+        product = _openfood_product_payload(data.get('product', {}), barcode)
+        if product:
+            return jsonify({'ok': True, 'producto': product})
         return jsonify({'ok': False, 'msg': 'Sin nombre en la base de datos'})
+    except Exception as e:
+        return jsonify({'ok': False, 'msg': str(e)})
+
+
+@app.route('/api/openfood/search')
+@admin_required
+def api_openfood_search():
+    """Busca productos en OpenFoodFacts por código de barras o nombre."""
+    try:
+        from services.openfood_importer import check_connectivity
+        import urllib.parse
+
+        term = request.args.get('q', '').strip()
+        if len(term) < 2:
+            return jsonify({'ok': False, 'msg': 'Escribí un código o nombre para buscar.'})
+        if not check_connectivity(timeout=4):
+            return jsonify({'ok': False, 'msg': 'Sin conexión a internet'})
+
+        products = []
+        if term.isdigit() and len(term) >= 7:
+            url = f'https://world.openfoodfacts.org/api/v2/product/{urllib.parse.quote(term)}.json'
+            data = _openfood_fetch_json(url)
+            if data.get('status') == 1:
+                product = _openfood_product_payload(data.get('product', {}), term)
+                if product:
+                    products.append(product)
+        else:
+            products, search_error = _openfood_products_from_search(term)
+            if search_error and not products:
+                return jsonify({
+                    'ok': False,
+                    'msg': 'OpenFoodFacts no pudo responder la búsqueda por nombre en este momento. Probá de nuevo o buscá por código de barras.'
+                })
+
+        if not products:
+            return jsonify({'ok': False, 'msg': 'No se encontraron productos en OpenFoodFacts.'})
+        return jsonify({'ok': True, 'productos': products})
+    except Exception as e:
+        return jsonify({'ok': False, 'msg': str(e)})
+
+
+@app.route('/api/openfood/importar', methods=['POST'])
+@admin_required
+def api_openfood_importar():
+    """Importa un producto elegido desde OpenFoodFacts al catálogo local."""
+    try:
+        data = request.get_json(silent=True) or {}
+        barcode = str(data.get('barcode', '')).strip()
+        if not barcode:
+            return jsonify({'ok': False, 'msg': 'El código de barras es obligatorio.'})
+        if db.is_blacklisted(barcode):
+            return jsonify({'ok': False, 'msg': 'Ese código está en la lista negra.'})
+
+        existing = db.q(
+            "SELECT id, activo FROM productos WHERE codigo_barras=?",
+            (barcode,),
+            fetchone=True
+        )
+        is_active = bool(existing and existing['activo'])
+        if not is_active:
+            check = db.check_tier_limit('productos_off')
+            if not check['ok']:
+                return jsonify({
+                    'ok': False,
+                    'msg': f'Límite del plan Básico alcanzado: {check["actual"]}/{check["limite"]} productos OpenFoodFacts.'
+                })
+
+        product = None
+        try:
+            off_url = f'https://world.openfoodfacts.org/api/v2/product/{barcode}.json'
+            off_data = _openfood_fetch_json(off_url)
+            if off_data.get('status') == 1:
+                product = _openfood_product_payload(off_data.get('product', {}), barcode)
+        except Exception:
+            product = None
+
+        if not product:
+            product = {
+                'barcode': barcode,
+                'name': str(data.get('name', '')).strip(),
+                'brand': str(data.get('brand', '')).strip(),
+                'category': str(data.get('category', 'Almacén')).strip() or 'Almacén',
+                'unit': 'Unidad',
+                'por_peso': 0,
+            }
+
+        if not product['name']:
+            return jsonify({'ok': False, 'msg': 'OpenFoodFacts no devolvió un nombre válido.'})
+
+        stats = db.import_productos_bulk([product])
+        if existing and not existing['activo'] and stats['errores'] == 0:
+            db.q("UPDATE productos SET activo=1 WHERE id=?", (existing['id'],), fetchall=False, commit=True)
+            db.q(
+                "INSERT OR IGNORE INTO stock (producto_id, stock_actual, stock_minimo, stock_maximo) VALUES (?,0,5,50)",
+                (existing['id'],),
+                fetchall=False,
+                commit=True
+            )
+        if stats['nuevos']:
+            msg = f'Producto importado: {product["name"]}.'
+        elif existing and not existing['activo'] and stats['errores'] == 0:
+            msg = f'Producto reactivado: {product["name"]}.'
+        elif stats['actualizados']:
+            msg = f'Producto actualizado: {product["name"]}.'
+        elif stats['sin_cambios']:
+            msg = f'El producto ya estaba en la base: {product["name"]}.'
+        else:
+            msg = 'No se pudo importar el producto.'
+        return jsonify({'ok': stats['errores'] == 0, 'msg': msg, 'stats': stats})
     except Exception as e:
         return jsonify({'ok': False, 'msg': str(e)})
 
