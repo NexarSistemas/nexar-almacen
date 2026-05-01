@@ -164,14 +164,14 @@
 
   <div class="imp-card">
     <h6 class="fw-bold mb-2" style="color:#1a2e1a">
-      <i class="fas fa-barcode me-2 text-success"></i>Buscar por codigo de barras
+      <i class="fas fa-search me-2 text-success"></i>Buscar en OpenFoodFacts
     </h6>
     <p style="font-size:.83rem;color:#666;margin-bottom:10px">
-      Escaneá o escribí un EAN para ver si existe en OpenFoodFacts.
+      Escaneá un código de barras o escribí un nombre. Si aparece, podés importarlo al catálogo.
     </p>
     <div class="input-group input-group-sm mb-2">
       <input type="text" id="bcInput" class="form-control"
-             placeholder="Ej: 7790895000777" maxlength="14">
+             placeholder="Ej: 7790895000777 o leche">
       <button class="btn btn-outline-success" onclick="lookupBC()">
         <i class="fas fa-search"></i>
       </button>
@@ -213,25 +213,90 @@
 function show(id){ document.getElementById(id).style.display='inline'; }
 function dis(form){ form.querySelectorAll('button[type=submit]').forEach(b=>b.disabled=true); }
 
+function esc(value){
+  return String(value || '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[ch]));
+}
+
+function productCard(p, idx){
+  const disabled = p.exists ? 'disabled' : '';
+  const btnText = p.exists ? 'Ya existe' : 'Importar';
+  const btnClass = p.exists ? 'btn-outline-secondary' : 'btn-success';
+  return `<div class="border rounded p-2 mb-2 bg-white">
+    <div class="fw-bold">${esc(p.name)}</div>
+    <div class="text-muted mb-2">
+      <small>
+        ${esc(p.barcode)}<br>
+        Marca: ${esc(p.brand || 'Sin marca')} | Categoria: ${esc(p.category)}
+      </small>
+    </div>
+    <button type="button" class="btn ${btnClass} btn-sm w-100"
+            ${disabled} onclick="importOFF(${idx}, this)">
+      <i class="fas fa-file-import me-1"></i>${btnText}
+    </button>
+  </div>`;
+}
+
+let offResults = [];
+
 function lookupBC(){
-  const bc = document.getElementById('bcInput').value.trim();
-  if(!bc) return;
+  const q = document.getElementById('bcInput').value.trim();
+  if(!q) return;
   const el = document.getElementById('bcResult');
+  offResults = [];
   el.innerHTML = '<i class="fas fa-spinner fa-spin me-1 text-muted"></i>Buscando...';
-  fetch('/api/barcode/'+bc)
+  fetch('/api/openfood/search?q=' + encodeURIComponent(q))
     .then(r=>r.json())
     .then(d=>{
       if(d.ok){
-        const p=d.producto;
-        el.innerHTML=`<div class="alert alert-success p-2 mb-0">
-          <b>${p.name}</b><br>
-          <small>Marca: ${p.brand||'—'} | Categoría: ${p.category}</small>
-        </div>`;
+        offResults = d.productos || [];
+        el.innerHTML = offResults.map((p, idx) => productCard(p, idx)).join('');
       } else {
-        el.innerHTML=`<div class="alert alert-warning p-2 mb-0 text-dark">${d.msg}</div>`;
+        el.innerHTML=`<div class="alert alert-warning p-2 mb-0 text-dark">${esc(d.msg)}</div>`;
       }
     })
     .catch(()=>el.innerHTML='<div class="alert alert-danger p-2 mb-0">Error de conexión.</div>');
+}
+
+function importOFF(idx, btn){
+  const product = offResults[idx];
+  if(!product || !btn) return;
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Importando...';
+  fetch('/api/openfood/importar', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(product)
+  })
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.ok){
+        product.exists = true;
+        btn.className = 'btn btn-outline-secondary btn-sm w-100';
+        btn.innerHTML = '<i class="fas fa-check me-1"></i>Importado';
+        const msg = document.createElement('div');
+        msg.className = 'alert alert-success p-2 mt-2 mb-0';
+        msg.textContent = d.msg;
+        btn.parentElement.appendChild(msg);
+      } else {
+        btn.disabled = false;
+        btn.innerHTML = original;
+        const msg = document.createElement('div');
+        msg.className = 'alert alert-warning p-2 mt-2 mb-0 text-dark';
+        msg.textContent = d.msg || 'No se pudo importar.';
+        btn.parentElement.appendChild(msg);
+      }
+    })
+    .catch(()=>{
+      btn.disabled = false;
+      btn.innerHTML = original;
+      const msg = document.createElement('div');
+      msg.className = 'alert alert-danger p-2 mt-2 mb-0';
+      msg.textContent = 'Error de conexión.';
+      btn.parentElement.appendChild(msg);
+    });
 }
 document.getElementById('bcInput').addEventListener('keydown',e=>{ if(e.key==='Enter') lookupBC(); });
 </script>

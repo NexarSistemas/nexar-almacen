@@ -6,6 +6,16 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 
 ---
 
+## [1.7.12] - 2026-05-01 - Importacion OpenFoodFacts por codigo o nombre
+
+### Agregado
+- La pantalla Importar Productos permite buscar en OpenFoodFacts por codigo de barras o por nombre.
+- Los resultados encontrados se pueden importar individualmente al catalogo de productos desde la misma pantalla.
+
+### Corregido
+- La busqueda por nombre ahora usa endpoints alternativos cuando OpenFoodFacts responde temporalmente con 503, manteniendo la busqueda por codigo de barras como flujo directo.
+- La importacion manual reactiva productos previamente desactivados y asegura la fila de stock correspondiente.
+
 ## [1.7.11] - 2026-04-25 - Tickets con IVA y vuelto
 
 ### Agregado
