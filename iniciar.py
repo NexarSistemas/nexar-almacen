@@ -303,7 +303,13 @@ def main():
         )
         window.events.closing += controller.handle_closing
 
-        webview.start()
+        def maximize_window():
+            try:
+                window.maximize()
+            except Exception:
+                pass
+
+        webview.start(maximize_window)
 
         invalidate_sessions()
         sys.exit(0)

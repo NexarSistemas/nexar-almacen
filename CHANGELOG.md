@@ -6,6 +6,11 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 
 ---
 
+## [1.7.13] - 2026-05-01 - Inicio maximizado
+
+### Cambiado
+- La ventana nativa de Nexar Almacen fuerza `window.maximize()` al iniciar pywebview para asegurar que abra maximizada.
+
 ## [1.7.12] - 2026-05-01 - Busqueda OpenFoodFacts Argentina
 
 ### Agregado
