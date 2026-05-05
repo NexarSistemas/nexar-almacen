@@ -6,6 +6,12 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 
 ---
 
+## [1.7.14] - 2026-05-05 - Demo con modulos principales
+
+### Cambiado
+- El plan `DEMO` ahora habilita los modulos principales de Nexar Almacen para permitir una prueba real del producto.
+- Se mantienen bloqueados en `DEMO` los modulos premium como `arca_facturacion`, `backup_sync`, `export`, `historial`, `ia_productos`, `integraciones`, `multinegocio`, `multiusuario` y `analisis`.
+
 ## [1.7.13] - 2026-05-01 - Inicio maximizado
 
 ### Cambiado
