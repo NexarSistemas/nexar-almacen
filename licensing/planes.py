@@ -15,7 +15,20 @@ TIER_ALIASES = {
 
 
 PLANES = {
-    "DEMO": {"core"},
+    "DEMO": {
+        "core",
+        "productos",
+        "ventas",
+        "stock",
+        "caja",
+        "clientes",
+        "proveedores",
+        "compras",
+        "gastos",
+        "reportes",
+        "unidades",
+        "openfood",
+    },
     "BASICA": {
         "core",
         "productos",
