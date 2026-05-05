@@ -1,9 +1,9 @@
-# 🛒 Nexar Almacen — v1.7.14
+# 🛒 Nexar Almacen — v1.7.15
 
 Sistema completo de gestión para almacenes desarrollado en Python + Flask + SQLite.
 Funciona sin servidor, sin instalación compleja. Solo Python y un ZIP.
 
-**Versión actual:** `1.7.14`
+**Versión actual:** `1.7.15`
 **Desarrollado por:** Nexar Sistemas · con Claude.ai · 2026
 
 ---
@@ -30,14 +30,13 @@ Funciona sin servidor, sin instalación compleja. Solo Python y un ZIP.
 
 ## 💳 Planes de licencia
 
-| Plan | Precio | Productos OFF | Clientes | Proveedores | Estadísticas | Actualizaciones |
-|------|--------|--------------|----------|-------------|--------------|-----------------|
-| **Demo** | Gratis | Ilimitado 30 días | Ilimitado | Ilimitado | Completas | — |
-| **Básico** | U$D 30 único | Máx 200 | Máx 100 | Máx 50 | Solo hoy | ❌ |
-| **Pro** | U$D 6/mes | Ilimitado | Ilimitado | Ilimitado | Completas | ✅ Siempre última |
+| Plan | Modalidad | Productos OFF | Clientes | Proveedores | Estadísticas | Actualizaciones |
+|------|-----------|--------------|----------|-------------|--------------|-----------------|
+| **BASICA** | Pago único / permanente | Máx 200 | Máx 100 | Máx 50 | Operación base | ❌ |
+| **PRO** | Mensual | Ilimitado | Ilimitado | Ilimitado | Avanzadas | Según licencia |
+| **FULL** | Mensual | Ilimitado | Ilimitado | Ilimitado | Completas | ✅ Incluidas |
 
-- Al cancelar el Plan Pro → conservás el Plan Básico sin perder datos
-- Si volvés al Pro después de cancelar → 20% del precio de upgrade + mensualidad
+- Al vencer un plan mensual, la instalación conserva la base activa si ya tenía BASICA habilitada
 - Contacto para licencias: [WhatsApp +549 264 585-8874](https://wa.me/5492645858874)
 
 ---
@@ -123,6 +122,7 @@ Ver historial completo en [CHANGELOG.md](CHANGELOG.md) o en la app: **Menú → 
 
 | Versión | Fecha | Tipo | Descripción |
 |---------|-------|------|-------------|
+| **1.7.15** | 2026-05-05 | Mejora | Alineación comercial de planes BASICA / PRO / FULL, ocultando DEMO como plan visible y limpiando textos antiguos de licencia |
 | **1.7.14** | 2026-05-05 | Mejora | El plan Demo ahora habilita los módulos principales para probar Nexar Almacén sin incluir módulos premium |
 | **1.7.13** | 2026-05-01 | Mejora | La ventana nativa inicia maximizada de forma explícita |
 | **1.7.12** | 2026-05-01 | Mejora | Búsqueda e importación individual desde OpenFoodFacts Argentina por código de barras o nombre |
