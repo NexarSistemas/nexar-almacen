@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import json
 import hashlib
 import hashlib as _hashlib
 import hmac as _hmac
@@ -9,6 +10,8 @@ from datetime import datetime, date, timedelta
 from calendar import month_name
 import base64 as _b64
 import hashlib as _hl
+
+from licensing.planes import get_modules_for_tier, normalize_license_tier
 
 def _get_telemetry_path() -> str:
     """Ruta del archivo externo de control de demo."""
@@ -106,6 +109,11 @@ TIER_LIMITS = {
         "clientes":      100,    # máx 100 clientes en CC
         "proveedores":   50,     # máx 50 proveedores
     },
+    "PRO": {
+        "productos_off": None,
+        "clientes":      None,
+        "proveedores":   None,
+    },
     "MENSUAL_FULL": {
         "productos_off": None,   # ilimitado
         "clientes":      None,
@@ -115,19 +123,11 @@ TIER_LIMITS = {
 
 TIER_LIMITS["DEMO"].update({"support": False, "updates": False})
 TIER_LIMITS["BASICA"].update({"support": False, "updates": False})
+TIER_LIMITS["PRO"].update({"support": True, "updates": True})
 TIER_LIMITS["MENSUAL_FULL"].update({"support": True, "updates": True})
 
 def normalize_license_plan(plan: str = "") -> str:
-    raw = (plan or "DEMO").strip().upper().replace("-", "_").replace(" ", "_")
-    aliases = {
-        "BASIC": "BASICA",
-        "PRO": "MENSUAL_FULL",
-        "FULL": "MENSUAL_FULL",
-        "TDA_BASICA": "BASICA",
-        "TDA_PRO": "MENSUAL_FULL",
-    }
-    normalized = aliases.get(raw, raw)
-    return normalized if normalized in TIER_LIMITS else "BASICA"
+    return normalize_license_tier(plan, default="DEMO")
 
 def get_conn():
     conn = sqlite3.connect(DB_PATH)
@@ -454,6 +454,8 @@ def init_db():
         ('backup_ultimo', ''),
         ('basica_activada', '0'),
         ('license_plan', 'DEMO'),
+        ('license_tier', 'DEMO'),
+        ('license_modules', '[]'),
         ('license_last_check', ''),
         ('license_support', '0'),
         ('license_updates', '0'),
@@ -528,6 +530,7 @@ def init_db():
         ('license_tier',         'DEMO'),    # DEMO / BASICA / MENSUAL_FULL
         ('license_expires_at',   ''),        # fecha ISO vencimiento Pro, vacío = no vence
         ('license_plan',         'DEMO'),
+        ('license_modules',      '[]'),
         ('license_last_check',   ''),
         ('license_support',      '0'),
         ('license_updates',      '0'),
@@ -612,6 +615,32 @@ def set_config(data: dict):
         c.execute("INSERT OR REPLACE INTO config VALUES (?,?)", (k, v))
     conn.commit()
     conn.close()
+
+
+def get_license_tier_from_db() -> str:
+    cfg = get_config()
+    return normalize_license_plan(cfg.get('license_tier', 'DEMO'))
+
+
+def get_license_modules_from_db() -> list[str]:
+    cfg = get_config()
+    return _extract_license_modules({'modules': cfg.get('license_modules', '[]')})
+
+
+def set_license_info(*, tier: str | None = None, plan: str | None = None, modules=None, **extra) -> None:
+    resolved_tier = normalize_license_plan(tier or plan or 'DEMO')
+    resolved_plan = normalize_license_plan(plan or resolved_tier)
+    normalized_modules = _extract_license_modules({'modules': modules})
+    if not normalized_modules:
+        normalized_modules = sorted(get_modules_for_tier(resolved_tier))
+    updates = {
+        'license_tier': resolved_tier,
+        'license_plan': resolved_plan,
+        'license_modules': json.dumps(normalized_modules, ensure_ascii=False),
+    }
+    for key, value in extra.items():
+        updates[key] = value
+    set_config(updates)
 
 def next_codigo():
     """Generate next unique product code, syncing with actual DB if needed"""
@@ -1681,12 +1710,43 @@ def get_demo_status() -> dict:
     }
 
 
+def _extract_license_modules(license_data: dict | None) -> list[str]:
+    if not isinstance(license_data, dict):
+        return []
+    raw_modules = (
+        license_data.get('modules')
+        or license_data.get('features')
+        or license_data.get('modulos')
+    )
+    if not raw_modules:
+        return []
+    if isinstance(raw_modules, str):
+        raw_modules = raw_modules.strip()
+        if not raw_modules:
+            return []
+        if raw_modules.startswith('['):
+            try:
+                raw_modules = json.loads(raw_modules)
+            except Exception:
+                return []
+        else:
+            raw_modules = [module.strip() for module in raw_modules.split(',') if module.strip()]
+    try:
+        modules = [str(module).strip().lower() for module in raw_modules if str(module).strip()]
+    except TypeError:
+        return []
+    return sorted(set(modules))
+
+
 def get_license_info() -> dict:
     cfg = get_config()
-    tier = normalize_license_plan(cfg.get('license_tier', 'DEMO'))
+    tier = get_license_tier_from_db()
     if tier == 'MENSUAL_FULL' and is_pro_expired():
         tier = 'BASICA' if cfg.get('basica_activada', '0') == '1' else 'DEMO'
     limits = TIER_LIMITS.get(tier, TIER_LIMITS["DEMO"])
+    modules = get_license_modules_from_db()
+    if not modules:
+        modules = sorted(get_modules_for_tier(tier))
     return {
         'type':         cfg.get('license_type', 'DEMO'),
         'tier':         tier,
@@ -1698,6 +1758,7 @@ def get_license_info() -> dict:
         'expires_at':   cfg.get('license_expires_at', ''),
         'last_check':   cfg.get('license_last_check', ''),
         'limits':       limits,
+        'modules':      modules,
         'support':      bool(limits.get('support')),
         'updates':      bool(limits.get('updates')),
         'pro_vencido':  is_pro_expired(),
@@ -1712,11 +1773,15 @@ def sync_license_from_remote(license_data: dict):
     expires_at = license_data.get('expira') or license_data.get('expires_at') or ''
     if plan == 'BASICA':
         expires_at = ''
+    modules = _extract_license_modules(license_data)
+    if not modules:
+        modules = sorted(get_modules_for_tier(plan))
     set_config({
         'demo_mode': '0' if plan != 'DEMO' else '1',
         'license_type': license_data.get('type', plan),
         'license_tier': plan,
         'license_plan': plan,
+        'license_modules': json.dumps(modules, ensure_ascii=False),
         'license_key': license_data.get('license_key', ''),
         'license_activated_at': datetime.now().isoformat(),
         'license_expires_at': expires_at,
@@ -1976,13 +2041,13 @@ def get_blacklist_set() -> set:
 
 def get_tier() -> str:
     """
-    Devuelve el tier activo: 'DEMO', 'BASICA' o 'MENSUAL_FULL'.
+    Devuelve el tier activo: 'DEMO', 'BASICA', 'PRO' o 'MENSUAL_FULL'.
     Si Mensual Full venció, devuelve 'BASICA' (mantiene acceso básico).
     """
     cfg = get_config()
     if cfg.get('demo_mode', '1') == '1':
         return 'DEMO'
-    tier = normalize_license_plan(cfg.get('license_tier', 'BASICA'))
+    tier = get_license_tier_from_db()
     if tier == 'MENSUAL_FULL':
         expires_at = cfg.get('license_expires_at', '')
         if expires_at:
@@ -2000,7 +2065,7 @@ def is_pro_expired() -> bool:
     cfg = get_config()
     if cfg.get('demo_mode', '1') == '1':
         return False
-    if normalize_license_plan(cfg.get('license_tier', 'BASICA')) != 'MENSUAL_FULL':
+    if get_license_tier_from_db() != 'MENSUAL_FULL':
         return False
     expires_at = cfg.get('license_expires_at', '')
     if not expires_at:

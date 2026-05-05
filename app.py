@@ -19,12 +19,16 @@ from services.runtime_config import app_data_dir, load_runtime_env
 load_runtime_env()
 
 import database as db
+from licensing.planes import PLANES, get_modules_for_tier, normalize_license_tier
+from licensing.permisos import get_modulos_activos, get_modulos_debug_info, modulo_activo, require_modulo
 from services.license_storage import cargar_licencia, guardar_licencia
 from services.license_sdk import get_current_hwid, get_license_product, validate_license_key, validate_saved_license
 from services.supabase_license_api import (
+    create_upgrade_request,
     create_license_request,
     create_support_request,
     generate_activation_id,
+    get_supabase_debug_state,
     is_configured as supabase_configured,
 )
 from services.update_checker import download_release_asset, get_cached_update_info
@@ -341,6 +345,16 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
+
+def module_required(nombre_modulo: str):
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            require_modulo(nombre_modulo)
+            return f(*args, **kwargs)
+        return decorated
+    return decorator
+
 def _is_admin_role(role):
     return role == 'admin'
 
@@ -455,6 +469,9 @@ def inject_globals():
         cfg = db.get_config()
         demo_status = db.get_demo_status()
         lic_info = db.get_license_info()
+        current_tier = db.get_tier()
+        if os.getenv('NEXAR_LICENSE_MODE', 'prod').strip().lower() == 'dev':
+            current_tier = normalize_license_tier(os.getenv('NEXAR_PLAN', current_tier), default=current_tier)
 
         return {
             'alertas_sidebar': {
@@ -468,9 +485,10 @@ def inject_globals():
             'demo_status': demo_status,
             'app_version': APP_VERSION,
             'update_info': get_cached_update_info(app, APP_VERSION) if lic_info.get('updates') else {'available': False},
+            'modulo_activo': modulo_activo,
 
             # 🔥 LICENCIAS (correcto)
-            'tier': db.get_tier(),           # 'DEMO' | 'BASICA' | 'MENSUAL_FULL'
+            'tier': current_tier,
             'pro_expired': db.is_pro_expired(),
 
         }
@@ -520,6 +538,23 @@ def preparar_detalle_ticket(detalle):
 app.jinja_env.globals['fmt_ars'] = fmt_ars
 app.jinja_env.globals['today'] = lambda: date.today().isoformat()
 app.jinja_env.globals['now'] = lambda: datetime.now().strftime('%H:%M')
+
+
+def _plan_label(tier: str) -> str:
+    tier = normalize_license_tier(tier, default='DEMO')
+    return 'FULL' if tier == 'MENSUAL_FULL' else tier
+
+
+def _mask_license_key(license_key: str) -> str:
+    value = (license_key or '').strip()
+    if len(value) <= 8:
+        return value
+    return f"{value[:4]}...{value[-4:]}"
+
+
+def _debug_license_enabled() -> bool:
+    raw = os.getenv("NEXAR_DEBUG_LICENSE", "1").strip().lower()
+    return raw not in {"0", "false", "no", "off"}
 
 # ─── LOGIN / LOGOUT ──────────────────────────────────────────────────────────
 def _password_error(password: str) -> str:
@@ -775,14 +810,127 @@ def licencia_solicitar():
     return redirect(url_for('licencia'))
 
 # ─── USUARIOS (admin only) ───────────────────────────────────────────────────
+@app.route('/mi-plan')
+@login_required
+def mi_plan():
+    license_info = db.get_license_info()
+    modulos_activos = sorted(get_modulos_activos())
+    todos_los_modulos = sorted(set().union(*PLANES.values()))
+    modulos_bloqueados = [modulo for modulo in todos_los_modulos if modulo not in modulos_activos]
+    plan_activo = normalize_license_tier(license_info.get('tier', 'DEMO'), default='DEMO')
+    next_upgrade_plan = ''
+    if plan_activo == 'BASICA':
+        next_upgrade_plan = 'PRO'
+    elif plan_activo == 'PRO':
+        next_upgrade_plan = 'MENSUAL_FULL'
+    return render_template(
+        'mi_plan.html',
+        plan_activo=plan_activo,
+        plan_label=_plan_label(plan_activo),
+        license_info=license_info,
+        modulos_activos=modulos_activos,
+        modulos_bloqueados=modulos_bloqueados,
+        next_upgrade_plan=next_upgrade_plan,
+        supabase_ok=supabase_configured(),
+        full_modules=todos_los_modulos,
+    )
+
+
+@app.route('/mi-plan/solicitar-upgrade', methods=['POST'])
+@admin_required
+def mi_plan_solicitar_upgrade():
+    license_info = db.get_license_info()
+    plan_actual = normalize_license_tier(license_info.get('tier', 'DEMO'), default='DEMO')
+    if plan_actual == 'BASICA':
+        plan_solicitado = 'PRO'
+    elif plan_actual == 'PRO':
+        plan_solicitado = 'MENSUAL_FULL'
+    else:
+        flash('Tu plan actual ya es completo o no admite actualización.', 'info')
+        return redirect(url_for('mi_plan'))
+
+    cfg = db.get_config()
+    usuario = session.get('user', {})
+    machine_id, machine_details = generate_activation_id(usuario.get('username', ''))
+    activation_id = get_current_hwid() or machine_id
+    payload = {
+        'producto': get_license_product(),
+        'license_key': license_info.get('key', ''),
+        'activation_id': activation_id,
+        'nombre': usuario.get('nombre') or usuario.get('username') or cfg.get('nombre_negocio', '') or 'Administrador',
+        'email': cfg.get('negocio_email', ''),
+        'whatsapp': cfg.get('telefono', ''),
+        'plan_actual': plan_actual,
+        'plan_solicitado': plan_solicitado,
+        'estado': 'pendiente',
+        'machine_details': machine_details,
+    }
+    result = create_upgrade_request(payload)
+    flash(result.get('message', 'No se pudo enviar la solicitud de actualización.'), 'success' if result.get('ok') else 'danger')
+    return redirect(url_for('mi_plan'))
+
+
+@app.route('/debug/licencia')
+@admin_required
+def debug_licencia():
+    if not _debug_license_enabled():
+        return redirect(url_for('dashboard'))
+    cfg = db.get_config()
+    license_info = db.get_license_info()
+    debug_modulos = get_modulos_debug_info()
+    return jsonify({
+        'producto': get_license_product(),
+        'modo_licencia': os.getenv('NEXAR_LICENSE_MODE', 'prod').strip().lower(),
+        'tier': license_info.get('tier', 'DEMO'),
+        'plan': license_info.get('plan', 'DEMO'),
+        'modulos_activos': sorted(get_modulos_activos()),
+        'license_modules_persistidos': db.get_license_modules_from_db(),
+        'origen_modulos': debug_modulos.get('final_source', 'desconocido'),
+        'env': {
+            'SUPABASE_URL': bool(os.getenv('SUPABASE_URL', '').strip()),
+            'SUPABASE_ANON_KEY': bool(os.getenv('SUPABASE_ANON_KEY', '').strip() or os.getenv('SUPABASE_KEY', '').strip()),
+            'LICENSE_PRODUCT': bool(os.getenv('LICENSE_PRODUCT', '').strip()),
+            'NEXAR_PLAN': bool(os.getenv('NEXAR_PLAN', '').strip()),
+            'NEXAR_MODULES': bool(os.getenv('NEXAR_MODULES', '').strip()),
+        },
+        'supabase': get_supabase_debug_state(),
+        'masked_license_key': _mask_license_key(license_info.get('key', '')),
+        'ultimo_error': debug_modulos.get('last_error', ''),
+        'sdk_modules_detectados': debug_modulos.get('sdk_modules', []),
+        'fallback_modules_por_tier': sorted(get_modules_for_tier(license_info.get('tier', 'DEMO'))),
+        'cache_local': bool(cargar_licencia()),
+        'demo_mode': cfg.get('demo_mode', '1'),
+    })
+
+
+@app.route('/debug/modulos')
+@admin_required
+def debug_modulos():
+    if not _debug_license_enabled():
+        return redirect(url_for('dashboard'))
+    debug_modulos = get_modulos_debug_info()
+    return jsonify({
+        'modulos_activos_finales': debug_modulos.get('final_modules', []),
+        'modulos_por_tier': debug_modulos.get('tier_modules', []),
+        'modulos_persistidos': debug_modulos.get('persisted_modules', []),
+        'modulos_desde_env': debug_modulos.get('env_modules', []),
+        'modulos_sdk': debug_modulos.get('sdk_modules', []),
+        'aliases_reconocidos': debug_modulos.get('aliases', {}),
+        'tier': debug_modulos.get('tier', ''),
+        'source': debug_modulos.get('final_source', ''),
+    })
+
+
 @app.route('/usuarios')
 @admin_required
+@module_required('multiusuario')
 def usuarios():
     users = db.get_usuarios()
     return render_template('usuarios.html', users=users)
 
 @app.route('/usuarios/nuevo', methods=['POST'])
 @admin_required
+@module_required('multiusuario')
 def usuario_nuevo():
     password = request.form.get('password','')
     password_confirm = request.form.get('password_confirm','')
@@ -804,6 +952,7 @@ def usuario_nuevo():
 
 @app.route('/usuarios/<int:uid>/editar', methods=['POST'])
 @admin_required
+@module_required('multiusuario')
 def usuario_editar(uid):
     db.editar_usuario(uid, request.form.get('nombre_completo',''), request.form.get('rol','usuario'))
     flash('✅ Usuario actualizado.', 'success')
@@ -811,6 +960,7 @@ def usuario_editar(uid):
 
 @app.route('/usuarios/<int:uid>/password', methods=['POST'])
 @admin_required
+@module_required('multiusuario')
 def usuario_password(uid):
     nueva = request.form.get('password','')
     confirmacion = request.form.get('password_confirm','')
@@ -824,6 +974,7 @@ def usuario_password(uid):
 
 @app.route('/usuarios/<int:uid>/toggle', methods=['POST'])
 @admin_required
+@module_required('multiusuario')
 def usuario_toggle(uid):
     if uid == session['user']['id']:
         flash('⚠ No podés desactivar tu propia cuenta.', 'warning')
@@ -834,6 +985,7 @@ def usuario_toggle(uid):
 
 @app.route('/usuarios/<int:uid>/eliminar', methods=['POST'])
 @admin_required
+@module_required('multiusuario')
 def usuario_eliminar(uid):
     if uid == session['user']['id']:
         flash('⚠ No podés eliminar tu propia cuenta.', 'warning')
@@ -921,6 +1073,7 @@ def dashboard():
 # ─── PRODUCTOS ───────────────────────────────────────────────────────────────
 @app.route('/productos')
 @login_required
+@module_required('productos')
 def productos():
     search = request.args.get('q', '')
     prods = db.get_productos(search=search)
@@ -929,6 +1082,7 @@ def productos():
 
 @app.route('/productos/nuevo', methods=['GET','POST'])
 @login_required
+@module_required('productos')
 def producto_nuevo():
     cats = db.get_categorias()
     draft_compra = purchase_draft_from_source(request.form if request.method == 'POST' else request.args)
@@ -965,6 +1119,7 @@ def producto_nuevo():
 
 @app.route('/productos/<int:pid>/editar', methods=['GET','POST'])
 @login_required
+@module_required('productos')
 def producto_editar(pid):
     prod = db.get_producto(pid)
     stock_row = db.q("SELECT * FROM stock WHERE producto_id=?", (pid,), fetchone=True)
@@ -983,6 +1138,7 @@ def producto_editar(pid):
 
 @app.route('/productos/<int:pid>/eliminar', methods=['POST'])
 @login_required
+@module_required('productos')
 def producto_eliminar(pid):
     db.delete_producto(pid)
     flash('Producto desactivado', 'info')
@@ -990,6 +1146,7 @@ def producto_eliminar(pid):
 
 @app.route('/api/producto/buscar')
 @login_required
+@module_required('productos')
 def api_producto_buscar():
     codigo = request.args.get('codigo', '').strip()
     if not codigo:
@@ -1023,6 +1180,7 @@ def api_categoria_nueva():
 # ─── STOCK ───────────────────────────────────────────────────────────────────
 @app.route('/stock')
 @login_required
+@module_required('stock')
 def stock():
     search = request.args.get('q', '')
     alerta = request.args.get('alerta', '')
@@ -1034,6 +1192,7 @@ def stock():
 
 @app.route('/stock/<int:pid>/editar', methods=['POST'])
 @login_required
+@module_required('stock')
 def stock_editar(pid):
     data = request.form.to_dict()
     db.update_stock_item(pid,
@@ -1048,6 +1207,7 @@ def stock_editar(pid):
 @app.route('/venta')
 @app.route('/punto_venta')
 @login_required
+@module_required('ventas')
 def punto_venta():
     clientes = db.get_clientes()
     medios = ['Efectivo','Débito','Crédito','Transferencia','QR / Billetera Virtual','Cuenta Corriente']
@@ -1055,6 +1215,7 @@ def punto_venta():
 
 @app.route('/venta/procesar', methods=['POST'])
 @login_required
+@module_required('ventas')
 def venta_procesar():
     # Demo mode check (v1.3: time-based)
     if db.is_demo_mode():
@@ -1095,6 +1256,7 @@ def venta_procesar():
 
 @app.route('/venta/<int:vid>/ticket')
 @login_required
+@module_required('ventas')
 def venta_ticket(vid):
     v = db.q("SELECT * FROM ventas WHERE id=?", (vid,), fetchone=True)
     detalle = db.get_venta_detalle(vid)
@@ -1105,6 +1267,7 @@ def venta_ticket(vid):
 # ─── HISTORIAL VENTAS ─────────────────────────────────────────────────────────
 @app.route('/historial')
 @login_required
+@module_required('historial')
 def historial():
     search = request.args.get('q', '')
     fecha_desde = request.args.get('desde', '')
@@ -1117,6 +1280,7 @@ def historial():
 
 @app.route('/historial/<int:vid>')
 @login_required
+@module_required('historial')
 def historial_detalle(vid):
     v = db.q("SELECT * FROM ventas WHERE id=?", (vid,), fetchone=True)
     detalle = db.get_venta_detalle(vid)
@@ -1125,6 +1289,7 @@ def historial_detalle(vid):
 
 @app.route('/historial/<int:vid>/eliminar', methods=['POST'])
 @login_required
+@module_required('historial')
 def historial_eliminar(vid):
     ok, msg = _validate_sale_delete_authorization(request.form)
     if not ok:
@@ -1143,6 +1308,7 @@ def historial_eliminar(vid):
 # ─── COMPRAS ─────────────────────────────────────────────────────────────────
 @app.route('/compras')
 @login_required
+@module_required('compras')
 def compras():
     search = request.args.get('q', '')
     rows = db.get_compras(search=search)
@@ -1153,6 +1319,7 @@ def compras():
 
 @app.route('/compras/nueva', methods=['POST'])
 @login_required
+@module_required('compras')
 def compra_nueva():
     data = request.form.to_dict()
     # Get product info
@@ -1173,6 +1340,7 @@ def compra_nueva():
 
 @app.route('/compras/<int:cid>')
 @login_required
+@module_required('compras')
 def compra_detalle(cid):
     compra = db.get_compra(cid)
     if not compra:
@@ -1182,6 +1350,7 @@ def compra_detalle(cid):
 
 @app.route('/compras/<int:cid>/editar', methods=['GET', 'POST'])
 @login_required
+@module_required('compras')
 def compra_editar(cid):
     compra = db.get_compra(cid)
     if not compra:
@@ -1207,6 +1376,7 @@ def compra_editar(cid):
 
 @app.route('/compras/<int:cid>/eliminar', methods=['POST'])
 @login_required
+@module_required('compras')
 def compra_eliminar(cid):
     db.delete_compra(cid)
     flash('✅ Compra eliminada', 'success')
@@ -1215,6 +1385,7 @@ def compra_eliminar(cid):
 # ─── CAJA ────────────────────────────────────────────────────────────────────
 @app.route('/caja')
 @login_required
+@module_required('caja')
 def caja():
     caja_hoy = db.get_caja_hoy()
     historial = db.get_caja_historial(30)
@@ -1226,6 +1397,7 @@ def caja():
 
 @app.route('/caja/abrir', methods=['POST'])
 @login_required
+@module_required('caja')
 def caja_abrir():
     data = request.form
     db.abrir_caja(float(data.get('saldo_apertura',0)), data.get('responsable',''))
@@ -1234,6 +1406,7 @@ def caja_abrir():
 
 @app.route('/caja/cerrar', methods=['POST'])
 @login_required
+@module_required('caja')
 def caja_cerrar():
     data = request.form
     db.cerrar_caja(float(data.get('saldo_real',0)), data.get('responsable',''))
@@ -1242,6 +1415,7 @@ def caja_cerrar():
 
 @app.route('/caja/gasto', methods=['POST'])
 @login_required
+@module_required('caja')
 def caja_gasto():
     data = request.form.to_dict()
     data['tipo'] = 'Gasto'
@@ -1252,6 +1426,7 @@ def caja_gasto():
 # ─── GASTOS ──────────────────────────────────────────────────────────────────
 @app.route('/gastos')
 @login_required
+@module_required('gastos')
 def gastos():
     search = request.args.get('q', '')
     rows = db.get_gastos(search=search)
@@ -1266,6 +1441,7 @@ def gastos():
 
 @app.route('/gastos/nuevo', methods=['POST'])
 @login_required
+@module_required('gastos')
 def gasto_nuevo():
     db.add_gasto(request.form.to_dict())
     flash('✅ Gasto registrado', 'success')
@@ -1273,6 +1449,7 @@ def gasto_nuevo():
 
 @app.route('/gastos/<int:gid>/eliminar', methods=['POST'])
 @login_required
+@module_required('gastos')
 def gasto_eliminar(gid):
     db.delete_gasto(gid)
     flash('Gasto eliminado', 'info')
@@ -1280,6 +1457,7 @@ def gasto_eliminar(gid):
 
 @app.route('/gastos/<int:gid>/editar', methods=['POST'])
 @login_required
+@module_required('gastos')
 def gasto_editar(gid):
     db.update_gasto(gid, request.form.to_dict())
     flash('✅ Gasto actualizado', 'success')
@@ -1288,6 +1466,7 @@ def gasto_editar(gid):
 # ─── CC CLIENTES ─────────────────────────────────────────────────────────────
 @app.route('/cc_clientes')
 @login_required
+@module_required('clientes')
 def cc_clientes():
     clientes = db.get_cc_clientes_resumen()
     hoy = date.today().isoformat()
@@ -1296,6 +1475,7 @@ def cc_clientes():
 
 @app.route('/cc_clientes/<int:cid>')
 @login_required
+@module_required('clientes')
 def cc_cliente_detalle(cid):
     cliente = db.get_cliente(cid)
     movs = db.get_cc_movimientos(cid)
@@ -1304,6 +1484,7 @@ def cc_cliente_detalle(cid):
 
 @app.route('/cc_clientes/<int:cid>/mov', methods=['POST'])
 @login_required
+@module_required('clientes')
 def cc_cliente_mov_nuevo(cid):
     db.add_cc_mov(cid, request.form.to_dict())
     flash('✅ Movimiento registrado', 'success')
@@ -1311,6 +1492,7 @@ def cc_cliente_mov_nuevo(cid):
 
 @app.route('/clientes/nuevo', methods=['POST'])
 @login_required
+@module_required('clientes')
 def cliente_nuevo():
     check = db.check_tier_limit('clientes')
     if not check['ok']:
@@ -1326,6 +1508,7 @@ def cliente_nuevo():
 
 @app.route('/clientes/<int:cid>/editar', methods=['POST'])
 @login_required
+@module_required('clientes')
 def cliente_editar(cid):
     db.update_cliente(cid, request.form.to_dict())
     flash('✅ Cliente actualizado', 'success')
@@ -1334,6 +1517,7 @@ def cliente_editar(cid):
 # ─── CC PROVEEDORES ──────────────────────────────────────────────────────────
 @app.route('/cc_proveedores')
 @login_required
+@module_required('proveedores')
 def cc_proveedores():
     provs = db.get_proveedores()
     facturas = db.get_facturas_proveedores()
@@ -1346,6 +1530,7 @@ def cc_proveedores():
 
 @app.route('/cc_proveedores/factura', methods=['POST'])
 @login_required
+@module_required('proveedores')
 def factura_nueva():
     db.add_factura_proveedor(request.form.to_dict())
     flash('Factura registrada', 'success')
@@ -1353,6 +1538,7 @@ def factura_nueva():
 
 @app.route('/cc_proveedores/factura/<int:fid>/pagar', methods=['POST'])
 @login_required
+@module_required('proveedores')
 def factura_pagar(fid):
     monto = float(request.form.get('monto', 0))
     db.pagar_factura(fid, monto)
@@ -1361,6 +1547,7 @@ def factura_pagar(fid):
 
 @app.route('/proveedores/nuevo', methods=['POST'])
 @login_required
+@module_required('proveedores')
 def proveedor_nuevo():
     check = db.check_tier_limit('proveedores')
     if not check['ok']:
@@ -1383,6 +1570,7 @@ def proveedor_nuevo():
 # ─── ESTADÍSTICAS ────────────────────────────────────────────────────────────
 @app.route('/estadisticas')
 @login_required
+@module_required('reportes')
 def estadisticas():
     year = int(request.args.get('year', date.today().year))
     ventas_mes = db.get_ventas_por_mes(year)
@@ -1413,6 +1601,7 @@ def estadisticas():
 # ─── ANÁLISIS ────────────────────────────────────────────────────────────────
 @app.route('/analisis')
 @login_required
+@module_required('analisis')
 def analisis():
     fecha_desde = request.args.get('desde', (date.today()-timedelta(days=30)).isoformat())
     fecha_hasta = request.args.get('hasta', date.today().isoformat())
@@ -1471,6 +1660,7 @@ def config_categoria_eliminar():
 # ─── CLIENTES: EDITAR / ELIMINAR ────────────────────────────────────────────
 @app.route('/clientes/<int:cid>/eliminar', methods=['POST'])
 @login_required
+@module_required('clientes')
 def cliente_eliminar(cid):
     db.delete_cliente(cid)
     flash('🗑 Cliente desactivado', 'warning')
@@ -1478,6 +1668,7 @@ def cliente_eliminar(cid):
 
 @app.route('/clientes/<int:cid>/editar_datos', methods=['POST'])
 @login_required
+@module_required('clientes')
 def cliente_editar_datos(cid):
     db.update_cliente(cid, request.form.to_dict())
     flash('✅ Cliente actualizado', 'success')
@@ -1485,6 +1676,7 @@ def cliente_editar_datos(cid):
 
 @app.route('/cc_clientes/<int:mid>/mov/eliminar', methods=['POST'])
 @login_required
+@module_required('clientes')
 def cc_mov_eliminar(mid):
     cid = request.form.get('cliente_id', 0)
     db.delete_cc_mov(mid)
@@ -1494,6 +1686,7 @@ def cc_mov_eliminar(mid):
 # ─── PROVEEDORES: EDITAR / ELIMINAR ─────────────────────────────────────────
 @app.route('/proveedores/<int:pid>/editar', methods=['POST'])
 @login_required
+@module_required('proveedores')
 def proveedor_editar(pid):
     db.update_proveedor(pid, request.form.to_dict())
     flash('✅ Proveedor actualizado', 'success')
@@ -1501,6 +1694,7 @@ def proveedor_editar(pid):
 
 @app.route('/proveedores/<int:pid>/eliminar', methods=['POST'])
 @login_required
+@module_required('proveedores')
 def proveedor_eliminar(pid):
     db.delete_proveedor(pid)
     flash('🗑 Proveedor desactivado', 'warning')
@@ -1508,6 +1702,7 @@ def proveedor_eliminar(pid):
 
 @app.route('/cc_proveedores/factura/<int:fid>/eliminar', methods=['POST'])
 @login_required
+@module_required('proveedores')
 def factura_eliminar(fid):
     db.delete_factura_proveedor(fid)
     flash('🗑 Factura eliminada', 'warning')
@@ -1516,6 +1711,7 @@ def factura_eliminar(fid):
 # ─── API BÚSQUEDA INSTANTÁNEA POS ───────────────────────────────────────────
 @app.route('/api/productos/buscar')
 @login_required
+@module_required('ventas')
 def api_productos_buscar():
     term = request.args.get('q', '').strip()
     results = db.buscar_productos_pos(term, 12)
@@ -1524,6 +1720,7 @@ def api_productos_buscar():
 # ─── EXPORTS ─────────────────────────────────────────────────────────────────
 @app.route('/productos/exportar/excel')
 @admin_required
+@module_required('export')
 def exportar_excel():
     try:
         import openpyxl
@@ -1636,6 +1833,7 @@ def exportar_excel():
 
 @app.route('/productos/exportar/pdf')
 @admin_required
+@module_required('export')
 def exportar_pdf():
     try:
         from reportlab.lib.pagesizes import A4, landscape
@@ -1867,6 +2065,7 @@ def respaldo_restaurar(nombre):
 # ─── PRODUCTOS: importar desde OpenFoodFacts ─────────────────────────────────
 @app.route('/productos/importar')
 @admin_required
+@module_required('openfood')
 def productos_importar():
     from services.openfood_importer import get_stats
     stats_db = get_stats()
@@ -1875,6 +2074,7 @@ def productos_importar():
 
 @app.route('/productos/importar/seed', methods=['POST'])
 @admin_required
+@module_required('openfood')
 def productos_importar_seed():
     """Importa los 360+ productos del dataset local embebido (sin internet)."""
     try:
@@ -1899,6 +2099,7 @@ def productos_importar_seed():
 
 @app.route('/productos/importar/off', methods=['POST'])
 @admin_required
+@module_required('openfood')
 def productos_importar_off():
     from services.openfood_importer import import_products, check_connectivity
 
@@ -1950,6 +2151,7 @@ def productos_importar_off():
 
 @app.route('/productos/importar/update', methods=['POST'])
 @admin_required
+@module_required('openfood')
 def productos_importar_update():
     """Actualiza productos existentes y agrega nuevos desde OpenFoodFacts."""
     from services.openfood_importer import update_products, check_connectivity
@@ -2090,6 +2292,7 @@ def _openfood_products_from_search(term, limit=12):
 
 @app.route('/api/barcode/<barcode>')
 @login_required
+@module_required('openfood')
 def api_barcode_lookup(barcode):
     """Busca un producto en OpenFoodFacts por código de barras."""
     try:
@@ -2110,6 +2313,7 @@ def api_barcode_lookup(barcode):
 
 @app.route('/api/openfood/search')
 @admin_required
+@module_required('openfood')
 def api_openfood_search():
     """Busca productos en OpenFoodFacts por código de barras o nombre."""
     try:
@@ -2147,6 +2351,7 @@ def api_openfood_search():
 
 @app.route('/api/openfood/importar', methods=['POST'])
 @admin_required
+@module_required('openfood')
 def api_openfood_importar():
     """Importa un producto elegido desde OpenFoodFacts al catálogo local."""
     try:
@@ -2222,6 +2427,7 @@ def api_openfood_importar():
 
 @app.route('/blacklist')
 @admin_required
+@module_required('openfood')
 def blacklist():
     items = db.get_blacklist()
     return render_template('blacklist.html', items=items, app_version=APP_VERSION)
@@ -2229,6 +2435,7 @@ def blacklist():
 
 @app.route('/blacklist/agregar', methods=['POST'])
 @admin_required
+@module_required('openfood')
 def blacklist_agregar():
     barcode = request.form.get('barcode', '').strip()
     nombre  = request.form.get('nombre_producto', '').strip()
@@ -2246,6 +2453,7 @@ def blacklist_agregar():
 
 @app.route('/blacklist/eliminar/<barcode>', methods=['POST'])
 @admin_required
+@module_required('openfood')
 def blacklist_eliminar(barcode):
     removed = db.remove_from_blacklist(barcode)
     if removed:
@@ -2257,6 +2465,7 @@ def blacklist_eliminar(barcode):
 
 @app.route('/blacklist/desde_producto/<int:pid>', methods=['POST'])
 @admin_required
+@module_required('openfood')
 def blacklist_desde_producto(pid):
     """Agrega a la blacklist el barcode de un producto existente y lo desactiva."""
     p = db.get_producto(pid)

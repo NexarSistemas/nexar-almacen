@@ -178,8 +178,8 @@
           <input name="nombre" class="form-control" required placeholder="Nombre y apellido o comercio">
         </div>
         <div class="col-12">
-          <label class="form-label fw-bold">Email</label>
-          <input name="email" type="email" class="form-control" required placeholder="cliente@email.com">
+          <label class="form-label fw-bold">Email <span class="text-muted small">(opcional)</span></label>
+          <input name="email" type="email" class="form-control" placeholder="cliente@email.com">
         </div>
         <div class="col-12">
           <label class="form-label fw-bold">WhatsApp <span class="text-muted small">(opcional)</span></label>
@@ -189,6 +189,7 @@
           <label class="form-label fw-bold">Plan solicitado</label>
           <select name="plan" class="form-select">
             <option value="BASICA" selected>Basica permanente</option>
+            <option value="PRO">Pro mensual</option>
             <option value="MENSUAL_FULL">Mensual Full</option>
             <option value="DEMO">Demo 30 dias</option>
           </select>
