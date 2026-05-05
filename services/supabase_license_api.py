@@ -9,15 +9,42 @@ from urllib.parse import urlsplit, urlunsplit
 
 import requests
 
-PRODUCTO_DEFAULT = os.getenv("LICENSE_PRODUCT", "nexar-almacen")
-PLANES_VALIDOS = {"DEMO", "BASICA", "MENSUAL_FULL"}
+from licensing.planes import normalize_license_tier
+
+
+_SUPABASE_DEBUG = {
+    "last_operation": "",
+    "status": "",
+    "status_code": None,
+    "last_error": "",
+}
 
 
 def normalize_plan(plan: str = "") -> str:
-    raw = (plan or "BASICA").strip().upper().replace("-", "_").replace(" ", "_")
-    aliases = {"PRO": "MENSUAL_FULL", "FULL": "MENSUAL_FULL", "BASIC": "BASICA"}
-    normalized = aliases.get(raw, raw)
-    return normalized if normalized in PLANES_VALIDOS else "BASICA"
+    return normalize_license_tier(plan, default="BASICA")
+
+
+def _product_default() -> str:
+    return os.getenv("LICENSE_PRODUCT", "nexar-almacen").strip() or "nexar-almacen"
+
+
+def _set_debug(*, operation: str, status: str, status_code=None, last_error: str = "") -> None:
+    _SUPABASE_DEBUG["last_operation"] = operation
+    _SUPABASE_DEBUG["status"] = status
+    _SUPABASE_DEBUG["status_code"] = status_code
+    _SUPABASE_DEBUG["last_error"] = last_error
+
+
+def get_supabase_debug_state() -> dict[str, Any]:
+    return {
+        "configured": is_configured(),
+        "has_url": bool(os.getenv("SUPABASE_URL", "").strip()),
+        "has_anon_key": bool(_anon_key().strip()),
+        "last_operation": _SUPABASE_DEBUG["last_operation"],
+        "status": _SUPABASE_DEBUG["status"],
+        "status_code": _SUPABASE_DEBUG["status_code"],
+        "last_error": _SUPABASE_DEBUG["last_error"],
+    }
 
 
 def _clean_base_url(url: str) -> str:
@@ -50,6 +77,11 @@ def _requests_table_url() -> str:
 def _support_requests_table_url() -> str:
     base = _clean_base_url(os.getenv("SUPABASE_URL", ""))
     return f"{base}/rest/v1/solicitudes_soporte" if base else ""
+
+
+def _upgrade_requests_table_url() -> str:
+    base = _clean_base_url(os.getenv("SUPABASE_URL", ""))
+    return f"{base}/rest/v1/solicitudes_upgrade" if base else ""
 
 
 def _anon_key() -> str:
@@ -89,10 +121,6 @@ def _read_first(paths: list[str]) -> str:
 
 
 def generate_activation_id(user_hint: str = "") -> tuple[str, dict[str, str]]:
-    """
-    Genera un ID de activacion estable para enviar al desarrollador.
-    Usa datos locales de la maquina y devuelve (id, detalles).
-    """
     username = user_hint or getpass.getuser() or os.getenv("USERNAME", "") or os.getenv("USER", "")
     host = platform.node()
     machine_id = _read_first(["/etc/machine-id", "/var/lib/dbus/machine-id"])
@@ -118,14 +146,16 @@ def generate_activation_id(user_hint: str = "") -> tuple[str, dict[str, str]]:
 def create_license_request(
     *,
     nombre: str,
-    email: str,
+    email: str = "",
     whatsapp: str = "",
     activation_id: str,
-    producto: str = PRODUCTO_DEFAULT,
+    producto: str = "",
     plan: str = "BASICA",
     machine_details: dict[str, Any] | None = None,
 ) -> tuple[bool, str, dict[str, Any] | None]:
+    operation = "create_license_request"
     if not is_configured():
+        _set_debug(operation=operation, status="not_configured", last_error="not_configured")
         return False, "Falta configurar SUPABASE_URL y SUPABASE_ANON_KEY para enviar solicitudes.", None
 
     nombre = (nombre or "").strip()
@@ -133,9 +163,11 @@ def create_license_request(
     whatsapp = (whatsapp or "").strip()
     activation_id = build_machine_id(activation_id)
     plan = normalize_plan(plan)
+    producto = (producto or _product_default()).strip() or _product_default()
 
-    if not nombre or not email or not activation_id:
-        return False, "Nombre, email e ID del equipo son obligatorios.", None
+    if not nombre or not activation_id:
+        _set_debug(operation=operation, status="validation_error", last_error="missing_required_fields")
+        return False, "Nombre e ID del equipo son obligatorios.", None
 
     payload = {
         "producto": producto,
@@ -148,10 +180,16 @@ def create_license_request(
         "machine_details": machine_details or {},
     }
     headers = {**_headers(), "Prefer": "return=minimal"}
-    resp = requests.post(_requests_table_url(), headers=headers, json=payload, timeout=12)
+    try:
+        resp = requests.post(_requests_table_url(), headers=headers, json=payload, timeout=12)
+    except requests.RequestException:
+        _set_debug(operation=operation, status="network_error", last_error="network_error")
+        return False, "No se pudo conectar con Supabase para enviar la solicitud.", None
     if resp.status_code >= 300:
+        _set_debug(operation=operation, status="http_error", status_code=resp.status_code, last_error=resp.text[:120])
         return False, f"Error al registrar solicitud en Supabase ({resp.status_code}): {resp.text[:240]}", None
 
+    _set_debug(operation=operation, status="ok", status_code=resp.status_code)
     return True, "Solicitud enviada correctamente. El administrador debe aprobarla.", None
 
 
@@ -162,14 +200,16 @@ def create_support_request(
     mensaje: str,
     whatsapp: str = "",
     motivo: str = "consulta",
-    producto: str = PRODUCTO_DEFAULT,
+    producto: str = "",
     app_version: str = "",
     negocio: str = "",
     plan: str = "",
     user_name: str = "",
     technical_details: dict[str, Any] | None = None,
 ) -> tuple[bool, str, dict[str, Any] | None]:
+    operation = "create_support_request"
     if not is_configured():
+        _set_debug(operation=operation, status="not_configured", last_error="not_configured")
         return False, "Falta configurar SUPABASE_URL y SUPABASE_ANON_KEY para enviar solicitudes de soporte.", None
 
     nombre = (nombre or "").strip()
@@ -177,12 +217,14 @@ def create_support_request(
     whatsapp = (whatsapp or "").strip()
     motivo = (motivo or "consulta").strip().lower()
     mensaje = (mensaje or "").strip()
+    producto = (producto or _product_default()).strip() or _product_default()
 
     motivos_validos = {"consulta", "error", "licencia", "actualizacion", "respaldo", "otro"}
     if motivo not in motivos_validos:
         motivo = "consulta"
 
     if not nombre or not email or not mensaje:
+        _set_debug(operation=operation, status="validation_error", last_error="missing_required_fields")
         return False, "Nombre, email y mensaje son obligatorios.", None
 
     payload = {
@@ -200,33 +242,96 @@ def create_support_request(
         "technical_details": technical_details or {},
     }
     headers = {**_headers(), "Prefer": "return=minimal"}
-    resp = requests.post(_support_requests_table_url(), headers=headers, json=payload, timeout=12)
+    try:
+        resp = requests.post(_support_requests_table_url(), headers=headers, json=payload, timeout=12)
+    except requests.RequestException:
+        _set_debug(operation=operation, status="network_error", last_error="network_error")
+        return False, "No se pudo conectar con Supabase para enviar la solicitud de soporte.", None
     if resp.status_code >= 300:
+        _set_debug(operation=operation, status="http_error", status_code=resp.status_code, last_error=resp.text[:120])
         return False, f"Error al registrar solicitud de soporte ({resp.status_code}): {resp.text[:240]}", None
 
+    _set_debug(operation=operation, status="ok", status_code=resp.status_code)
     return True, "Solicitud de soporte enviada correctamente.", None
 
 
-def activate_license(license_key: str, machine_id: str, producto: str = PRODUCTO_DEFAULT) -> tuple[bool, str, dict[str, Any] | None]:
+def create_upgrade_request(data: dict[str, Any]) -> dict[str, Any]:
+    operation = "create_upgrade_request"
     if not is_configured():
+        _set_debug(operation=operation, status="not_configured", last_error="not_configured")
+        return {"ok": False, "message": "Falta configurar SUPABASE_URL y SUPABASE_ANON_KEY para enviar solicitudes."}
+
+    payload = dict(data or {})
+    payload["producto"] = str(payload.get("producto") or _product_default()).strip() or _product_default()
+    payload["license_key"] = str(payload.get("license_key") or "").strip()
+    payload["activation_id"] = build_machine_id(payload.get("activation_id") or "")
+    payload["nombre"] = str(payload.get("nombre") or "").strip() or "Administrador"
+    payload["email"] = str(payload.get("email") or "").strip().lower()
+    payload["whatsapp"] = str(payload.get("whatsapp") or "").strip()
+    payload["plan_actual"] = normalize_plan(payload.get("plan_actual") or "")
+    payload["plan_solicitado"] = normalize_plan(payload.get("plan_solicitado") or "")
+    payload["estado"] = "pendiente"
+    payload["machine_details"] = payload.get("machine_details") or {}
+
+    if payload["plan_actual"] not in {"BASICA", "PRO"}:
+        _set_debug(operation=operation, status="validation_error", last_error="invalid_current_plan")
+        return {"ok": False, "message": "El plan actual no admite solicitudes de actualización."}
+
+    expected_target = "PRO" if payload["plan_actual"] == "BASICA" else "MENSUAL_FULL"
+    if payload["plan_solicitado"] != expected_target:
+        _set_debug(operation=operation, status="validation_error", last_error="invalid_target_plan")
+        return {"ok": False, "message": "La actualización solicitada no es válida para el plan actual."}
+
+    if not payload["activation_id"] and not payload["license_key"]:
+        _set_debug(operation=operation, status="validation_error", last_error="missing_activation_id_and_license_key")
+        return {"ok": False, "message": "La solicitud requiere al menos un ID de equipo o una licencia asociada."}
+
+    headers = {**_headers(), "Prefer": "return=minimal"}
+    try:
+        resp = requests.post(_upgrade_requests_table_url(), headers=headers, json=payload, timeout=12)
+    except requests.RequestException:
+        _set_debug(operation=operation, status="network_error", last_error="network_error")
+        return {"ok": False, "message": "No se pudo conectar con Supabase para enviar la solicitud."}
+
+    if resp.status_code >= 300:
+        _set_debug(operation=operation, status="http_error", status_code=resp.status_code, last_error=resp.text[:120])
+        return {"ok": False, "message": f"Error al registrar solicitud de upgrade ({resp.status_code})."}
+
+    _set_debug(operation=operation, status="ok", status_code=resp.status_code)
+    return {"ok": True, "message": "Solicitud de actualización enviada."}
+
+
+def activate_license(license_key: str, machine_id: str, producto: str = "") -> tuple[bool, str, dict[str, Any] | None]:
+    operation = "activate_license"
+    if not is_configured():
+        _set_debug(operation=operation, status="not_configured", last_error="not_configured")
         return False, "Falta configurar SUPABASE_URL y SUPABASE_ANON_KEY.", None
 
     key = (license_key or "").strip()
     machine_id = build_machine_id(machine_id)
+    producto = (producto or _product_default()).strip() or _product_default()
     if not key or not machine_id:
+        _set_debug(operation=operation, status="validation_error", last_error="missing_required_fields")
         return False, "La clave y el ID de maquina son obligatorios.", None
 
     params = {"license_key": f"eq.{key}", "producto": f"eq.{producto}", "select": "*"}
-    resp = requests.get(_table_url(), headers=_headers(), params=params, timeout=12)
+    try:
+        resp = requests.get(_table_url(), headers=_headers(), params=params, timeout=12)
+    except requests.RequestException:
+        _set_debug(operation=operation, status="network_error", last_error="network_error")
+        return False, "No se pudo conectar con Supabase para consultar la licencia.", None
     if resp.status_code >= 300:
+        _set_debug(operation=operation, status="http_error", status_code=resp.status_code, last_error=resp.text[:120])
         return False, f"Error consultando licencia ({resp.status_code}): {resp.text[:240]}", None
 
     rows = resp.json() if resp.text else []
     if not rows:
+        _set_debug(operation=operation, status="not_found", status_code=resp.status_code, last_error="not_found")
         return False, "No existe esa licencia para este producto.", None
 
     row = rows[0]
     if not row.get("activa", True):
+        _set_debug(operation=operation, status="inactive", status_code=resp.status_code, last_error="inactive")
         return False, "La licencia esta desactivada/revocada.", row
 
     db_hwid = row.get("hwid") or ""
@@ -240,6 +345,7 @@ def activate_license(license_key: str, machine_id: str, producto: str = PRODUCTO
     elif not db_hwid or len(db_hwids) < max_devices:
         update_hwids = sorted(set([*db_hwids, machine_id]))[:max_devices]
     else:
+        _set_debug(operation=operation, status="limit_reached", status_code=resp.status_code, last_error="device_limit")
         return False, "La licencia alcanzo el limite de dispositivos.", row
 
     upd = requests.patch(
@@ -250,8 +356,10 @@ def activate_license(license_key: str, machine_id: str, producto: str = PRODUCTO
         timeout=12,
     )
     if upd.status_code >= 300:
+        _set_debug(operation=operation, status="patch_error", status_code=upd.status_code, last_error=upd.text[:120])
         return False, f"Licencia encontrada, pero no se pudo actualizar HWID ({upd.status_code}).", row
 
     updated_rows = upd.json() if upd.text else [row]
     updated = updated_rows[0] if updated_rows else row
+    _set_debug(operation=operation, status="ok", status_code=upd.status_code)
     return True, "Licencia activada correctamente para esta maquina.", updated
