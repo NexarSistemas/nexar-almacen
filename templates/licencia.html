@@ -10,11 +10,36 @@
   {% set plan_label = 'PRO' %}
 {% elif lic_info and lic_info.tier == 'MENSUAL_FULL' %}
   {% set plan_label = 'FULL' %}
+{% elif lic_info and lic_info.tier == 'SIN_PLAN' %}
+  {% set plan_label = 'SIN PLAN' %}
 {% endif %}
 
 <div class="row g-3">
   <div class="col-lg-7">
     <div class="table-card p-4 mb-3">
+      {% if lic_info and not status.demo %}
+      <div style="background:#f5f5f5;border-radius:8px;padding:14px 16px;margin-bottom:20px">
+        <div class="row g-2 text-center">
+          <div class="col-3">
+            <div style="font-size:.75rem;color:#888;text-transform:uppercase">Estado</div>
+            <div style="font-weight:700;color:#1a2e1a">{{ lic_info.estado or 'activa' }}</div>
+          </div>
+          <div class="col-3">
+            <div style="font-size:.75rem;color:#888;text-transform:uppercase">Plan original</div>
+            <div style="font-weight:700;color:#1a2e1a">{{ 'FULL' if lic_info.plan_original == 'MENSUAL_FULL' else lic_info.plan_original }}</div>
+          </div>
+          <div class="col-3">
+            <div style="font-size:.75rem;color:#888;text-transform:uppercase">Plan efectivo</div>
+            <div style="font-weight:700;color:#1a2e1a">{{ 'FULL' if lic_info.plan_efectivo == 'MENSUAL_FULL' else lic_info.plan_efectivo }}</div>
+          </div>
+          <div class="col-3">
+            <div style="font-size:.75rem;color:#888;text-transform:uppercase">Fallback</div>
+            <div style="font-weight:700;color:#1a2e1a">{{ 'SI' if lic_info.fallback_aplicado else 'NO' }}</div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
       {% if not status.demo and lic_info and lic_info.tier == 'MENSUAL_FULL' %}
       <div class="text-center mb-4">
         <i class="fas fa-star" style="font-size:3rem;color:#1565c0"></i>
@@ -91,6 +116,13 @@
           <small style="font-family:monospace;color:#555;font-size:.8rem">{{ lic_info.license_key }}</small>
         </div>
         {% endif %}
+      </div>
+
+      {% elif not status.demo and lic_info and lic_info.tier == 'SIN_PLAN' %}
+      <div class="text-center mb-4">
+        <i class="fas fa-ban" style="font-size:3rem;color:#c62828"></i>
+        <h4 style="color:#c62828;font-weight:700;margin-top:10px">SUSCRIPCION VENCIDA</h4>
+        <p class="text-muted mb-0">La suscripcion mensual vencio y esta instalacion no tiene BASICA permanente para aplicar fallback.</p>
       </div>
 
       {% elif status.vencido %}

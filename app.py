@@ -542,7 +542,10 @@ app.jinja_env.globals['now'] = lambda: datetime.now().strftime('%H:%M')
 
 
 def _plan_label(tier: str) -> str:
-    tier = normalize_license_tier(tier, default='DEMO')
+    raw_tier = str(tier or '').strip().upper()
+    if raw_tier == 'SIN_PLAN':
+        return 'SIN PLAN'
+    tier = normalize_license_tier(raw_tier, default='DEMO')
     return 'FULL' if tier == 'MENSUAL_FULL' else tier
 
 
@@ -886,6 +889,13 @@ def debug_licencia():
         'modo_licencia': os.getenv('NEXAR_LICENSE_MODE', 'prod').strip().lower(),
         'tier': license_info.get('tier', 'DEMO'),
         'plan': license_info.get('plan', 'DEMO'),
+        'plan_original': license_info.get('plan_original', license_info.get('plan', 'DEMO')),
+        'plan_efectivo': license_info.get('plan_efectivo', license_info.get('tier', 'DEMO')),
+        'effective_plan': license_info.get('effective_plan', license_info.get('tier', 'DEMO')),
+        'estado': license_info.get('estado', ''),
+        'fallback_aplicado': bool(license_info.get('fallback_aplicado')),
+        'plan_base_permanente': bool(license_info.get('plan_base_permanente')),
+        'expirada': bool(license_info.get('expirada')),
         'modulos_activos': sorted(get_modulos_activos()),
         'license_modules_persistidos': db.get_license_modules_from_db(),
         'origen_modulos': debug_modulos.get('final_source', 'desconocido'),
