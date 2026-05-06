@@ -37,9 +37,9 @@ from services.update_checker import download_release_asset, get_cached_update_in
 def _read_version():
     try:
         v = open(os.path.join(os.path.dirname(__file__), 'VERSION')).read().strip()
-        return v if v else "1.7.3" # Fallback si el archivo VERSION está vacío
+        return v if v else "1.7.15" # Fallback si el archivo VERSION está vacío
     except Exception: # Fallback si no existe el archivo VERSION
-        return "1.7.3"
+        return "1.7.15"
 
 APP_VERSION = _read_version()
 
@@ -489,6 +489,7 @@ def inject_globals():
 
             # 🔥 LICENCIAS (correcto)
             'tier': current_tier,
+            'tier_label': _plan_label(current_tier),
             'pro_expired': db.is_pro_expired(),
 
         }
@@ -541,7 +542,10 @@ app.jinja_env.globals['now'] = lambda: datetime.now().strftime('%H:%M')
 
 
 def _plan_label(tier: str) -> str:
-    tier = normalize_license_tier(tier, default='DEMO')
+    raw_tier = str(tier or '').strip().upper()
+    if raw_tier == 'SIN_PLAN':
+        return 'SIN PLAN'
+    tier = normalize_license_tier(raw_tier, default='DEMO')
     return 'FULL' if tier == 'MENSUAL_FULL' else tier
 
 
@@ -765,7 +769,7 @@ def licencia_activar():
 
     tier_token = db.normalize_license_plan(data.get('tier', 'BASICA'))
 
-    # Si el token es Mensual Full, verificar que ya tenga Básica activa
+    # El plan FULL mantiene el tier interno MENSUAL_FULL por compatibilidad.
     if tier_token == 'MENSUAL_FULL':
         cfg = db.get_config()
         tiene_basica = (
@@ -774,8 +778,8 @@ def licencia_activar():
         )
         if not tiene_basica:
             flash(
-                '⚠ Para activar Mensual Full primero debés activar el Plan Básico. '
-                'Contactá al desarrollador para adquirir el bundle Básica + Mensual Full.',
+                '⚠ Para activar FULL primero debés activar el plan BASICA. '
+                'Contactá al desarrollador para adquirir el esquema BASICA + FULL.',
                 'warning'
             )
             return redirect(url_for('licencia'))
@@ -785,9 +789,11 @@ def licencia_activar():
     if ok:
         tier = db.get_tier()
         if tier == 'MENSUAL_FULL':
-            flash('🎉 ¡Mensual Full activado! Acceso ilimitado + actualizaciones habilitadas.', 'success')
+            flash('🎉 ¡Plan FULL activado! Acceso ampliado y actualizaciones habilitadas.', 'success')
+        elif tier == 'PRO':
+            flash('✅ ¡Plan PRO activado! Se habilitaron los módulos comerciales intermedios.', 'success')
         else:
-            flash('✅ ¡Plan Básico activado! Sistema habilitado con funciones del plan Básico.', 'success')
+            flash('✅ ¡Plan BASICA activado! Sistema habilitado con funciones del plan base.', 'success')
     else:
         flash(f'❌ {msg}', 'danger')
     return redirect(url_for('licencia'))
@@ -883,6 +889,13 @@ def debug_licencia():
         'modo_licencia': os.getenv('NEXAR_LICENSE_MODE', 'prod').strip().lower(),
         'tier': license_info.get('tier', 'DEMO'),
         'plan': license_info.get('plan', 'DEMO'),
+        'plan_original': license_info.get('plan_original', license_info.get('plan', 'DEMO')),
+        'plan_efectivo': license_info.get('plan_efectivo', license_info.get('tier', 'DEMO')),
+        'effective_plan': license_info.get('effective_plan', license_info.get('tier', 'DEMO')),
+        'estado': license_info.get('estado', ''),
+        'fallback_aplicado': bool(license_info.get('fallback_aplicado')),
+        'plan_base_permanente': bool(license_info.get('plan_base_permanente')),
+        'expirada': bool(license_info.get('expirada')),
         'modulos_activos': sorted(get_modulos_activos()),
         'license_modules_persistidos': db.get_license_modules_from_db(),
         'origen_modulos': debug_modulos.get('final_source', 'desconocido'),
@@ -2547,7 +2560,7 @@ def actualizacion():
     license_info = db.get_license_info()
     can_use_updates = license_info.get("tier") == "MENSUAL_FULL" and license_info.get("updates")
     if not can_use_updates:
-        flash('Las actualizaciones del sistema estan disponibles solo en el plan Mensual Full.', 'warning')
+        flash('Las actualizaciones del sistema estan disponibles solo en el plan FULL.', 'warning')
         return redirect(url_for('dashboard'))
     update_state = _update_install_state(APP_VERSION)
     update_info = (
@@ -2563,13 +2576,6 @@ def actualizacion():
         actualizaciones=_update_list(),
         update_dir=UPDATE_DIR,
     )
-    if not db.get_license_info().get('updates'):
-        flash(
-            '⚠ Las actualizaciones del sistema están disponibles solo en el plan Pro.',
-            'warning'
-        )
-        return redirect(url_for('dashboard'))
-    return render_template('actualizacion.html', app_version=APP_VERSION)
 
 
 @app.route('/actualizacion/descargar', methods=['POST'])
@@ -2577,7 +2583,7 @@ def actualizacion():
 def actualizacion_descargar():
     license_info = db.get_license_info()
     if license_info.get("tier") != "MENSUAL_FULL" or not license_info.get("updates"):
-        flash("Las actualizaciones estan disponibles solo para el plan Mensual Full.", "warning")
+        flash("Las actualizaciones estan disponibles solo para el plan FULL.", "warning")
         return redirect(url_for("actualizacion"))
 
     update_info = get_cached_update_info(app, APP_VERSION)
@@ -2629,7 +2635,7 @@ def actualizacion_abrir_carpeta():
 def actualizacion_instalar(nombre):
     license_info = db.get_license_info()
     if license_info.get("tier") != "MENSUAL_FULL" or not license_info.get("updates"):
-        flash("Las actualizaciones estan disponibles solo para el plan Mensual Full.", "warning")
+        flash("Las actualizaciones estan disponibles solo para el plan FULL.", "warning")
         return redirect(url_for("actualizacion"))
 
     try:

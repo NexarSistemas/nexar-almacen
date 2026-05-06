@@ -6,6 +6,13 @@ Versionado semántico: `MAJOR.MINOR.PATCH` según política oficial del proyecto
 
 ---
 
+## [1.7.15] - 2026-05-05 - Planes comerciales alineados
+
+### Cambiado
+- Se alinean los planes comerciales visibles de Nexar Almacen a `BASICA`, `PRO` y `FULL`.
+- `DEMO` deja de mostrarse como plan comercial visible en la UI de licencias.
+- Se limpian valores y textos antiguos de licencia para reflejar el esquema comercial actualizado.
+
 ## [1.7.14] - 2026-05-05 - Demo con modulos principales
 
 ### Cambiado

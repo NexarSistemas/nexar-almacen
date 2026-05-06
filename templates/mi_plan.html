@@ -11,9 +11,11 @@
         {% if plan_activo == 'BASICA' %}
         Pago único.
         {% elif plan_activo == 'PRO' %}
-        Mensual intermedio.
+        Mensual.
         {% elif plan_activo == 'MENSUAL_FULL' %}
         Mensual completo.
+        {% elif plan_activo == 'SIN_PLAN' %}
+        Suscripción vencida sin derecho base permanente.
         {% else %}
         Modo de prueba.
         {% endif %}

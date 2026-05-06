@@ -121,12 +121,22 @@ def get_modulos_activos() -> set[str]:
         _set_last_source("env")
         return env_modules or {"core"}
 
+    db = _load_database_module()
+    license_info = db.get_license_info()
+    tier = str(license_info.get("tier", "DEMO")).strip().upper()
+    if tier == "SIN_PLAN":
+        _set_last_source("db_effective_none")
+        return set()
+
+    tier_modules = get_modules_for_tier(tier)
     persisted_modules = _get_modules_from_db()
     if persisted_modules:
-        _set_last_source("db_modules")
-        return persisted_modules
+        effective_modules = persisted_modules & tier_modules
+        if effective_modules:
+            source = "db_modules" if effective_modules == persisted_modules else "db_modules_filtered"
+            _set_last_source(source)
+            return effective_modules
 
-    tier = _get_tier_from_db()
     tier_modules = get_modules_for_tier(tier)
     if tier_modules:
         _set_last_source("db_tier")
